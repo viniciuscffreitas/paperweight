@@ -8,7 +8,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from agents.budget import BudgetManager
-from agents.config import ExecutionConfig, render_prompt
+from agents.config import ExecutionConfig, build_prompt
 from agents.history import HistoryDB
 from agents.models import ProjectConfig, RunRecord, RunStatus, TriggerType
 from agents.notifier import Notifier
@@ -114,7 +114,7 @@ class Executor:
 
         worktree_path: Path | None = None
         try:
-            prompt = render_prompt(task.prompt, variables or {})
+            prompt = build_prompt(task, variables or {})
             branch_name = generate_branch_name(project.branch_prefix, task_name)
             worktree_path = Path(self.config.worktree_base) / run_id
 
