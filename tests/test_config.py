@@ -106,3 +106,46 @@ def test_render_prompt_missing_var_left_as_is():
     template = "Branch: {{branch}}, PR: {{pr_number}}"
     result = render_prompt(template, {"branch": "feat/x"})
     assert result == "Branch: feat/x, PR: {{pr_number}}"
+
+
+def test_build_prompt_with_intent_and_hints():
+    from agents.config import build_prompt
+    from agents.models import TaskConfig
+
+    task = TaskConfig(
+        description="fix ci",
+        intent="Investigate CI failure on branch {{branch}}",
+        context_hints=["Check Sentry for errors", "Look at Linear issues"],
+        schedule="0 * * * *",
+    )
+    result = build_prompt(task, {"branch": "main"})
+    assert "Investigate CI failure on branch main" in result
+    assert "## Event Data" in result
+    assert "- branch: main" in result
+    assert "## Before starting, gather context:" in result
+    assert "- Check Sentry for errors" in result
+
+
+def test_build_prompt_backwards_compat_prompt_only():
+    from agents.config import build_prompt
+    from agents.models import TaskConfig
+
+    task = TaskConfig(
+        description="test", prompt="Run the linter and fix issues", schedule="0 * * * *"
+    )
+    result = build_prompt(task, {})
+    assert "Run the linter and fix issues" in result
+    assert "## Before starting" not in result
+
+
+def test_build_prompt_substitutes_variables_in_intent():
+    from agents.config import build_prompt
+    from agents.models import TaskConfig
+
+    task = TaskConfig(
+        description="fix",
+        intent="Fix CI on {{branch}} (sha: {{sha}})",
+        schedule="0 * * * *",
+    )
+    result = build_prompt(task, {"branch": "feat/x", "sha": "abc123"})
+    assert "Fix CI on feat/x (sha: abc123)" in result

@@ -1,11 +1,17 @@
+from __future__ import annotations
+
 import os
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
 from pydantic import BaseModel
 
 from agents.models import ProjectConfig
+
+if TYPE_CHECKING:
+    from agents.models import TaskConfig
 
 
 class BudgetConfig(BaseModel):
@@ -89,3 +95,24 @@ def render_prompt(template: str, variables: dict[str, str]) -> str:
     for key, value in variables.items():
         result = result.replace("{{" + key + "}}", value)
     return result
+
+
+def build_prompt(task: TaskConfig, variables: dict[str, str]) -> str:
+    """Build complete prompt from intent/prompt + variables + context hints."""
+    raw_intent = task.intent or task.prompt or ""
+    intent = render_prompt(raw_intent, variables)
+
+    parts = [intent]
+
+    if variables:
+        parts.append("\n## Event Data")
+        for key, value in variables.items():
+            if value:
+                parts.append(f"- {key}: {value}")
+
+    if task.context_hints:
+        parts.append("\n## Before starting, gather context:")
+        for hint in task.context_hints:
+            parts.append(f"- {hint}")
+
+    return "\n".join(parts)
