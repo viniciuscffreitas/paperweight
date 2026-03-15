@@ -297,6 +297,10 @@ def create_app(
         except WebSocketDisconnect:
             state.ws_global_clients.discard(websocket)
 
+    from agents.dashboard import setup_dashboard
+
+    setup_dashboard(app, state, config)
+
     return app
 
 
