@@ -27,7 +27,9 @@ class TriggerConfig(BaseModel):
 
 class TaskConfig(BaseModel):
     description: str
-    prompt: str
+    intent: str = ""
+    context_hints: list[str] = []
+    prompt: str | None = None
     schedule: str | None = None
     trigger: TriggerConfig | None = None
     model: str = "sonnet"
@@ -41,6 +43,13 @@ class TaskConfig(BaseModel):
             raise ValueError(msg)
         if not self.schedule and not self.trigger:
             msg = "Either schedule or trigger must be set"
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def validate_has_intent_or_prompt(self) -> "TaskConfig":
+        if not self.intent and not self.prompt:
+            msg = "Either intent or prompt must be non-empty"
             raise ValueError(msg)
         return self
 

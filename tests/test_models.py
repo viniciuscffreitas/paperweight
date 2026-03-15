@@ -95,3 +95,32 @@ def test_budget_status_exceeded():
     status = BudgetStatus(daily_limit_usd=10.0, spent_today_usd=10.5)
     assert status.remaining_usd == 0.0
     assert status.is_exceeded is True
+
+
+def test_task_config_with_intent():
+    from agents.models import TaskConfig
+
+    task = TaskConfig(
+        description="fix ci",
+        intent="Investigate and fix CI failure",
+        context_hints=["Check Sentry for recent errors"],
+        schedule="0 3 * * *",
+    )
+    assert task.intent == "Investigate and fix CI failure"
+    assert task.context_hints == ["Check Sentry for recent errors"]
+    assert task.prompt is None
+
+
+def test_task_config_backwards_compat_prompt_only():
+    from agents.models import TaskConfig
+
+    task = TaskConfig(description="test", prompt="do something", schedule="0 3 * * MON")
+    assert task.prompt == "do something"
+    assert task.intent == ""
+
+
+def test_task_config_requires_intent_or_prompt():
+    from agents.models import TaskConfig
+
+    with pytest.raises(ValueError, match=r"intent.*prompt"):
+        TaskConfig(description="test", schedule="0 3 * * MON")
