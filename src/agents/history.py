@@ -1,0 +1,141 @@
+import sqlite3
+from datetime import UTC, datetime
+from pathlib import Path
+
+from agents.models import RunRecord, RunStatus
+
+
+class HistoryDB:
+    def __init__(self, db_path: Path) -> None:
+        self.db_path = db_path
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._init_db()
+
+    def _init_db(self) -> None:
+        with self._conn() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS runs (
+                    id TEXT PRIMARY KEY,
+                    project TEXT NOT NULL,
+                    task TEXT NOT NULL,
+                    trigger_type TEXT NOT NULL,
+                    started_at TIMESTAMP NOT NULL,
+                    finished_at TIMESTAMP,
+                    status TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    num_turns INTEGER,
+                    cost_usd REAL,
+                    pr_url TEXT,
+                    error_message TEXT,
+                    output_file TEXT
+                )
+            """)
+
+    def _conn(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def insert_run(self, run: RunRecord) -> None:
+        with self._conn() as conn:
+            conn.execute(
+                """INSERT INTO runs (id, project, task, trigger_type, started_at, finished_at,
+                   status, model, num_turns, cost_usd, pr_url, error_message, output_file)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    run.id,
+                    run.project,
+                    run.task,
+                    run.trigger_type,
+                    run.started_at.isoformat(),
+                    run.finished_at.isoformat() if run.finished_at else None,
+                    run.status,
+                    run.model,
+                    run.num_turns,
+                    run.cost_usd,
+                    run.pr_url,
+                    run.error_message,
+                    run.output_file,
+                ),
+            )
+
+    def get_run(self, run_id: str) -> RunRecord | None:
+        with self._conn() as conn:
+            row = conn.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
+        if row is None:
+            return None
+        return self._row_to_record(row)
+
+    def update_run(
+        self,
+        run_id: str,
+        status: RunStatus | None = None,
+        finished_at: datetime | None = None,
+        cost_usd: float | None = None,
+        num_turns: int | None = None,
+        pr_url: str | None = None,
+        error_message: str | None = None,
+        output_file: str | None = None,
+    ) -> None:
+        updates: list[str] = []
+        values: list[object] = []
+        for field, value in [
+            ("status", status),
+            ("finished_at", finished_at.isoformat() if finished_at else None),
+            ("cost_usd", cost_usd),
+            ("num_turns", num_turns),
+            ("pr_url", pr_url),
+            ("error_message", error_message),
+            ("output_file", output_file),
+        ]:
+            if value is not None:
+                updates.append(f"{field} = ?")
+                values.append(value)
+        if not updates:
+            return
+        values.append(run_id)
+        with self._conn() as conn:
+            conn.execute(f"UPDATE runs SET {', '.join(updates)} WHERE id = ?", values)
+
+    def list_runs_today(self) -> list[RunRecord]:
+        today = datetime.now(UTC).date().isoformat()
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM runs WHERE started_at >= ? ORDER BY started_at DESC",
+                (today,),
+            ).fetchall()
+        return [self._row_to_record(row) for row in rows]
+
+    def total_cost_today(self) -> float:
+        today = datetime.now(UTC).date().isoformat()
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT COALESCE(SUM(cost_usd), 0) as total FROM runs WHERE started_at >= ?",
+                (today,),
+            ).fetchone()
+        return float(row["total"])
+
+    def mark_running_as_cancelled(self) -> None:
+        now = datetime.now(UTC).isoformat()
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE runs SET status = ?, finished_at = ? WHERE status = ?",
+                (RunStatus.CANCELLED, now, RunStatus.RUNNING),
+            )
+
+    def _row_to_record(self, row: sqlite3.Row) -> RunRecord:
+        return RunRecord(
+            id=row["id"],
+            project=row["project"],
+            task=row["task"],
+            trigger_type=row["trigger_type"],
+            started_at=datetime.fromisoformat(row["started_at"]),
+            finished_at=datetime.fromisoformat(row["finished_at"]) if row["finished_at"] else None,
+            status=row["status"],
+            model=row["model"],
+            num_turns=row["num_turns"],
+            cost_usd=row["cost_usd"],
+            pr_url=row["pr_url"],
+            error_message=row["error_message"],
+            output_file=row["output_file"],
+        )
