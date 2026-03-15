@@ -1,0 +1,134 @@
+import json
+
+import pytest
+
+
+def test_parse_assistant_text():
+    from agents.streaming import parse_stream_line
+
+    line = json.dumps(
+        {"type": "assistant", "message": {"content": [{"type": "text", "text": "Hello world"}]}}
+    )
+    event = parse_stream_line(line)
+    assert event is not None
+    assert event.type == "assistant"
+    assert event.content == "Hello world"
+
+
+def test_parse_assistant_tool_use():
+    from agents.streaming import parse_stream_line
+
+    line = json.dumps(
+        {
+            "type": "assistant",
+            "message": {
+                "content": [{"type": "tool_use", "name": "Bash", "input": {"command": "ls -la"}}]
+            },
+        }
+    )
+    event = parse_stream_line(line)
+    assert event is not None
+    assert event.type == "tool_use"
+    assert event.tool_name == "Bash"
+    assert "ls -la" in event.content
+
+
+def test_parse_tool_result():
+    from agents.streaming import parse_stream_line
+
+    line = json.dumps(
+        {
+            "type": "user",
+            "message": {
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": "toolu_123",
+                        "content": "file1.txt\nfile2.txt",
+                    }
+                ]
+            },
+        }
+    )
+    event = parse_stream_line(line)
+    assert event is not None
+    assert event.type == "tool_result"
+    assert "file1.txt" in event.content
+
+
+def test_parse_result_success():
+    from agents.streaming import parse_stream_line
+
+    line = json.dumps(
+        {
+            "type": "result",
+            "subtype": "success",
+            "is_error": False,
+            "total_cost_usd": 0.45,
+            "num_turns": 8,
+            "result": "Done!",
+        }
+    )
+    event = parse_stream_line(line)
+    assert event is not None
+    assert event.type == "result"
+    assert event.content == "Done!"
+
+
+def test_parse_thinking_returns_none():
+    from agents.streaming import parse_stream_line
+
+    line = json.dumps(
+        {
+            "type": "assistant",
+            "message": {"content": [{"type": "thinking", "thinking": "hmm..."}]},
+        }
+    )
+    assert parse_stream_line(line) is None
+
+
+def test_parse_system_hook_returns_none():
+    from agents.streaming import parse_stream_line
+
+    line = json.dumps({"type": "system", "subtype": "hook_started"})
+    assert parse_stream_line(line) is None
+
+
+def test_parse_system_init():
+    from agents.streaming import parse_stream_line
+
+    line = json.dumps({"type": "system", "subtype": "init", "session_id": "abc"})
+    event = parse_stream_line(line)
+    assert event is not None
+    assert event.type == "system"
+
+
+def test_parse_malformed_json():
+    from agents.streaming import parse_stream_line
+
+    assert parse_stream_line("not json at all") is None
+
+
+def test_parse_rate_limit_returns_none():
+    from agents.streaming import parse_stream_line
+
+    assert parse_stream_line(json.dumps({"type": "rate_limit_event"})) is None
+
+
+def test_extract_result_from_line():
+    from agents.streaming import extract_result_from_line
+
+    line = json.dumps(
+        {
+            "type": "result",
+            "subtype": "success",
+            "is_error": False,
+            "total_cost_usd": 1.23,
+            "num_turns": 5,
+            "result": "All done",
+        }
+    )
+    output = extract_result_from_line(line)
+    assert output.cost_usd == pytest.approx(1.23)
+    assert output.num_turns == 5
+    assert output.is_error is False
