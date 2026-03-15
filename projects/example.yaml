@@ -1,0 +1,15 @@
+name: example
+repo: /tmp/example-repo
+base_branch: main
+branch_prefix: agents/
+notify: none
+
+tasks:
+  hello:
+    description: "Test task — just says hello"
+    schedule: "0 9 * * *"
+    model: haiku
+    max_cost_usd: 0.10
+    autonomy: pr-only
+    prompt: |
+      Say hello and list the files in this repository.

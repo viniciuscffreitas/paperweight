@@ -1,0 +1,29 @@
+name: sekit
+repo: /Users/vini/Developer/sekit
+base_branch: main
+branch_prefix: agents/
+notify: slack
+
+tasks:
+  dep-update:
+    description: "Update dependencies and run tests"
+    schedule: "0 3 * * MON"
+    model: haiku
+    max_cost_usd: 1.00
+    autonomy: auto-merge
+    prompt: |
+      Update all dependencies in this monorepo.
+      For each app, run the appropriate update command.
+      Then run `just check-all`.
+      If all tests pass, commit the changes.
+
+  lint-fix:
+    description: "Fix lint issues across all apps"
+    schedule: "0 4 * * FRI"
+    model: haiku
+    max_cost_usd: 0.50
+    autonomy: auto-merge
+    prompt: |
+      Run linters across all apps in this monorepo:
+      - `just lint-web`, `just lint-api`, `just lint-agents`
+      Fix any auto-fixable issues and commit.

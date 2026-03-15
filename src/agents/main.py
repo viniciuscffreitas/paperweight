@@ -101,7 +101,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         history.mark_running_as_cancelled()
-        scheduler = create_scheduler(str(db_path))
+        scheduler = create_scheduler()
 
         async def scheduled_run(project_name: str, task_name: str) -> None:
             project = state.projects.get(project_name)

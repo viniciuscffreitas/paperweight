@@ -1,0 +1,24 @@
+budget:
+  daily_limit_usd: 10.00
+  warning_threshold_usd: 7.00
+  pause_on_limit: true
+
+notifications:
+  slack_webhook_url: ${SLACK_WEBHOOK_URL}
+
+webhooks:
+  github_secret: ${GITHUB_WEBHOOK_SECRET}
+  linear_secret: ${LINEAR_WEBHOOK_SECRET}
+
+execution:
+  worktree_base: /tmp/agents
+  default_model: sonnet
+  default_max_cost_usd: 5.00
+  default_autonomy: pr-only
+  max_concurrent: 3
+  timeout_minutes: 15
+  dry_run: true
+
+server:
+  host: 0.0.0.0
+  port: 8080

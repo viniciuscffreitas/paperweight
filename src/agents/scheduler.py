@@ -1,6 +1,5 @@
 import logging
 
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from agents.models import ProjectConfig
@@ -37,9 +36,10 @@ def collect_scheduled_tasks(
     return result
 
 
-def create_scheduler(db_path: str) -> AsyncIOScheduler:
-    jobstores = {"default": SQLAlchemyJobStore(url=f"sqlite:///{db_path}")}
-    return AsyncIOScheduler(jobstores=jobstores)
+def create_scheduler() -> AsyncIOScheduler:
+    # MemoryJobStore (default) — YAML configs are the persistent store,
+    # jobs are re-registered on every startup from projects/*.yaml
+    return AsyncIOScheduler()
 
 
 def register_jobs(
