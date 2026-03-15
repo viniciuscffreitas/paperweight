@@ -1,0 +1,22 @@
+name: momease
+repo: /Users/vini/Developer/momease
+base_branch: main
+branch_prefix: agents/
+notify: slack
+
+tasks:
+  dep-update:
+    description: "Update dependencies across all packages"
+    intent: "Atualize dependências em todos os packages do momease."
+    schedule: "0 3 * * MON"
+    model: haiku
+    max_cost_usd: 0.50
+    autonomy: auto-merge
+
+  lint-fix:
+    description: "Fix lint issues"
+    intent: "Rode o linter e corrija issues auto-fixáveis."
+    schedule: "0 4 * * FRI"
+    model: haiku
+    max_cost_usd: 0.30
+    autonomy: auto-merge

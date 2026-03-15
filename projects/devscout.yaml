@@ -1,0 +1,17 @@
+name: devscout
+repo: /Users/vini/Developer/devscout
+base_branch: main
+branch_prefix: agents/
+notify: slack
+
+tasks:
+  dep-update:
+    description: "Update Node and Python dependencies"
+    intent: "Atualize dependências do frontend (bun) e backend (Python)."
+    context_hints:
+      - "Frontend usa bun — rode bun update no diretório frontend/"
+      - "Backend usa Python — atualize via pip ou requirements"
+    schedule: "0 3 * * MON"
+    model: haiku
+    max_cost_usd: 0.50
+    autonomy: auto-merge

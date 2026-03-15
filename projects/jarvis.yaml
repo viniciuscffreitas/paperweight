@@ -1,0 +1,25 @@
+name: jarvis
+repo: /Users/vini/Developer/jarvis-whatschat
+base_branch: main
+branch_prefix: agents/
+notify: slack
+
+tasks:
+  dep-update:
+    description: "Update Python dependencies"
+    intent: "Atualize as dependências Python e rode os testes."
+    context_hints:
+      - "Verifique requirements.txt ou pyproject.toml"
+      - "Rode os testes pra validar"
+    schedule: "0 3 * * MON"
+    model: haiku
+    max_cost_usd: 0.50
+    autonomy: auto-merge
+
+  lint-fix:
+    description: "Run ruff check and format"
+    intent: "Rode ruff check --fix e ruff format no projeto."
+    schedule: "0 4 * * FRI"
+    model: haiku
+    max_cost_usd: 0.30
+    autonomy: auto-merge

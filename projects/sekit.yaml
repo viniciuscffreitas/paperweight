@@ -5,25 +5,39 @@ branch_prefix: agents/
 notify: slack
 
 tasks:
+  ci-fix:
+    description: "Investigate and fix CI failure"
+    intent: "Investigue e corrija o CI failure neste monorepo."
+    context_hints:
+      - "Use o Sentry pra buscar erros recentes no projeto sekit"
+      - "Verifique issues abertas no Linear com label bug"
+      - "Rode `just check-all` pra validar o fix"
+    trigger:
+      type: github
+      events: [check_suite.completed]
+      filter: { conclusion: failure }
+    model: sonnet
+    max_cost_usd: 3.00
+    autonomy: pr-only
+
   dep-update:
-    description: "Update dependencies and run tests"
+    description: "Update all dependencies and run tests"
+    intent: "Atualize todas as dependências e valide com testes."
+    context_hints:
+      - "Rode o update pra cada app: web (pnpm), api (bundle), agents (uv)"
+      - "Rode `just check-all` — só commite se todos passarem"
     schedule: "0 3 * * MON"
     model: haiku
     max_cost_usd: 1.00
     autonomy: auto-merge
-    prompt: |
-      Update all dependencies in this monorepo.
-      For each app, run the appropriate update command.
-      Then run `just check-all`.
-      If all tests pass, commit the changes.
 
   lint-fix:
     description: "Fix lint issues across all apps"
+    intent: "Corrija issues de lint em todos os apps."
+    context_hints:
+      - "Rode `just lint-web`, `just lint-api`, `just lint-agents`"
+      - "Corrija issues auto-fixáveis e commite"
     schedule: "0 4 * * FRI"
     model: haiku
     max_cost_usd: 0.50
     autonomy: auto-merge
-    prompt: |
-      Run linters across all apps in this monorepo:
-      - `just lint-web`, `just lint-api`, `just lint-agents`
-      Fix any auto-fixable issues and commit.

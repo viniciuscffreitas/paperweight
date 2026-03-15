@@ -1,0 +1,14 @@
+name: fintech
+repo: /Users/vini/Developer/fintech
+base_branch: main
+branch_prefix: agents/
+notify: slack
+
+tasks:
+  dep-update:
+    description: "Update iOS and backend dependencies"
+    intent: "Atualize dependências do iOS (SPM/CocoaPods) e backend."
+    schedule: "0 3 * * MON"
+    model: haiku
+    max_cost_usd: 0.50
+    autonomy: pr-only

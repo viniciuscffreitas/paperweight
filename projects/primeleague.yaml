@@ -1,0 +1,17 @@
+name: primeleague
+repo: /Users/vini/Developer/primeleague
+base_branch: main
+branch_prefix: agents/
+notify: slack
+
+tasks:
+  dep-update:
+    description: "Update Gradle dependencies"
+    intent: "Atualize dependências do Gradle e rode build check."
+    context_hints:
+      - "Use ./gradlew dependencies pra verificar updates"
+      - "Rode ./gradlew build pra validar"
+    schedule: "0 3 * * MON"
+    model: haiku
+    max_cost_usd: 0.50
+    autonomy: pr-only
