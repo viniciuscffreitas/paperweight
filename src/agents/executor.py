@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -55,6 +56,7 @@ class Executor:
         history: HistoryDB,
         notifier: Notifier,
         data_dir: Path,
+        on_stream_event: Callable | None = None,
     ) -> None:
         self.config = config
         self.budget = budget
@@ -62,6 +64,10 @@ class Executor:
         self.notifier = notifier
         self.data_dir = data_dir
         self._running_processes: dict[str, asyncio.subprocess.Process] = {}
+        self.on_stream_event = on_stream_event or self._noop_event
+
+    async def _noop_event(self, run_id: str, event: object) -> None:
+        pass
 
     async def run_task(
         self,
@@ -140,25 +146,24 @@ class Executor:
                 "--max-budget-usd",
                 str(task.max_cost_usd),
                 "--output-format",
-                "json",
+                "stream-json",
+                "--verbose",
                 "--permission-mode",
                 "auto",
                 "--no-session-persistence",
             ]
 
-            stdout = await self._run_claude(
+            output, raw_output = await self._run_claude(
                 claude_cmd,
                 cwd=str(worktree_path),
                 run_id=run_id,
                 timeout=self.config.timeout_minutes * 60,
             )
 
-            output = parse_claude_output(stdout)
-
             output_dir = self.data_dir / "runs"
             output_dir.mkdir(parents=True, exist_ok=True)
             output_file = output_dir / f"{run_id}.json"
-            output_file.write_text(stdout)
+            output_file.write_text(raw_output)
 
             run.cost_usd = output.cost_usd
             run.num_turns = output.num_turns
@@ -232,7 +237,15 @@ class Executor:
         self.history.mark_running_as_cancelled()
         self._running_processes.clear()
 
-    async def _run_claude(self, cmd: list[str], cwd: str, run_id: str, timeout: int) -> str:
+    async def _run_claude(
+        self,
+        cmd: list[str],
+        cwd: str,
+        run_id: str,
+        timeout: int,
+    ) -> tuple[ClaudeOutput, str]:
+        from agents.streaming import RunStream
+
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             cwd=cwd,
@@ -240,9 +253,10 @@ class Executor:
             stderr=asyncio.subprocess.PIPE,
         )
         self._running_processes[run_id] = proc
+        stream = RunStream(run_id=run_id, on_event=self.on_stream_event)
         try:
-            stdout_bytes, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-            return stdout_bytes.decode()
+            result = await asyncio.wait_for(stream.process_stream(proc), timeout=timeout)
+            return result, stream.get_raw_output()
         except TimeoutError:
             proc.terminate()
             raise

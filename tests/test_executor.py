@@ -123,3 +123,31 @@ def test_parse_claude_output_error():
     )
     parsed = parse_claude_output(raw)
     assert parsed.is_error is True
+
+
+@pytest.mark.asyncio
+async def test_executor_accepts_stream_callback(tmp_path):
+    from agents.budget import BudgetManager
+    from agents.config import BudgetConfig, ExecutionConfig
+    from agents.executor import Executor
+    from agents.history import HistoryDB
+    from agents.notifier import Notifier
+
+    events_received = []
+
+    async def on_event(run_id, event):
+        events_received.append((run_id, event))
+
+    db = HistoryDB(tmp_path / "test.db")
+    budget = BudgetManager(config=BudgetConfig(), history=db)
+    notifier = Notifier(webhook_url="")
+    exec_config = ExecutionConfig(worktree_base=str(tmp_path / "wt"), dry_run=True)
+    executor = Executor(
+        config=exec_config,
+        budget=budget,
+        history=db,
+        notifier=notifier,
+        data_dir=tmp_path / "data",
+        on_stream_event=on_event,
+    )
+    assert executor.on_stream_event is on_event
