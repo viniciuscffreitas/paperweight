@@ -1,4 +1,5 @@
 import asyncio
+import json as json_module
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -6,7 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import BackgroundTasks, FastAPI, Request, Response
+from fastapi import BackgroundTasks, FastAPI, Request, Response, WebSocket, WebSocketDisconnect
 
 from agents.budget import BudgetManager
 from agents.config import GlobalConfig, load_global_config, load_project_configs
@@ -15,6 +16,7 @@ from agents.history import HistoryDB
 from agents.models import ProjectConfig
 from agents.notifier import Notifier
 from agents.scheduler import create_scheduler, register_jobs
+from agents.streaming import StreamEvent
 from agents.webhooks.github import (
     extract_github_variables,
     match_github_event,
@@ -49,6 +51,8 @@ class AppState:
         self.linear_secret = linear_secret
         self._semaphore: asyncio.Semaphore | None = None
         self._repo_semaphores: dict[str, asyncio.Semaphore] = {}
+        self.ws_clients: dict[str, set[WebSocket]] = {}
+        self.ws_global_clients: set[WebSocket] = set()
 
     def get_semaphore(self, max_concurrent: int) -> asyncio.Semaphore:
         if self._semaphore is None:
@@ -80,12 +84,33 @@ def create_app(
     history = HistoryDB(db_path)
     budget = BudgetManager(config=config.budget, history=history)
     notifier = Notifier(webhook_url=config.notifications.slack_webhook_url)
+
+    async def broadcast_event(run_id: str, event: StreamEvent) -> None:
+        msg = event.model_dump_json()
+        dead: set[WebSocket] = set()
+        for ws in set(state.ws_clients.get(run_id, set())):
+            try:
+                await ws.send_text(msg)
+            except Exception:
+                dead.add(ws)
+        if run_id in state.ws_clients:
+            state.ws_clients[run_id].difference_update(dead)
+
+        dead_global: set[WebSocket] = set()
+        for ws in set(state.ws_global_clients):
+            try:
+                await ws.send_text(json_module.dumps({"run_id": run_id, **event.model_dump()}))
+            except Exception:
+                dead_global.add(ws)
+        state.ws_global_clients.difference_update(dead_global)
+
     executor = Executor(
         config=config.execution,
         budget=budget,
         history=history,
         notifier=notifier,
         data_dir=data_dir,
+        on_stream_event=broadcast_event,
     )
 
     state = AppState(
@@ -251,6 +276,26 @@ def create_app(
         if not cancelled:
             return Response(status_code=404, content="Run not found or not running")
         return {"status": "cancelled"}
+
+    @app.websocket("/ws/runs/{run_id}")
+    async def ws_run(websocket: WebSocket, run_id: str) -> None:
+        await websocket.accept()
+        state.ws_clients.setdefault(run_id, set()).add(websocket)
+        try:
+            while True:
+                await websocket.receive_text()
+        except WebSocketDisconnect:
+            state.ws_clients.get(run_id, set()).discard(websocket)
+
+    @app.websocket("/ws/runs")
+    async def ws_all_runs(websocket: WebSocket) -> None:
+        await websocket.accept()
+        state.ws_global_clients.add(websocket)
+        try:
+            while True:
+                await websocket.receive_text()
+        except WebSocketDisconnect:
+            state.ws_global_clients.discard(websocket)
 
     return app
 
