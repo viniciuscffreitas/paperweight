@@ -136,6 +136,63 @@ def test_get_nonexistent_run(history_db):
     assert history_db.get_run("nonexistent") is None
 
 
+def test_run_events_table_exists(history_db):
+    import sqlite3
+
+    conn = sqlite3.connect(history_db.db_path)
+    cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    tables = {row[0] for row in cursor.fetchall()}
+    conn.close()
+    assert "run_events" in tables
+
+
+def test_insert_and_list_events(history_db):
+    event = {
+        "run_id": "run-evt-1",
+        "type": "task_started",
+        "content": "sekit/dep-update [manual]",
+        "tool_name": "",
+        "timestamp": 1234567890.0,
+    }
+    history_db.insert_event("run-evt-1", event)
+    events = history_db.list_events("run-evt-1")
+    assert len(events) == 1
+    assert events[0]["type"] == "task_started"
+    assert events[0]["content"] == "sekit/dep-update [manual]"
+    assert events[0]["run_id"] == "run-evt-1"
+
+
+def test_list_events_empty_for_unknown_run(history_db):
+    assert history_db.list_events("nonexistent-run") == []
+
+
+def test_list_events_ordered_by_timestamp(history_db):
+    for i, evt_type in enumerate(["task_started", "dry_run", "task_completed"]):
+        history_db.insert_event(
+            "run-ord",
+            {"run_id": "run-ord", "type": evt_type, "content": "", "tool_name": "", "timestamp": float(i)},
+        )
+    events = history_db.list_events("run-ord")
+    assert [e["type"] for e in events] == ["task_started", "dry_run", "task_completed"]
+
+
+def test_list_events_isolated_per_run(history_db):
+    history_db.insert_event("run-A", {"run_id": "run-A", "type": "task_started", "content": "A", "tool_name": "", "timestamp": 1.0})
+    history_db.insert_event("run-B", {"run_id": "run-B", "type": "task_started", "content": "B", "tool_name": "", "timestamp": 1.0})
+    assert len(history_db.list_events("run-A")) == 1
+    assert history_db.list_events("run-A")[0]["content"] == "A"
+
+
+def test_insert_event_cap_at_500(history_db):
+    for i in range(510):
+        history_db.insert_event(
+            "run-cap",
+            {"run_id": "run-cap", "type": "assistant", "content": f"msg-{i}", "tool_name": "", "timestamp": float(i)},
+        )
+    events = history_db.list_events("run-cap")
+    assert len(events) == 500
+
+
 def test_mark_running_as_cancelled(history_db):
     from agents.models import RunRecord, RunStatus, TriggerType
 

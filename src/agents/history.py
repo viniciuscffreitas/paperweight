@@ -30,6 +30,17 @@ class HistoryDB:
                     output_file TEXT
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS run_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    run_id TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    content TEXT NOT NULL DEFAULT '',
+                    tool_name TEXT NOT NULL DEFAULT '',
+                    timestamp REAL NOT NULL
+                )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_run_events_run_id ON run_events (run_id)")
 
     def _conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
@@ -122,6 +133,41 @@ class HistoryDB:
                 "UPDATE runs SET status = ?, finished_at = ? WHERE status = ?",
                 (RunStatus.CANCELLED, now, RunStatus.RUNNING),
             )
+
+    def insert_event(self, run_id: str, event_data: dict) -> None:
+        with self._conn() as conn:
+            count = conn.execute(
+                "SELECT COUNT(*) FROM run_events WHERE run_id = ?", (run_id,)
+            ).fetchone()[0]
+            if count >= 500:
+                return
+            conn.execute(
+                "INSERT INTO run_events (run_id, type, content, tool_name, timestamp) VALUES (?, ?, ?, ?, ?)",
+                (
+                    run_id,
+                    event_data.get("type", "unknown"),
+                    event_data.get("content", ""),
+                    event_data.get("tool_name", ""),
+                    event_data.get("timestamp", 0.0),
+                ),
+            )
+
+    def list_events(self, run_id: str) -> list[dict]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT run_id, type, content, tool_name, timestamp FROM run_events WHERE run_id = ? ORDER BY timestamp ASC, id ASC",
+                (run_id,),
+            ).fetchall()
+        return [
+            {
+                "run_id": row["run_id"],
+                "type": row["type"],
+                "content": row["content"],
+                "tool_name": row["tool_name"],
+                "timestamp": row["timestamp"],
+            }
+            for row in rows
+        ]
 
     def _row_to_record(self, row: sqlite3.Row) -> RunRecord:
         return RunRecord(
