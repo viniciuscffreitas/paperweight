@@ -56,6 +56,7 @@ class AppState:
         self.ws_global_clients: set[WebSocket] = set()
         self.stream_queues: list[asyncio.Queue] = []
         self.run_events: dict[str, list[dict]] = {}
+        self._agent_issue_seen: dict[str, float] = {}  # issue_id → timestamp (dedup cooldown)
 
     def get_semaphore(self, max_concurrent: int) -> asyncio.Semaphore:
         if self._semaphore is None:
@@ -309,31 +310,42 @@ def create_app(
 
                     background_tasks.add_task(_run)
 
-        # Agent issue detection
+        # Agent issue detection (with cooldown to prevent webhook flood loops)
         from agents.webhooks.linear import match_agent_issue, extract_agent_issue_variables
+        import time as _time
 
         if match_agent_issue(payload):
             variables = extract_agent_issue_variables(payload)
+            issue_id = variables.get("issue_id", "")
             team_id = variables.get("team_id", "")
-            for project in state.projects.values():
-                if project.linear_team_id == team_id and "issue-resolver" in project.tasks:
-                    existing = state.history.find_run_by_issue_id(variables["issue_id"])
-                    if existing and existing.status in ("running", "success"):
-                        logger.info("Skipping agent issue %s — already %s", variables["issue_id"], existing.status)
-                        break
 
-                    async def _run_agent(
-                        p: ProjectConfig = project,
-                        v: dict[str, str] = variables,
-                    ) -> None:
-                        async with (
-                            state.get_semaphore(config.execution.max_concurrent),
-                            state.get_repo_semaphore(p.repo),
-                        ):
-                            await state.executor.run_task(p, "issue-resolver", trigger_type="linear", variables=v)
+            # Cooldown: ignore duplicate webhooks for same issue within 120s
+            now = _time.time()
+            last_seen = state._agent_issue_seen.get(issue_id, 0)
+            if now - last_seen < 120:
+                logger.info("Cooldown: skipping agent issue %s (seen %.0fs ago)", issue_id, now - last_seen)
+            else:
+                # DB dedup: skip if already running or succeeded
+                existing = state.history.find_run_by_issue_id(issue_id)
+                if existing and existing.status in ("running", "success"):
+                    logger.info("Dedup: skipping agent issue %s — already %s", issue_id, existing.status)
+                else:
+                    for project in state.projects.values():
+                        if project.linear_team_id == team_id and "issue-resolver" in project.tasks:
+                            state._agent_issue_seen[issue_id] = now
 
-                    background_tasks.add_task(_run_agent)
-                    break
+                            async def _run_agent(
+                                p: ProjectConfig = project,
+                                v: dict[str, str] = variables,
+                            ) -> None:
+                                async with (
+                                    state.get_semaphore(config.execution.max_concurrent),
+                                    state.get_repo_semaphore(p.repo),
+                                ):
+                                    await state.executor.run_task(p, "issue-resolver", trigger_type="linear", variables=v)
+
+                            background_tasks.add_task(_run_agent)
+                            break
 
         return {"status": "processed"}
 
