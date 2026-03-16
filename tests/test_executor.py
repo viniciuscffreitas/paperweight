@@ -320,6 +320,70 @@ def test_generate_run_id_works_without_issue_id():
     assert "dep-update" in run_id
 
 
+@pytest.mark.asyncio
+async def test_run_task_agent_issue_calls_linear_and_discord_on_dry_run(tmp_path):
+    from unittest.mock import AsyncMock, MagicMock
+
+    from agents.config import ExecutionConfig
+    from agents.executor import Executor
+    from agents.history import HistoryDB
+    from agents.models import ProjectConfig, TaskConfig, TriggerConfig
+
+    history = HistoryDB(tmp_path / "test.db")
+    budget = MagicMock()
+    budget.can_afford.return_value = True
+    budget.get_status.return_value = MagicMock(is_warning=False)
+
+    mock_linear = AsyncMock()
+    mock_discord = AsyncMock()
+    mock_discord.create_run_message.return_value = "msg-123"
+
+    executor = Executor(
+        config=ExecutionConfig(dry_run=True),
+        budget=budget,
+        history=history,
+        notifier=AsyncMock(),
+        data_dir=tmp_path,
+        linear_client=mock_linear,
+        discord_notifier=mock_discord,
+    )
+
+    project = ProjectConfig(
+        name="testproj",
+        repo="/tmp/repo",
+        linear_team_id="team-1",
+        discord_channel_id="chan-1",
+        tasks={
+            "issue-resolver": TaskConfig(
+                description="Resolve issues",
+                prompt="Resolve {{issue_title}}",
+                trigger=TriggerConfig(type="linear", events=["Issue.create"]),
+            )
+        },
+    )
+
+    variables = {
+        "issue_id": "issue-xyz",
+        "issue_identifier": "TST-1",
+        "issue_title": "Test issue",
+        "issue_description": "Test description",
+        "team_id": "team-1",
+    }
+
+    run = await executor.run_task(project, "issue-resolver", trigger_type="linear", variables=variables)
+
+    assert run.status == "success"
+    # Linear should have been called: update_status("In Progress") + post_comment("iniciou") + post_comment("Concluído") + remove_label
+    assert mock_linear.update_status.call_count >= 1
+    assert mock_linear.post_comment.call_count >= 2
+    mock_linear.remove_label.assert_called_once_with("issue-xyz", "agent")
+    # Discord should have been notified
+    mock_discord.create_run_message.assert_called_once_with("chan-1", "TST-1", "Test issue")
+    mock_discord.finalize_run_message.assert_called_once()
+    # run_id should contain issue_id for deduplication
+    assert "issue-xyz" in run.id
+
+
 def test_write_progress_log(tmp_path):
     from agents.executor import write_progress_log
 

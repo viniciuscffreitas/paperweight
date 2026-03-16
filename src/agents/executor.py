@@ -120,7 +120,11 @@ class Executor:
         variables: dict[str, str] | None = None,
     ) -> RunRecord:
         task = project.tasks[task_name]
-        run_id = generate_run_id(project.name, task_name)
+        variables = variables or {}
+        issue_id = variables.get("issue_id", "")
+        is_agent_issue = bool(issue_id and self.linear_client)
+
+        run_id = generate_run_id(project.name, task_name, issue_id=issue_id)
         run = RunRecord(
             id=run_id,
             project=project.name,
@@ -132,6 +136,25 @@ class Executor:
         )
         self.history.insert_run(run)
         await self._emit(run_id, "task_started", f"{project.name}/{task_name} [{trigger_type}]")
+
+        # Agent issue — notify Linear + Discord at start
+        discord_msg_id = ""
+        if is_agent_issue:
+            team_id = variables.get("team_id", "")
+            identifier = variables.get("issue_identifier", "")
+            title = variables.get("issue_title", "")
+            try:
+                await self.linear_client.update_status(issue_id, team_id, "In Progress")
+                await self.linear_client.post_comment(issue_id, "\U0001f916 Agente iniciou execução")
+            except Exception:
+                logger.warning("Failed to update Linear for %s", issue_id)
+            if self.discord_notifier and project.discord_channel_id:
+                try:
+                    discord_msg_id = await self.discord_notifier.create_run_message(
+                        project.discord_channel_id, identifier, title,
+                    )
+                except Exception:
+                    logger.warning("Failed to create Discord message for %s", issue_id)
 
         if not self.budget.can_afford(task.max_cost_usd):
             run.status = RunStatus.FAILURE
@@ -163,6 +186,8 @@ class Executor:
                 cost_usd=0.0,
             )
             await self._emit(run_id, "task_completed", "done (dry run)")
+            if is_agent_issue:
+                await self._finalize_agent_success(project, variables, discord_msg_id, run)
             return run
 
         worktree_path: Path | None = None
@@ -232,6 +257,8 @@ class Executor:
                 run.pr_url = pr_url
                 msg = f"done — PR: {pr_url}" if pr_url else "done (no changes)"
                 await self._emit(run_id, "task_completed", msg)
+                if is_agent_issue:
+                    await self._finalize_agent_success(project, variables, discord_msg_id, run)
 
         except TimeoutError:
             run.status = RunStatus.TIMEOUT
@@ -265,10 +292,58 @@ class Executor:
             self._running_processes.pop(run_id, None)
 
         await self.notifier.send_run_notification(run)
+        if is_agent_issue and run.status in (RunStatus.FAILURE, RunStatus.TIMEOUT):
+            await self._fail_agent_run(project, variables, discord_msg_id, run, 1, 1)
         status = self.budget.get_status()
         if status.is_warning:
             await self.notifier.send_budget_warning(status)
         return run
+
+    async def _finalize_agent_success(self, project, variables, discord_msg_id, run):
+        issue_id = variables.get("issue_id", "")
+        team_id = variables.get("team_id", "")
+        identifier = variables.get("issue_identifier", "")
+        title = variables.get("issue_title", "")
+        try:
+            comment = f"\u2705 PR criado: {run.pr_url}" if run.pr_url else "\u2705 Concluído (sem alterações)"
+            await self.linear_client.post_comment(issue_id, comment)
+            if run.pr_url:
+                await self.linear_client.update_status(issue_id, team_id, "In Review")
+            await self.linear_client.remove_label(issue_id, "agent")
+        except Exception:
+            logger.warning("Failed to finalize Linear for %s", issue_id)
+        if self.discord_notifier and discord_msg_id and project.discord_channel_id:
+            try:
+                duration_s = (run.finished_at - run.started_at).total_seconds() if run.finished_at else 0
+                await self.discord_notifier.finalize_run_message(
+                    project.discord_channel_id, discord_msg_id, identifier, title, [],
+                    pr_url=run.pr_url, cost=run.cost_usd or 0.0, duration_s=duration_s,
+                )
+            except Exception:
+                logger.warning("Failed to finalize Discord for %s", issue_id)
+
+    async def _fail_agent_run(self, project, variables, discord_msg_id, run, attempt, max_attempts):
+        issue_id = variables.get("issue_id", "")
+        team_id = variables.get("team_id", "")
+        identifier = variables.get("issue_identifier", "")
+        title = variables.get("issue_title", "")
+        try:
+            await self.linear_client.post_comment(
+                issue_id, f"\u274c Falha após {max_attempts} tentativas:\n{run.error_message or 'Unknown error'}"
+            )
+            await self.linear_client.update_status(issue_id, team_id, "Todo")
+        except Exception:
+            logger.warning("Failed to report failure to Linear for %s", issue_id)
+        if self.discord_notifier and discord_msg_id and project.discord_channel_id:
+            try:
+                duration_s = (run.finished_at - run.started_at).total_seconds() if run.finished_at else 0
+                await self.discord_notifier.fail_run_message(
+                    project.discord_channel_id, discord_msg_id, identifier, title, [],
+                    error=run.error_message or "", attempt=attempt, max_attempts=max_attempts,
+                    cost=run.cost_usd or 0.0, duration_s=duration_s,
+                )
+            except Exception:
+                logger.warning("Failed to report failure to Discord for %s", issue_id)
 
     async def cancel_run(self, run_id: str) -> bool:
         proc = self._running_processes.get(run_id)
