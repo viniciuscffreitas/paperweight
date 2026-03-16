@@ -99,3 +99,33 @@ async def test_github_webhook_no_signature(client):
         "/webhooks/github", content=b"{}", headers={"X-GitHub-Event": "push"}
     )
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_broadcast_event_persists_to_db(test_app):
+    """Events emitted via broadcast_event must be persisted to SQLite."""
+    state = test_app.state.app_state
+    project = list(state.projects.values())[0]
+    task_name = list(project.tasks.keys())[0]
+
+    run = await state.executor.run_task(project, task_name, trigger_type="manual")
+
+    events = state.history.list_events(run.id)
+    assert len(events) > 0
+    event_types = [e["type"] for e in events]
+    assert "task_started" in event_types
+
+
+@pytest.mark.asyncio
+async def test_broadcast_event_persists_dry_run_events(test_app):
+    """Dry run events (dry_run + task_completed) are persisted to SQLite."""
+    state = test_app.state.app_state
+    project = list(state.projects.values())[0]
+    task_name = list(project.tasks.keys())[0]
+
+    run = await state.executor.run_task(project, task_name, trigger_type="manual")
+
+    events = state.history.list_events(run.id)
+    event_types = [e["type"] for e in events]
+    assert "dry_run" in event_types
+    assert "task_completed" in event_types

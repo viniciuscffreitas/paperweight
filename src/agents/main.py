@@ -109,7 +109,10 @@ def create_app(
 
         event_data = {"run_id": run_id, **event.model_dump()}
 
-        # Persist event for run detail view (cap at 500 per run, keep last 100 runs)
+        # Persist event to SQLite (durable across restarts)
+        history.insert_event(run_id, event_data)
+
+        # Keep in-memory cache for live streaming of active runs (cap at 500, last 100 runs)
         bucket = state.run_events.setdefault(run_id, [])
         if len(bucket) < 500:
             bucket.append(event_data)
