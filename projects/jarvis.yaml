@@ -3,6 +3,8 @@ repo: /Users/vini/Developer/jarvis-whatschat
 base_branch: main
 branch_prefix: agents/
 notify: slack
+linear_team_id: ""
+discord_channel_id: ""
 
 tasks:
   dep-update:
@@ -23,3 +25,30 @@ tasks:
     model: haiku
     max_cost_usd: 0.30
     autonomy: auto-merge
+
+  issue-resolver:
+    description: "Resolve a Linear issue autonomously end-to-end"
+    intent: "Implement the given Linear issue following devflow: TDD, lint, tests, PR"
+    trigger:
+      type: linear
+      events: [Issue.create, Issue.update]
+      filter:
+        label: agent
+    prompt: |
+      You are an autonomous software agent. Resolve the following Linear issue.
+
+      Issue: {{issue_identifier}} — {{issue_title}}
+      Description:
+      {{issue_description}}
+
+      Instructions:
+      - Follow CLAUDE.md exactly. Work autonomously — do not wait for user approval.
+      - Make all decisions yourself and document them in commit messages.
+      - Follow TDD: write failing tests first, then implement, then verify.
+      - Run lint and the full test suite before creating the PR.
+      - Before starting, read {{progress_file_path}} if it exists — it contains context from previous attempts.
+      - If you cannot complete the task, write a clear explanation to {{progress_file_path}}.
+      - Use the issue-analyzer subagent first to understand the codebase, then implement, then use issue-reviewer before creating the PR.
+    model: claude-sonnet-4-6
+    max_cost_usd: 2.00
+    autonomy: pr-only
