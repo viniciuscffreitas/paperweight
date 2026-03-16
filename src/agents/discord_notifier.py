@@ -125,3 +125,22 @@ class DiscordRunNotifier:
             "POST", f"/channels/{channel_id}/messages", json={"embeds": [embed]}
         )
         return data["id"]
+
+    async def update_run_message(
+        self,
+        channel_id: str,
+        message_id: str,
+        identifier: str,
+        title: str,
+        events: list[dict],
+    ) -> None:
+        now = time.time()
+        if now - self._last_edit_time < self.EDIT_INTERVAL_SECONDS:
+            return
+        embed = self._build_embed(identifier, title, events=events, status="running")
+        await self._request(
+            "PATCH",
+            f"/channels/{channel_id}/messages/{message_id}",
+            json={"embeds": [embed]},
+        )
+        self._last_edit_time = now
