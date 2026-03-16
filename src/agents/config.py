@@ -47,6 +47,7 @@ class ServerConfig(BaseModel):
 class IntegrationsConfig(BaseModel):
     linear_api_key: str = ""
     discord_bot_token: str = ""
+    discord_guild_id: str = ""
 
 
 class GlobalConfig(BaseModel):

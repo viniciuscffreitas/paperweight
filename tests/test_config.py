@@ -180,3 +180,19 @@ integrations:
     config = load_global_config(config_file)
     assert config.integrations.linear_api_key == "lin_api_abc123"
     assert config.integrations.discord_bot_token == "discord_token_xyz"
+
+
+def test_global_config_with_discord_guild_id(tmp_path):
+    from agents.config import load_global_config
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("""
+budget:
+  daily_limit_usd: 10.00
+integrations:
+  linear_api_key: lin_api_abc123
+  discord_bot_token: discord_token_xyz
+  discord_guild_id: guild-12345
+""")
+    config = load_global_config(config_file)
+    assert config.integrations.discord_guild_id == "guild-12345"
