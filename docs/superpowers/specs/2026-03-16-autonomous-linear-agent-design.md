@@ -280,29 +280,125 @@ _run_agent_issue:
 
 ---
 
-## 5. New Files
+## 5. Webhook Deduplication
+
+Linear delivers webhooks with "at least once" guarantee. Editing an issue (e.g., adding more description) fires a new `IssueUpdate` event with the `agent` label still present. Without deduplication, this triggers a second run.
+
+**Strategy:** Use `issue_id` as idempotency key. Before starting a new agent run:
+1. Query `runs` table: `SELECT id, status FROM runs WHERE task = 'issue-resolver' AND id LIKE '%{issue_id}%' ORDER BY started_at DESC LIMIT 1`
+2. If a run exists with `status = running` → skip (already in progress)
+3. If a run exists with `status = success` → skip (already resolved)
+4. If a run exists with `status = failure` → allow (re-attempt after manual fix)
+5. If no run exists → start new run
+
+The `run_id` format includes the `issue_id`: `{project}-issue-resolver-{issue_id}-{timestamp}-{uuid}`.
+
+**Label removal after success:** After PR is created, remove the `agent` label from the issue via `linear_client.remove_label(issue_id, "agent")`. This prevents re-triggering on future issue edits and signals to the team that the agent has completed its work.
+
+---
+
+## 6. Discord Message Constraints
+
+**Rate limiting:** Discord allows ~5 message edits per 5 seconds per channel. The `discord_notifier` must throttle edits to max 1 edit per 2 seconds. Accumulate events in a buffer and flush on the next tick.
+
+```python
+class DiscordRunNotifier:
+    EDIT_INTERVAL_SECONDS = 2.0
+    # Buffer events, flush every 2s via asyncio timer
+```
+
+**Message length:** Discord embed descriptions are capped at 4096 characters. The notifier keeps only the **last 40 tool-use events** in the embed body. When the list exceeds 40:
+- Prepend `"... {N} earlier events omitted"` as the first line
+- Drop the oldest events from the embed
+
+This ensures the message is always readable and within limits.
+
+---
+
+## 7. Claude Code Subagents
+
+Define specialized subagents in `.claude/agents/` within each project repo. The `issue-resolver` prompt instructs Claude to delegate to these subagents when available.
+
+**`issue-analyzer.md`** — Reads the codebase to build context before implementation:
+```markdown
+---
+name: issue-analyzer
+description: Analyze codebase to understand patterns and prepare implementation context
+tools: [Read, Glob, Grep, Bash]
+---
+Analyze the codebase to understand:
+1. Relevant files and patterns for the given task
+2. Existing test patterns and conventions
+3. Any related code that might be affected
+Return a structured summary of findings.
+```
+
+**`issue-reviewer.md`** — Reviews implementation before PR creation:
+```markdown
+---
+name: issue-reviewer
+description: Review implementation for quality, correctness, and devflow compliance
+tools: [Read, Glob, Grep, Bash]
+---
+Review the changes made in this worktree:
+1. Run the full test suite and lint
+2. Check for regressions
+3. Verify TDD was followed (tests exist for new behavior)
+4. Check code quality and patterns match the codebase
+Return APPROVED or ISSUES with specific fixes.
+```
+
+The main `issue-resolver` prompt delegates: *"Use the issue-analyzer subagent first to understand the codebase, then implement, then use issue-reviewer before creating the PR."*
+
+---
+
+## 8. Security Hooks
+
+Configure Claude Code hooks to prevent destructive operations in autonomous mode. These go in the project's `.claude/settings.json` or CLAUDE.md:
+
+**`PreToolUse:Bash`** — Block destructive commands:
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "command": "echo \"$TOOL_INPUT\" | grep -qE '(rm -rf|git push --force|git reset --hard|DROP TABLE|git clean -fd)' && echo 'BLOCKED: destructive command' && exit 1 || exit 0"
+      }
+    ]
+  }
+}
+```
+
+This prevents the agent from accidentally deleting files, force-pushing, or resetting git history — without restricting normal operations like running tests or building.
+
+---
+
+## 9. New Files
 
 | File | Purpose |
 |---|---|
-| `src/agents/linear_client.py` | Linear GraphQL API: fetch issues, post comments, update status |
-| `src/agents/discord_notifier.py` | Discord REST API: create/edit/finalize run messages |
+| `src/agents/linear_client.py` | Linear GraphQL API: fetch issues, post comments, update/remove labels |
+| `src/agents/discord_notifier.py` | Discord REST API: create/edit/finalize run messages with rate limiting |
 | `tests/test_linear_client.py` | Unit tests (mocked httpx) |
 | `tests/test_discord_notifier.py` | Unit tests (mocked httpx) |
+| `.claude/agents/issue-analyzer.md` | Subagent: codebase analysis before implementation (per project repo) |
+| `.claude/agents/issue-reviewer.md` | Subagent: review implementation before PR (per project repo) |
 
-## 6. Modified Files
+## 10. Modified Files
 
 | File | Change |
 |---|---|
 | `src/agents/models.py` | Add `linear_team_id`, `discord_channel_id` to `ProjectConfig` |
 | `src/agents/webhooks/linear.py` | Add `match_agent_issue()` + `extract_agent_issue_variables()` |
-| `src/agents/executor.py` | Optional `linear_client` + `discord_notifier` constructor params; retry loop; progress log |
-| `src/agents/main.py` | Add agent issue detection path in `/webhooks/linear` handler |
+| `src/agents/executor.py` | Optional `linear_client` + `discord_notifier` constructor params; retry loop; progress log; deduplication check |
+| `src/agents/main.py` | Add agent issue detection path in `/webhooks/linear` handler; deduplication |
 | `projects/*.yaml` | Add `linear_team_id`, `discord_channel_id`, `issue-resolver` task |
 | `src/modules/linear/index.ts` | Add checkbox to `/task` modal in Paypalmafia |
 
 ---
 
-## 7. Environment Variables
+## 11. Environment Variables
 
 | Variable | Where | Notes |
 |---|---|---|
@@ -311,11 +407,12 @@ _run_agent_issue:
 
 ---
 
-## 8. Error Handling
+## 12. Error Handling
 
 | Scenario | Behavior |
 |---|---|
 | Linear webhook received but no project matches `team_id` | Log warning, return 200 (ignore silently) |
+| Duplicate webhook for same issue (already running/success) | Skip via deduplication check (Section 5) |
 | Linear API unreachable on `fetch_issue` | Fail fast, notify Discord only (no Linear comment), retry |
 | `update_status` called with unknown state name | Log warning, no-op (don't block execution) |
 | Claude execution timeout | Count as failure, append to progress log, trigger retry |
@@ -324,13 +421,16 @@ _run_agent_issue:
 | 3 retries exhausted | Post error summary to Linear + Discord, return issue to "Todo" |
 | `discord_channel_id` not set in project config | Skip all Discord notifications, log warning |
 | `linear_team_id` not set in project config | Project not eligible for agent issues |
+| Discord rate limit hit (429) | Back off per `Retry-After` header, buffer events |
+| Discord embed exceeds 4096 chars | Truncate oldest events, show "N earlier events omitted" |
 
 ---
 
-## 9. Out of Scope
+## 13. Out of Scope
 
 - Auto-merge of PRs (human reviews all — `autonomy: pr-only`)
 - Picking up existing backlog issues without the `agent` label
 - Modifying Paypalmafia's GitHub webhook flow (already handles PR → Linear transitions)
 - Multi-repo issues (one issue = one repo = one project config)
 - Issue assignment (agent does not assign itself to issues)
+- Merge conflict resolution (human reviews PR — conflicts surfaced naturally)
