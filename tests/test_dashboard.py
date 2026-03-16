@@ -279,6 +279,151 @@ def test_dashboard_page_uses_dark_mode(tmp_path: Path):
         mock_ui.dark_mode.assert_called_once_with(True)
 
 
+def test_on_row_click_falls_back_to_sqlite_when_not_in_memory(tmp_path: Path):
+    """When run_events has no entry for a run, on_row_click must fall back to history.list_events."""
+    state, config = _make_state_and_config(tmp_path)
+    fake_app = MagicMock()
+    captured_page_fn = None
+
+    def capture_page(path):
+        def decorator(fn):
+            nonlocal captured_page_fn
+            captured_page_fn = fn
+            return fn
+        return decorator
+
+    with patch("agents.dashboard.ui") as mock_ui:
+        mock_ui.page.side_effect = capture_page
+        from agents.dashboard import setup_dashboard
+        setup_dashboard(fake_app, state, config)
+
+    # Seed SQLite with events for a run that is NOT in the in-memory cache
+    run_id = "run-historical-001"
+    state.history.insert_event(run_id, {
+        "run_id": run_id, "type": "task_started", "content": "proj/daily [manual]",
+        "tool_name": "", "timestamp": 1000.0,
+    })
+    assert run_id not in state.run_events  # confirm: not in memory
+
+    import asyncio
+
+    captured_build_args: dict = {}
+
+    def fake_build_run_drawer(**kwargs):
+        captured_build_args.update(kwargs)
+
+    with (
+        patch("agents.dashboard.ui") as mock_ui,
+        patch("agents.dashboard._build_run_drawer", side_effect=fake_build_run_drawer),
+    ):
+        mock_ui.row.return_value.__enter__ = MagicMock(return_value=MagicMock())
+        mock_ui.row.return_value.__exit__ = MagicMock(return_value=False)
+        mock_ui.card.return_value.__enter__ = MagicMock(return_value=MagicMock())
+        mock_ui.card.return_value.__exit__ = MagicMock(return_value=False)
+        mock_ui.label.return_value = MagicMock()
+        mock_ui.linear_progress.return_value = MagicMock()
+        mock_ui.log.return_value = MagicMock()
+        mock_ui.select.return_value = MagicMock()
+        mock_ui.button.return_value = MagicMock()
+        mock_ui.timer.return_value = MagicMock()
+
+        mock_table = MagicMock()
+        # Make chained calls (.classes(), .style()) return mock_table so .on() is reachable
+        mock_table.classes.return_value = mock_table
+        mock_table.style.return_value = mock_table
+        on_callbacks: dict = {}
+
+        def fake_on(event_name, callback):
+            on_callbacks[event_name] = callback
+        mock_table.on = fake_on
+        mock_ui.table.return_value = mock_table
+
+        mock_dialog = MagicMock()
+        mock_ui.dialog.return_value = mock_dialog
+
+        mock_client = MagicMock()
+        mock_client.on_disconnect = MagicMock()
+        asyncio.run(captured_page_fn(mock_client))
+
+        # Simulate a row click on the historical run
+        mock_event = MagicMock()
+        mock_event.args = [None, {"id": run_id, "project": "proj", "task": "daily", "raw_status": "success"}]
+        on_callbacks["rowClick"](mock_event)
+
+    # The drawer must have been called with events from SQLite
+    assert "existing_events" in captured_build_args
+    events = captured_build_args["existing_events"]
+    assert len(events) == 1
+    assert events[0]["type"] == "task_started"
+
+
+def test_on_row_click_prefers_memory_events_over_sqlite(tmp_path: Path):
+    """When run_events has an entry in memory, it is used instead of hitting SQLite."""
+    state, config = _make_state_and_config(tmp_path)
+    fake_app = MagicMock()
+    captured_page_fn = None
+
+    def capture_page(path):
+        def decorator(fn):
+            nonlocal captured_page_fn
+            captured_page_fn = fn
+            return fn
+        return decorator
+
+    with patch("agents.dashboard.ui") as mock_ui:
+        mock_ui.page.side_effect = capture_page
+        from agents.dashboard import setup_dashboard
+        setup_dashboard(fake_app, state, config)
+
+    run_id = "run-live-001"
+    memory_events = [{"run_id": run_id, "type": "assistant", "content": "live", "tool_name": "", "timestamp": 2000.0}]
+    state.run_events[run_id] = memory_events
+
+    import asyncio
+
+    captured_build_args: dict = {}
+
+    def fake_build_run_drawer(**kwargs):
+        captured_build_args.update(kwargs)
+
+    with (
+        patch("agents.dashboard.ui") as mock_ui,
+        patch("agents.dashboard._build_run_drawer", side_effect=fake_build_run_drawer),
+    ):
+        mock_ui.row.return_value.__enter__ = MagicMock(return_value=MagicMock())
+        mock_ui.row.return_value.__exit__ = MagicMock(return_value=False)
+        mock_ui.card.return_value.__enter__ = MagicMock(return_value=MagicMock())
+        mock_ui.card.return_value.__exit__ = MagicMock(return_value=False)
+        mock_ui.label.return_value = MagicMock()
+        mock_ui.linear_progress.return_value = MagicMock()
+        mock_ui.log.return_value = MagicMock()
+        mock_ui.select.return_value = MagicMock()
+        mock_ui.button.return_value = MagicMock()
+        mock_ui.timer.return_value = MagicMock()
+
+        mock_table = MagicMock()
+        mock_table.classes.return_value = mock_table
+        mock_table.style.return_value = mock_table
+        on_callbacks: dict = {}
+
+        def fake_on(event_name, callback):
+            on_callbacks[event_name] = callback
+        mock_table.on = fake_on
+        mock_ui.table.return_value = mock_table
+
+        mock_ui.dialog.return_value = MagicMock()
+
+        mock_client = MagicMock()
+        mock_client.on_disconnect = MagicMock()
+        asyncio.run(captured_page_fn(mock_client))
+
+        mock_event = MagicMock()
+        mock_event.args = [None, {"id": run_id, "project": "proj", "task": "daily", "raw_status": "running"}]
+        on_callbacks["rowClick"](mock_event)
+
+    assert captured_build_args["existing_events"] == memory_events
+
+
 def test_dashboard_page_registers_auto_refresh_timer(tmp_path: Path):
     """The dashboard page sets up a 5-second auto-refresh timer."""
     state, config = _make_state_and_config(tmp_path)
