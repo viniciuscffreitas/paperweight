@@ -25,7 +25,7 @@ class DiscordRunNotifier:
 
     async def _request(
         self, method: str, path: str, json: dict | None = None
-    ) -> dict:
+    ) -> dict | list:
         url = f"{DISCORD_API_URL}{path}"
         async with httpx.AsyncClient() as client:
             response = await client.request(
@@ -42,6 +42,15 @@ class DiscordRunNotifier:
                 )
             response.raise_for_status()
             return response.json()
+
+    async def find_channel_by_name(self, guild_id: str, channel_name: str) -> str | None:
+        """Find a text channel by name in the guild. Returns channel_id or None."""
+        data = await self._request("GET", f"/guilds/{guild_id}/channels")
+        if isinstance(data, list):
+            for channel in data:
+                if channel.get("name") == channel_name and channel.get("type") == 0:
+                    return channel["id"]
+        return None
 
     def _build_embed(
         self,

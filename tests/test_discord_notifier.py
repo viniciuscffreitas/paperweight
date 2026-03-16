@@ -147,6 +147,32 @@ class TestFinalizeRunMessage:
         assert "2m05s" in embed["footer"]["text"]
 
 
+class TestFindChannelByName:
+    @pytest.mark.asyncio
+    async def test_find_channel_by_name_returns_channel_id(self, notifier):
+        mock_client, mock_response = _mock_async_client(
+            response_json=[
+                {"id": "chan-1", "name": "general", "type": 0},
+                {"id": "chan-2", "name": "sekit-dev", "type": 0},
+                {"id": "chan-3", "name": "voice", "type": 2},
+            ]
+        )
+        with patch("agents.discord_notifier.httpx.AsyncClient", return_value=mock_client):
+            result = await notifier.find_channel_by_name("guild-1", "sekit-dev")
+        assert result == "chan-2"
+
+    @pytest.mark.asyncio
+    async def test_find_channel_by_name_returns_none_when_not_found(self, notifier):
+        mock_client, mock_response = _mock_async_client(
+            response_json=[
+                {"id": "chan-1", "name": "general", "type": 0},
+            ]
+        )
+        with patch("agents.discord_notifier.httpx.AsyncClient", return_value=mock_client):
+            result = await notifier.find_channel_by_name("guild-1", "nonexistent")
+        assert result is None
+
+
 class TestFailRunMessage:
     @pytest.mark.asyncio
     async def test_fail_sets_failure_color(self, notifier):
