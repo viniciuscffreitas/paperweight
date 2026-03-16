@@ -222,3 +222,17 @@ def test_mark_running_as_cancelled(history_db):
     history_db.mark_running_as_cancelled()
     assert history_db.get_run("run-x").status == RunStatus.CANCELLED
     assert history_db.get_run("run-y").status == RunStatus.SUCCESS
+
+
+def test_find_run_by_issue_id_returns_latest(history_db):
+    from agents.models import RunRecord, RunStatus, TriggerType
+    from datetime import UTC, datetime
+    history_db.insert_run(RunRecord(id="proj-issue-resolver-issue-abc-20260316-001", project="proj", task="issue-resolver", trigger_type=TriggerType.LINEAR, started_at=datetime(2026,3,16,10,0,0,tzinfo=UTC), status=RunStatus.FAILURE, model="sonnet"))
+    history_db.insert_run(RunRecord(id="proj-issue-resolver-issue-abc-20260316-002", project="proj", task="issue-resolver", trigger_type=TriggerType.LINEAR, started_at=datetime(2026,3,16,11,0,0,tzinfo=UTC), status=RunStatus.SUCCESS, model="sonnet"))
+    result = history_db.find_run_by_issue_id("issue-abc")
+    assert result is not None
+    assert result.status == RunStatus.SUCCESS
+
+def test_find_run_by_issue_id_returns_none_when_not_found(history_db):
+    result = history_db.find_run_by_issue_id("nonexistent")
+    assert result is None

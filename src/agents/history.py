@@ -168,6 +168,16 @@ class HistoryDB:
             for row in rows
         ]
 
+    def find_run_by_issue_id(self, issue_id: str) -> RunRecord | None:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM runs WHERE task = 'issue-resolver' AND id LIKE ? ORDER BY started_at DESC LIMIT 1",
+                (f"%{issue_id}%",),
+            ).fetchone()
+        if row is None:
+            return None
+        return self._row_to_record(row)
+
     def _row_to_record(self, row: sqlite3.Row) -> RunRecord:
         return RunRecord(
             id=row["id"],
