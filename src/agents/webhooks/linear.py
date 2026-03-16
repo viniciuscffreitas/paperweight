@@ -32,3 +32,27 @@ def extract_linear_variables(payload: dict) -> dict[str, str]:
         "assignee": assignee.get("name", "") if isinstance(assignee, dict) else "",
         "status": state.get("name", "") if isinstance(state, dict) else "",
     }
+
+
+def match_agent_issue(payload: dict) -> bool:
+    if payload.get("type") != "Issue":
+        return False
+    action = payload.get("action", "")
+    if action not in ("create", "update"):
+        return False
+    data = payload.get("data", {})
+    labels = data.get("labels", [])
+    if any(label.get("name") == "agent" for label in labels if isinstance(label, dict)):
+        return True
+    return False
+
+
+def extract_agent_issue_variables(payload: dict) -> dict[str, str]:
+    data = payload.get("data", {})
+    return {
+        "issue_id": data.get("id", ""),
+        "issue_identifier": data.get("identifier", ""),
+        "issue_title": data.get("title", ""),
+        "issue_description": data.get("description", ""),
+        "team_id": data.get("teamId", ""),
+    }
