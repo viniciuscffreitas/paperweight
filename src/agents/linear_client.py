@@ -22,6 +22,13 @@ class LinearClient:
             response.raise_for_status()
             return response.json()
 
+    async def fetch_teams(self) -> dict[str, str]:
+        """Returns {team_name_lower: team_id} for all teams in the workspace."""
+        query = """query { teams { nodes { id name } } }"""
+        data = await self._graphql(query)
+        nodes = data.get("data", {}).get("teams", {}).get("nodes", [])
+        return {node["name"].lower(): node["id"] for node in nodes}
+
     async def fetch_issue(self, issue_id: str) -> dict:
         query = """
         query($id: String!) {

@@ -174,6 +174,19 @@ async def test_remove_label_case_insensitive(linear_client):
 
 
 @pytest.mark.asyncio
+async def test_fetch_teams_returns_name_to_id_mapping(linear_client):
+    mock_client = _make_mock_client([{
+        "data": {"teams": {"nodes": [
+            {"id": "team-1", "name": "Sekit"},
+            {"id": "team-2", "name": "Jarvis"},
+        ]}}
+    }])
+    with patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client):
+        result = await linear_client.fetch_teams()
+    assert result == {"sekit": "team-1", "jarvis": "team-2"}
+
+
+@pytest.mark.asyncio
 async def test_remove_label_not_found_logs_warning(linear_client):
     fetch_labels_response = {
         "data": {"issue": {"labels": {"nodes": [
