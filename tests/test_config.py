@@ -149,3 +149,34 @@ def test_build_prompt_substitutes_variables_in_intent():
     )
     result = build_prompt(task, {"branch": "feat/x", "sha": "abc123"})
     assert "Fix CI on feat/x (sha: abc123)" in result
+
+
+def test_global_config_integrations_defaults():
+    from agents.config import load_global_config
+
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        f.write("budget:\n  daily_limit_usd: 10.00\n")
+        f.flush()
+        config = load_global_config(Path(f.name))
+
+    assert config.integrations.linear_api_key == ""
+    assert config.integrations.discord_bot_token == ""
+
+
+def test_global_config_with_integrations(tmp_path):
+    from agents.config import load_global_config
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("""
+budget:
+  daily_limit_usd: 10.00
+integrations:
+  linear_api_key: lin_api_abc123
+  discord_bot_token: discord_token_xyz
+""")
+    config = load_global_config(config_file)
+    assert config.integrations.linear_api_key == "lin_api_abc123"
+    assert config.integrations.discord_bot_token == "discord_token_xyz"

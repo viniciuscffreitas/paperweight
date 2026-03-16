@@ -44,12 +44,18 @@ class ServerConfig(BaseModel):
     port: int = 8080
 
 
+class IntegrationsConfig(BaseModel):
+    linear_api_key: str = ""
+    discord_bot_token: str = ""
+
+
 class GlobalConfig(BaseModel):
     budget: BudgetConfig = BudgetConfig()
     notifications: NotificationsConfig = NotificationsConfig()
     webhooks: WebhooksConfig = WebhooksConfig()
     execution: ExecutionConfig = ExecutionConfig()
     server: ServerConfig = ServerConfig()
+    integrations: IntegrationsConfig = IntegrationsConfig()
 
 
 def resolve_env_vars(value: str) -> str:
