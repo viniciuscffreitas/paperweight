@@ -302,3 +302,33 @@ def test_executor_works_without_optional_clients(tmp_path):
     )
     assert executor.linear_client is None
     assert executor.discord_notifier is None
+
+
+def test_write_progress_log(tmp_path):
+    from agents.executor import write_progress_log
+
+    path = write_progress_log(
+        tmp_path / "progress", "issue-abc", attempt=1, issue_title="Add pagination", issue_description="Add to user list"
+    )
+    assert path.exists()
+    content = path.read_text()
+    assert "Add pagination" in content
+    assert "attempt 1" in content.lower()
+
+
+def test_append_progress_log(tmp_path):
+    from agents.executor import append_progress_log, write_progress_log
+
+    write_progress_log(tmp_path / "progress", "issue-abc", attempt=1, issue_title="T", issue_description="D")
+    append_progress_log(tmp_path / "progress", "issue-abc", attempt=1, error="Tests failed: 3 assertions")
+    content = (tmp_path / "progress" / "issue-abc.txt").read_text()
+    assert "Tests failed" in content
+
+
+def test_delete_progress_log(tmp_path):
+    from agents.executor import delete_progress_log, write_progress_log
+
+    path = write_progress_log(tmp_path / "progress", "issue-abc", attempt=1, issue_title="T", issue_description="D")
+    assert path.exists()
+    delete_progress_log(tmp_path / "progress", "issue-abc")
+    assert not path.exists()

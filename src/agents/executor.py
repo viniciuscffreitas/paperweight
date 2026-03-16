@@ -49,6 +49,32 @@ def parse_claude_output(raw: str) -> ClaudeOutput:
         return ClaudeOutput(result=raw, is_error=True)
 
 
+def write_progress_log(
+    progress_dir: Path, issue_id: str, attempt: int, issue_title: str = "", issue_description: str = ""
+) -> Path:
+    progress_dir.mkdir(parents=True, exist_ok=True)
+    path = progress_dir / f"{issue_id}.txt"
+    path.write_text(
+        f"# Progress Log — {issue_id}\n\n"
+        f"## Issue: {issue_title}\n{issue_description}\n\n"
+        f"## Attempt {attempt}\nStarting...\n"
+    )
+    return path
+
+
+def append_progress_log(progress_dir: Path, issue_id: str, attempt: int, error: str = "") -> None:
+    path = progress_dir / f"{issue_id}.txt"
+    if path.exists():
+        with path.open("a") as f:
+            f.write(f"\n### Attempt {attempt} — FAILED\nError: {error}\n")
+
+
+def delete_progress_log(progress_dir: Path, issue_id: str) -> None:
+    path = progress_dir / f"{issue_id}.txt"
+    if path.exists():
+        path.unlink()
+
+
 class Executor:
     def __init__(
         self,
