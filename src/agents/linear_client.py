@@ -71,3 +71,20 @@ class LinearClient:
         states = {node["name"].lower(): node["id"] for node in nodes}
         self._team_states_cache[team_id] = states
         return states
+
+    async def remove_label(self, issue_id: str, label_name: str) -> None:
+        data = await self._graphql(
+            """query($id: String!) { issue(id: $id) { labels { nodes { id name } } } }""",
+            {"id": issue_id},
+        )
+        nodes = data.get("data", {}).get("issue", {}).get("labels", {}).get("nodes", [])
+        label_id = next((n["id"] for n in nodes if n["name"].lower() == label_name.lower()), None)
+        if not label_id:
+            logger.warning("Label '%s' not found on issue %s", label_name, issue_id)
+            return
+        await self._graphql(
+            """mutation($issueId: String!, $labelId: String!) {
+                issueRemoveLabel(id: $issueId, labelId: $labelId) { success }
+            }""",
+            {"issueId": issue_id, "labelId": label_id},
+        )

@@ -136,3 +136,55 @@ async def test_update_status_unknown_state_logs_warning(linear_client):
     mock_logger.warning.assert_called_once()
     # Only 1 call (fetch states), no update call
     assert mock_client.post.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_remove_label_queries_then_removes(linear_client):
+    fetch_labels_response = {
+        "data": {"issue": {"labels": {"nodes": [
+            {"id": "lbl-1", "name": "bug"},
+            {"id": "lbl-2", "name": "agent-trigger"},
+        ]}}}
+    }
+    remove_response = {"data": {"issueRemoveLabel": {"success": True}}}
+    mock_client = _make_mock_client([fetch_labels_response, remove_response])
+
+    with patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client):
+        await linear_client.remove_label("issue-123", "agent-trigger")
+
+    assert mock_client.post.call_count == 2
+    remove_call = mock_client.post.call_args_list[1][1]
+    assert remove_call["json"]["variables"]["labelId"] == "lbl-2"
+
+
+@pytest.mark.asyncio
+async def test_remove_label_case_insensitive(linear_client):
+    fetch_labels_response = {
+        "data": {"issue": {"labels": {"nodes": [
+            {"id": "lbl-1", "name": "Agent-Trigger"},
+        ]}}}
+    }
+    remove_response = {"data": {"issueRemoveLabel": {"success": True}}}
+    mock_client = _make_mock_client([fetch_labels_response, remove_response])
+
+    with patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client):
+        await linear_client.remove_label("issue-123", "agent-trigger")
+
+    assert mock_client.post.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_remove_label_not_found_logs_warning(linear_client):
+    fetch_labels_response = {
+        "data": {"issue": {"labels": {"nodes": [
+            {"id": "lbl-1", "name": "bug"},
+        ]}}}
+    }
+    mock_client = _make_mock_client([fetch_labels_response])
+
+    with patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client), \
+         patch("agents.linear_client.logger") as mock_logger:
+        await linear_client.remove_label("issue-123", "nonexistent")
+
+    mock_logger.warning.assert_called_once()
+    assert mock_client.post.call_count == 1
