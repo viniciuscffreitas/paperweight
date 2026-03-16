@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "command": "echo \"$TOOL_INPUT\" | grep -qE '(rm -rf|git push --force|git reset --hard|DROP TABLE|git clean -fd)' && echo 'BLOCKED: destructive command in autonomous mode' && exit 1 || exit 0"
+      }
+    ]
+  }
+}
