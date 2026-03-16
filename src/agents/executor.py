@@ -25,10 +25,14 @@ class ClaudeOutput(BaseModel):
     num_turns: int = 0
 
 
-def generate_run_id(project: str, task: str) -> str:
+def generate_run_id(project: str, task: str, issue_id: str = "") -> str:
     short_uuid = uuid.uuid4().hex[:8]
     timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
-    return f"{project}-{task}-{timestamp}-{short_uuid}"
+    parts = [project, task]
+    if issue_id:
+        parts.append(issue_id)
+    parts.extend([timestamp, short_uuid])
+    return "-".join(parts)
 
 
 def generate_branch_name(prefix: str, task: str) -> str:

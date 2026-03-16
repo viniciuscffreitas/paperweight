@@ -304,6 +304,22 @@ def test_executor_works_without_optional_clients(tmp_path):
     assert executor.discord_notifier is None
 
 
+def test_generate_run_id_includes_issue_id():
+    from agents.executor import generate_run_id
+
+    run_id = generate_run_id("sekit", "issue-resolver", issue_id="issue-abc-123")
+    assert "issue-abc-123" in run_id
+    assert "sekit" in run_id
+
+
+def test_generate_run_id_works_without_issue_id():
+    from agents.executor import generate_run_id
+
+    run_id = generate_run_id("sekit", "dep-update")
+    assert "sekit" in run_id
+    assert "dep-update" in run_id
+
+
 def test_write_progress_log(tmp_path):
     from agents.executor import write_progress_log
 
