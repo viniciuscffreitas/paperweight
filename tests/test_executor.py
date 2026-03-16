@@ -266,3 +266,39 @@ def test_appstate_has_run_events_store(tmp_path):
     )
     assert hasattr(state, "run_events")
     assert isinstance(state.run_events, dict)
+
+
+def test_executor_accepts_optional_linear_and_discord_clients(tmp_path):
+    from unittest.mock import MagicMock
+
+    from agents.config import ExecutionConfig
+    from agents.executor import Executor
+
+    executor = Executor(
+        config=ExecutionConfig(dry_run=True),
+        budget=MagicMock(),
+        history=MagicMock(),
+        notifier=MagicMock(),
+        data_dir=tmp_path,
+        linear_client=MagicMock(),
+        discord_notifier=MagicMock(),
+    )
+    assert executor.linear_client is not None
+    assert executor.discord_notifier is not None
+
+
+def test_executor_works_without_optional_clients(tmp_path):
+    from unittest.mock import MagicMock
+
+    from agents.config import ExecutionConfig
+    from agents.executor import Executor
+
+    executor = Executor(
+        config=ExecutionConfig(dry_run=True),
+        budget=MagicMock(),
+        history=MagicMock(),
+        notifier=MagicMock(),
+        data_dir=tmp_path,
+    )
+    assert executor.linear_client is None
+    assert executor.discord_notifier is None
