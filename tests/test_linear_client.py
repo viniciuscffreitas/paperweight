@@ -47,3 +47,92 @@ async def test_fetch_issue_returns_parsed_dict(linear_client):
     mock_client_instance.post.assert_called_once()
     call_kwargs = mock_client_instance.post.call_args
     assert call_kwargs[1]["headers"]["Authorization"] == "test-key"
+
+
+def _make_mock_client(responses):
+    """Helper: returns a mock httpx.AsyncClient that yields `responses` in order."""
+    mock_client_instance = AsyncMock()
+    mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+    mock_client_instance.__aexit__ = AsyncMock(return_value=False)
+
+    mock_responses = []
+    for resp_json in responses:
+        r = MagicMock()
+        r.json.return_value = resp_json
+        r.raise_for_status = MagicMock()
+        mock_responses.append(r)
+
+    mock_client_instance.post.side_effect = mock_responses
+    return mock_client_instance
+
+
+@pytest.mark.asyncio
+async def test_post_comment_calls_graphql(linear_client):
+    mock_client = _make_mock_client([{"data": {"commentCreate": {"success": True}}}])
+
+    with patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client):
+        await linear_client.post_comment("issue-123", "Hello from bot")
+
+    call_kwargs = mock_client.post.call_args[1]
+    payload = call_kwargs["json"]
+    assert "commentCreate" in payload["query"]
+    assert payload["variables"]["issueId"] == "issue-123"
+    assert payload["variables"]["body"] == "Hello from bot"
+
+
+@pytest.mark.asyncio
+async def test_update_status_fetches_states_and_updates(linear_client):
+    team_states_response = {
+        "data": {"team": {"states": {"nodes": [
+            {"id": "state-1", "name": "Todo"},
+            {"id": "state-2", "name": "In Progress"},
+            {"id": "state-3", "name": "Done"},
+        ]}}}
+    }
+    update_response = {"data": {"issueUpdate": {"success": True}}}
+    mock_client = _make_mock_client([team_states_response, update_response])
+
+    with patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client):
+        await linear_client.update_status("issue-123", "team-abc", "In Progress")
+
+    assert mock_client.post.call_count == 2
+    update_call = mock_client.post.call_args_list[1][1]
+    assert update_call["json"]["variables"]["stateId"] == "state-2"
+
+
+@pytest.mark.asyncio
+async def test_update_status_caches_team_states(linear_client):
+    team_states_response = {
+        "data": {"team": {"states": {"nodes": [
+            {"id": "state-1", "name": "Todo"},
+            {"id": "state-3", "name": "Done"},
+        ]}}}
+    }
+    update_response = {"data": {"issueUpdate": {"success": True}}}
+    # First call: fetch states + update = 2 calls
+    mock_client = _make_mock_client([team_states_response, update_response, update_response])
+
+    with patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client):
+        await linear_client.update_status("issue-123", "team-abc", "Done")
+        await linear_client.update_status("issue-456", "team-abc", "Todo")
+
+    # Second call should use cache: only 1 more call (the update), total = 3
+    assert mock_client.post.call_count == 3
+
+
+@pytest.mark.asyncio
+async def test_update_status_unknown_state_logs_warning(linear_client):
+    team_states_response = {
+        "data": {"team": {"states": {"nodes": [
+            {"id": "state-1", "name": "Todo"},
+        ]}}}
+    }
+    mock_client = _make_mock_client([team_states_response])
+
+    with patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client), \
+         patch("agents.linear_client.logger") as mock_logger:
+        await linear_client.update_status("issue-123", "team-abc", "Nonexistent")
+
+    mock_logger.warning.assert_called_once()
+    # Only 1 call (fetch states), no update call
+    assert mock_client.post.call_count == 1

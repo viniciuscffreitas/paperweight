@@ -42,3 +42,32 @@ class LinearClient:
             "state": issue.get("state", {}).get("name", ""),
             "labels": [n.get("name", "") for n in issue.get("labels", {}).get("nodes", [])],
         }
+
+    async def post_comment(self, issue_id: str, body: str) -> None:
+        query = """mutation($issueId: String!, $body: String!) {
+            commentCreate(input: { issueId: $issueId, body: $body }) { success }
+        }"""
+        await self._graphql(query, {"issueId": issue_id, "body": body})
+
+    async def update_status(self, issue_id: str, team_id: str, target_state_name: str) -> None:
+        states = await self._get_team_states(team_id)
+        state_id = states.get(target_state_name.lower())
+        if not state_id:
+            logger.warning("State '%s' not found for team %s", target_state_name, team_id)
+            return
+        query = """mutation($issueId: String!, $stateId: String!) {
+            issueUpdate(id: $issueId, input: { stateId: $stateId }) { success }
+        }"""
+        await self._graphql(query, {"issueId": issue_id, "stateId": state_id})
+
+    async def _get_team_states(self, team_id: str) -> dict[str, str]:
+        if team_id in self._team_states_cache:
+            return self._team_states_cache[team_id]
+        query = """query($teamId: String!) {
+            team(id: $teamId) { states { nodes { id name } } }
+        }"""
+        data = await self._graphql(query, {"teamId": team_id})
+        nodes = data.get("data", {}).get("team", {}).get("states", {}).get("nodes", [])
+        states = {node["name"].lower(): node["id"] for node in nodes}
+        self._team_states_cache[team_id] = states
+        return states
