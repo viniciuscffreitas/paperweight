@@ -373,6 +373,9 @@ def create_app(
 
 def run() -> None:
     import uvicorn
+    from dotenv import load_dotenv
+
+    load_dotenv()
 
     base = Path.cwd()
     config = load_global_config(base / "config.yaml")
