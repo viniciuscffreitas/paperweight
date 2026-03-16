@@ -124,3 +124,37 @@ def test_task_config_requires_intent_or_prompt():
 
     with pytest.raises(ValueError, match=r"intent.*prompt"):
         TaskConfig(description="test", schedule="0 3 * * MON")
+
+
+def test_project_config_linear_and_discord_defaults():
+    from agents.models import ProjectConfig, TaskConfig
+
+    project = ProjectConfig(
+        name="test",
+        repo="/tmp/repo",
+        tasks={
+            "t": TaskConfig(
+                description="test", prompt="do it", schedule="0 3 * * MON"
+            )
+        },
+    )
+    assert project.linear_team_id == ""
+    assert project.discord_channel_id == ""
+
+
+def test_project_config_with_linear_and_discord():
+    from agents.models import ProjectConfig, TaskConfig
+
+    project = ProjectConfig(
+        name="test",
+        repo="/tmp/repo",
+        linear_team_id="TEAM-123",
+        discord_channel_id="123456789",
+        tasks={
+            "t": TaskConfig(
+                description="test", prompt="do it", schedule="0 3 * * MON"
+            )
+        },
+    )
+    assert project.linear_team_id == "TEAM-123"
+    assert project.discord_channel_id == "123456789"

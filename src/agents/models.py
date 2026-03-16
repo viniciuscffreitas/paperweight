@@ -60,6 +60,8 @@ class ProjectConfig(BaseModel):
     base_branch: str = "main"
     branch_prefix: str = "agents/"
     notify: str = "slack"
+    linear_team_id: str = ""
+    discord_channel_id: str = ""
     tasks: dict[str, TaskConfig]
 
 
