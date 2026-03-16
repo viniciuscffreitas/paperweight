@@ -129,3 +129,35 @@ async def test_broadcast_event_persists_dry_run_events(test_app):
     event_types = [e["type"] for e in events]
     assert "dry_run" in event_types
     assert "task_completed" in event_types
+
+
+@pytest.mark.asyncio
+async def test_app_creates_linear_client_when_configured(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("""
+budget:
+  daily_limit_usd: 10.00
+  warning_threshold_usd: 7.00
+  pause_on_limit: true
+notifications:
+  slack_webhook_url: ""
+webhooks:
+  github_secret: test-secret
+  linear_secret: test-linear-secret
+execution:
+  worktree_base: /tmp/test-agents
+  dry_run: true
+server:
+  host: 127.0.0.1
+  port: 9090
+integrations:
+  linear_api_key: "test-linear-key"
+  discord_bot_token: "test-discord-token"
+""")
+    projects_dir = tmp_path / "projects"
+    projects_dir.mkdir()
+    from agents.main import create_app
+    app = create_app(config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data")
+    state = app.state.app_state
+    assert state.executor.linear_client is not None
+    assert state.executor.discord_notifier is not None

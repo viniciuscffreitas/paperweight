@@ -88,6 +88,16 @@ def create_app(
     budget = BudgetManager(config=config.budget, history=history)
     notifier = Notifier(webhook_url=config.notifications.slack_webhook_url)
 
+    from agents.discord_notifier import DiscordRunNotifier
+    from agents.linear_client import LinearClient
+
+    linear_client = None
+    discord_notifier_client = None
+    if config.integrations.linear_api_key:
+        linear_client = LinearClient(api_key=config.integrations.linear_api_key)
+    if config.integrations.discord_bot_token:
+        discord_notifier_client = DiscordRunNotifier(bot_token=config.integrations.discord_bot_token)
+
     async def broadcast_event(run_id: str, event: StreamEvent) -> None:
         msg = event.model_dump_json()
         dead: set[WebSocket] = set()
@@ -132,6 +142,8 @@ def create_app(
         notifier=notifier,
         data_dir=data_dir,
         on_stream_event=broadcast_event,
+        linear_client=linear_client,
+        discord_notifier=discord_notifier_client,
     )
 
     state = AppState(
