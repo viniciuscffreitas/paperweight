@@ -301,6 +301,33 @@ def create_app(
                             await state.executor.run_task(p, tn, trigger_type="linear", variables=v)
 
                     background_tasks.add_task(_run)
+
+        # Agent issue detection
+        from agents.webhooks.linear import match_agent_issue, extract_agent_issue_variables
+
+        if match_agent_issue(payload):
+            variables = extract_agent_issue_variables(payload)
+            team_id = variables.get("team_id", "")
+            for project in state.projects.values():
+                if project.linear_team_id == team_id and "issue-resolver" in project.tasks:
+                    existing = state.history.find_run_by_issue_id(variables["issue_id"])
+                    if existing and existing.status in ("running", "success"):
+                        logger.info("Skipping agent issue %s — already %s", variables["issue_id"], existing.status)
+                        break
+
+                    async def _run_agent(
+                        p: ProjectConfig = project,
+                        v: dict[str, str] = variables,
+                    ) -> None:
+                        async with (
+                            state.get_semaphore(config.execution.max_concurrent),
+                            state.get_repo_semaphore(p.repo),
+                        ):
+                            await state.executor.run_task(p, "issue-resolver", trigger_type="linear", variables=v)
+
+                    background_tasks.add_task(_run_agent)
+                    break
+
         return {"status": "processed"}
 
     @app.post("/runs/{run_id}/cancel", response_model=None)

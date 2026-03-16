@@ -161,3 +161,84 @@ integrations:
     state = app.state.app_state
     assert state.executor.linear_client is not None
     assert state.executor.discord_notifier is not None
+
+
+@pytest.mark.asyncio
+async def test_linear_webhook_detects_agent_issue(tmp_path):
+    from unittest.mock import AsyncMock, patch
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("""
+budget:
+  daily_limit_usd: 10.00
+  warning_threshold_usd: 7.00
+  pause_on_limit: true
+notifications:
+  slack_webhook_url: ""
+webhooks:
+  github_secret: ""
+  linear_secret: ""
+execution:
+  worktree_base: /tmp/test-agents
+  dry_run: true
+server:
+  host: 127.0.0.1
+  port: 9090
+integrations:
+  linear_api_key: "test-key"
+  discord_bot_token: "test-token"
+""")
+    projects_dir = tmp_path / "projects"
+    projects_dir.mkdir()
+    (projects_dir / "testproj.yaml").write_text("""
+name: testproj
+repo: /tmp/test-repo
+linear_team_id: team-xyz
+discord_channel_id: chan-123
+tasks:
+  issue-resolver:
+    description: "Resolve Linear issues"
+    prompt: "Resolve {{issue_title}}"
+    trigger:
+      type: linear
+      events: [Issue.create]
+      filter:
+        label: agent
+""")
+    from agents.main import create_app
+    from httpx import ASGITransport, AsyncClient
+    app = create_app(config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data")
+    state = app.state.app_state
+
+    # Patch run_task to track calls and check agent issue path
+    original_run_task = state.executor.run_task
+    agent_calls = []
+
+    async def tracking_run_task(project, task_name, **kwargs):
+        if kwargs.get("trigger_type") == "linear" and "issue_id" in kwargs.get("variables", {}):
+            agent_calls.append({"task": task_name, "variables": kwargs["variables"]})
+        return await original_run_task(project, task_name, **kwargs)
+
+    state.executor.run_task = tracking_run_task
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/webhooks/linear", json={
+            "action": "create",
+            "type": "Issue",
+            "data": {
+                "id": "issue-new-1",
+                "identifier": "TST-1",
+                "title": "Test issue",
+                "description": "Test description",
+                "teamId": "team-xyz",
+                "labels": [{"name": "agent"}],
+            },
+        })
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "processed"
+    # Verify the agent issue detection path was triggered
+    assert len(agent_calls) >= 1
+    assert agent_calls[0]["task"] == "issue-resolver"
+    assert agent_calls[0]["variables"]["issue_id"] == "issue-new-1"
