@@ -144,3 +144,48 @@ class DiscordRunNotifier:
             json={"embeds": [embed]},
         )
         self._last_edit_time = now
+
+    async def finalize_run_message(
+        self,
+        channel_id: str,
+        message_id: str,
+        identifier: str,
+        title: str,
+        events: list[dict],
+        pr_url: str | None = None,
+        cost: float = 0.0,
+        duration_s: float = 0.0,
+    ) -> None:
+        embed = self._build_embed(
+            identifier, title, events=events, status="success",
+            pr_url=pr_url, cost=cost, duration_s=duration_s,
+        )
+        await self._request(
+            "PATCH",
+            f"/channels/{channel_id}/messages/{message_id}",
+            json={"embeds": [embed]},
+        )
+
+    async def fail_run_message(
+        self,
+        channel_id: str,
+        message_id: str,
+        identifier: str,
+        title: str,
+        events: list[dict],
+        error: str = "",
+        attempt: int = 0,
+        max_attempts: int = 3,
+        cost: float = 0.0,
+        duration_s: float = 0.0,
+    ) -> None:
+        embed = self._build_embed(
+            identifier, title, events=events, status="failure",
+            error=error, cost=cost, duration_s=duration_s,
+        )
+        embed["footer"] = {"text": f"Attempt {attempt}/{max_attempts} · ${cost:.2f}"}
+        await self._request(
+            "PATCH",
+            f"/channels/{channel_id}/messages/{message_id}",
+            json={"embeds": [embed]},
+        )

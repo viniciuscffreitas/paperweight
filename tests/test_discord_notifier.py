@@ -111,3 +111,71 @@ class TestBuildEmbed:
     def test_running_color(self, notifier):
         embed = notifier._build_embed("X", "Y", status="running")
         assert embed["color"] == 0x059669
+
+
+class TestFinalizeRunMessage:
+    @pytest.mark.asyncio
+    async def test_finalize_sets_success_color(self, notifier):
+        mock_client, _ = _mock_async_client({})
+        events = [{"type": "assistant", "content": "done", "timestamp": 1000}]
+
+        with patch("agents.discord_notifier.httpx.AsyncClient", return_value=mock_client):
+            await notifier.finalize_run_message(
+                "chan-1", "msg-1", "PROJ-42", "Fix bug", events,
+                pr_url="https://github.com/org/repo/pull/1", cost=0.15, duration_s=125.0,
+            )
+
+        call_args = mock_client.request.call_args
+        embed = call_args[1]["json"]["embeds"][0]
+        assert embed["color"] == 0x4ADE80
+        assert embed["url"] == "https://github.com/org/repo/pull/1"
+
+    @pytest.mark.asyncio
+    async def test_finalize_includes_footer(self, notifier):
+        mock_client, _ = _mock_async_client({})
+        events = [{"type": "assistant", "content": "done", "timestamp": 1000}]
+
+        with patch("agents.discord_notifier.httpx.AsyncClient", return_value=mock_client):
+            await notifier.finalize_run_message(
+                "chan-1", "msg-1", "PROJ-42", "Fix bug", events,
+                cost=0.15, duration_s=125.0,
+            )
+
+        call_args = mock_client.request.call_args
+        embed = call_args[1]["json"]["embeds"][0]
+        assert "$0.15" in embed["footer"]["text"]
+        assert "2m05s" in embed["footer"]["text"]
+
+
+class TestFailRunMessage:
+    @pytest.mark.asyncio
+    async def test_fail_sets_failure_color(self, notifier):
+        mock_client, _ = _mock_async_client({})
+        events = [{"type": "system", "content": "error", "timestamp": 1000}]
+
+        with patch("agents.discord_notifier.httpx.AsyncClient", return_value=mock_client):
+            await notifier.fail_run_message(
+                "chan-1", "msg-1", "PROJ-42", "Fix bug", events,
+                error="Process crashed", attempt=2, max_attempts=3, cost=0.05, duration_s=30.0,
+            )
+
+        call_args = mock_client.request.call_args
+        embed = call_args[1]["json"]["embeds"][0]
+        assert embed["color"] == 0xF87171
+
+    @pytest.mark.asyncio
+    async def test_fail_includes_error_and_attempt(self, notifier):
+        mock_client, _ = _mock_async_client({})
+        events = [{"type": "system", "content": "error", "timestamp": 1000}]
+
+        with patch("agents.discord_notifier.httpx.AsyncClient", return_value=mock_client):
+            await notifier.fail_run_message(
+                "chan-1", "msg-1", "PROJ-42", "Fix bug", events,
+                error="Process crashed", attempt=2, max_attempts=3, cost=0.05, duration_s=30.0,
+            )
+
+        call_args = mock_client.request.call_args
+        embed = call_args[1]["json"]["embeds"][0]
+        assert "Process crashed" in embed["description"]
+        assert "Attempt 2/3" in embed["footer"]["text"]
+        assert "$0.05" in embed["footer"]["text"]
