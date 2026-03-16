@@ -109,8 +109,9 @@ def create_app(
 
         event_data = {"run_id": run_id, **event.model_dump()}
 
-        # Persist event to SQLite (durable across restarts)
-        history.insert_event(run_id, event_data)
+        # Persist event to SQLite without blocking the event loop
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, history.insert_event, run_id, event_data)
 
         # Keep in-memory cache for live streaming of active runs (cap at 500, last 100 runs)
         bucket = state.run_events.setdefault(run_id, [])

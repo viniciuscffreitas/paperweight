@@ -329,7 +329,8 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
                 row = e.args[1]  # type: ignore[union-attr]
                 run_id = row.get("id", "")
                 if run_id:
-                    events = state.run_events.get(run_id) or state.history.list_events(run_id)
+                    memory_events = state.run_events.get(run_id)
+                    events = memory_events if memory_events is not None else state.history.list_events(run_id)
                     _build_run_drawer(
                         dialog=detail_dialog,
                         run_id=run_id,

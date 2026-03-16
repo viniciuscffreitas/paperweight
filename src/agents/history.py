@@ -136,19 +136,18 @@ class HistoryDB:
 
     def insert_event(self, run_id: str, event_data: dict) -> None:
         with self._conn() as conn:
-            count = conn.execute(
-                "SELECT COUNT(*) FROM run_events WHERE run_id = ?", (run_id,)
-            ).fetchone()[0]
-            if count >= 500:
-                return
+            # Atomic cap check + insert in a single statement to avoid TOCTOU race
             conn.execute(
-                "INSERT INTO run_events (run_id, type, content, tool_name, timestamp) VALUES (?, ?, ?, ?, ?)",
+                """INSERT INTO run_events (run_id, type, content, tool_name, timestamp)
+                   SELECT ?, ?, ?, ?, ?
+                   WHERE (SELECT COUNT(*) FROM run_events WHERE run_id = ?) < 500""",
                 (
                     run_id,
                     event_data.get("type", "unknown"),
                     event_data.get("content", ""),
                     event_data.get("tool_name", ""),
                     event_data.get("timestamp", 0.0),
+                    run_id,
                 ),
             )
 
