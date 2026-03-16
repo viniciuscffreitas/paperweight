@@ -159,6 +159,13 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         history.mark_running_as_cancelled()
+
+        # Auto-discover project IDs from Linear/Discord APIs
+        from agents.discovery import auto_discover_project_ids
+        await auto_discover_project_ids(
+            projects, linear_client, discord_notifier_client, config.integrations.discord_guild_id,
+        )
+
         scheduler = create_scheduler()
 
         async def scheduled_run(project_name: str, task_name: str) -> None:
