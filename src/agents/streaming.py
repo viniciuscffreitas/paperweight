@@ -8,7 +8,18 @@ from pydantic import BaseModel
 
 from agents.executor import ClaudeOutput
 
-StreamEventType = Literal["assistant", "tool_use", "tool_result", "result", "system", "unknown"]
+StreamEventType = Literal[
+    "assistant",
+    "tool_use",
+    "tool_result",
+    "result",
+    "system",
+    "task_started",
+    "task_completed",
+    "task_failed",
+    "dry_run",
+    "unknown",
+]
 
 
 class StreamEvent(BaseModel):

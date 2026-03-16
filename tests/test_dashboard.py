@@ -225,10 +225,12 @@ def test_dashboard_page_renders_budget_header(tmp_path: Path):
         mock_ui.button.return_value = MagicMock()
         mock_ui.timer.return_value = MagicMock()
 
-        asyncio.get_event_loop().run_until_complete(captured_page_fn())
+        mock_client = MagicMock()
+        mock_client.on_disconnect = MagicMock()
+        asyncio.run(captured_page_fn(mock_client))
 
-        # ui.header() should have been called to build the page header
-        mock_ui.header.assert_called_once()
+        # ui.row() should have been called to build the page layout
+        assert mock_ui.row.call_count >= 1
         # ui.label should have been called multiple times (header, stats, sections…)
         assert mock_ui.label.call_count >= 1
 
@@ -270,7 +272,9 @@ def test_dashboard_page_uses_dark_mode(tmp_path: Path):
         mock_ui.button.return_value = MagicMock()
         mock_ui.timer.return_value = MagicMock()
 
-        asyncio.get_event_loop().run_until_complete(captured_page_fn())
+        mock_client = MagicMock()
+        mock_client.on_disconnect = MagicMock()
+        asyncio.run(captured_page_fn(mock_client))
 
         mock_ui.dark_mode.assert_called_once_with(True)
 
@@ -312,10 +316,12 @@ def test_dashboard_page_registers_auto_refresh_timer(tmp_path: Path):
         mock_ui.button.return_value = MagicMock()
         mock_ui.timer.return_value = MagicMock()
 
-        asyncio.get_event_loop().run_until_complete(captured_page_fn())
+        mock_client = MagicMock()
+        mock_client.on_disconnect = MagicMock()
+        asyncio.run(captured_page_fn(mock_client))
 
-        # timer(5.0, ...) must be called
+        # timer must be called (0.15s for drain_queue + 3.0s for refresh)
         timer_calls = mock_ui.timer.call_args_list
-        assert any(call.args[0] == 5.0 for call in timer_calls), (
-            f"Expected ui.timer(5.0, ...) but got: {timer_calls}"
+        assert any(call.args[0] == 3.0 for call in timer_calls), (
+            f"Expected ui.timer(3.0, ...) but got: {timer_calls}"
         )

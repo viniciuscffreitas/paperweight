@@ -151,3 +151,118 @@ async def test_executor_accepts_stream_callback(tmp_path):
         on_stream_event=on_event,
     )
     assert executor.on_stream_event is on_event
+
+
+@pytest.mark.asyncio
+async def test_executor_dry_run_emits_lifecycle_events(tmp_path):
+    """Dry run emits task_started and task_completed lifecycle events."""
+    from agents.budget import BudgetManager
+    from agents.config import BudgetConfig, ExecutionConfig
+    from agents.executor import Executor
+    from agents.history import HistoryDB
+    from agents.models import ProjectConfig, TaskConfig
+    from agents.notifier import Notifier
+
+    events = []
+
+    async def on_event(run_id, event):
+        events.append((run_id, event))
+
+    db = HistoryDB(tmp_path / "test.db")
+    budget = BudgetManager(config=BudgetConfig(), history=db)
+    notifier = Notifier(webhook_url="")
+    exec_config = ExecutionConfig(worktree_base=str(tmp_path / "wt"), dry_run=True)
+    executor = Executor(
+        config=exec_config,
+        budget=budget,
+        history=db,
+        notifier=notifier,
+        data_dir=tmp_path / "data",
+        on_stream_event=on_event,
+    )
+    project = ProjectConfig(
+        name="test",
+        repo="/tmp/test",
+        tasks={"hello": TaskConfig(description="t", prompt="hi", schedule="0 * * * *")},
+    )
+    await executor.run_task(project, "hello", trigger_type="manual")
+
+    event_types = [e.type for _, e in events]
+    assert "task_started" in event_types
+    assert "task_completed" in event_types
+
+
+@pytest.mark.asyncio
+async def test_executor_budget_blocked_emits_lifecycle_event(executor_deps):
+    """Budget exceeded emits task_started and task_failed events."""
+    from datetime import UTC, datetime
+
+    from agents.models import ProjectConfig, RunRecord, RunStatus, TaskConfig, TriggerType
+
+    executor, db = executor_deps
+    events = []
+
+    async def on_event(run_id, event):
+        events.append((run_id, event))
+
+    executor.on_stream_event = on_event
+
+    now = datetime.now(UTC)
+    db.insert_run(
+        RunRecord(
+            id="r-old",
+            project="p",
+            task="t",
+            trigger_type=TriggerType.MANUAL,
+            started_at=now,
+            status=RunStatus.SUCCESS,
+            model="s",
+            cost_usd=10.0,
+        )
+    )
+    project = ProjectConfig(
+        name="test",
+        repo="/tmp/test",
+        tasks={"hello": TaskConfig(description="t", prompt="hi", schedule="0 * * * *")},
+    )
+    await executor.run_task(project, "hello", trigger_type="manual")
+
+    event_types = [e.type for _, e in events]
+    assert "task_started" in event_types
+    assert "task_failed" in event_types
+
+
+def test_appstate_has_run_events_store(tmp_path):
+    """AppState exposes run_events dict for per-run event history."""
+    from unittest.mock import AsyncMock
+
+    from agents.budget import BudgetManager
+    from agents.config import BudgetConfig, ExecutionConfig
+    from agents.executor import Executor
+    from agents.history import HistoryDB
+    from agents.main import AppState
+    from agents.notifier import Notifier
+
+    db = HistoryDB(tmp_path / "test.db")
+    budget = BudgetManager(config=BudgetConfig(), history=db)
+    notifier = Notifier(webhook_url="")
+    exec_config = ExecutionConfig(worktree_base=str(tmp_path / "wt"), dry_run=True)
+    executor = Executor(
+        config=exec_config,
+        budget=budget,
+        history=db,
+        notifier=notifier,
+        data_dir=tmp_path / "data",
+        on_stream_event=AsyncMock(),
+    )
+    state = AppState(
+        projects={},
+        executor=executor,
+        history=db,
+        budget=budget,
+        notifier=notifier,
+        github_secret="",
+        linear_secret="",
+    )
+    assert hasattr(state, "run_events")
+    assert isinstance(state.run_events, dict)

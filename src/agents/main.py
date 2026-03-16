@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json as json_module
 import logging
 from collections.abc import AsyncGenerator
@@ -53,6 +54,8 @@ class AppState:
         self._repo_semaphores: dict[str, asyncio.Semaphore] = {}
         self.ws_clients: dict[str, set[WebSocket]] = {}
         self.ws_global_clients: set[WebSocket] = set()
+        self.stream_queues: list[asyncio.Queue] = []
+        self.run_events: dict[str, list[dict]] = {}
 
     def get_semaphore(self, max_concurrent: int) -> asyncio.Semaphore:
         if self._semaphore is None:
@@ -103,6 +106,20 @@ def create_app(
             except Exception:
                 dead_global.add(ws)
         state.ws_global_clients.difference_update(dead_global)
+
+        event_data = {"run_id": run_id, **event.model_dump()}
+
+        # Persist event for run detail view (cap at 500 per run, keep last 100 runs)
+        bucket = state.run_events.setdefault(run_id, [])
+        if len(bucket) < 500:
+            bucket.append(event_data)
+        if len(state.run_events) > 100:
+            oldest = next(iter(state.run_events))
+            del state.run_events[oldest]
+
+        for q in list(state.stream_queues):
+            with contextlib.suppress(asyncio.QueueFull):
+                q.put_nowait(event_data)
 
     executor = Executor(
         config=config.execution,

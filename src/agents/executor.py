@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import time
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -69,6 +70,14 @@ class Executor:
     async def _noop_event(self, run_id: str, event: object) -> None:
         pass
 
+    async def _emit(self, run_id: str, event_type: str, content: str = "") -> None:
+        from agents.streaming import StreamEvent
+
+        await self.on_stream_event(
+            run_id,
+            StreamEvent(type=event_type, content=content, timestamp=time.time()),  # type: ignore[arg-type]
+        )
+
     async def run_task(
         self,
         project: ProjectConfig,
@@ -88,6 +97,7 @@ class Executor:
             model=task.model,
         )
         self.history.insert_run(run)
+        await self._emit(run_id, "task_started", f"{project.name}/{task_name} [{trigger_type}]")
 
         if not self.budget.can_afford(task.max_cost_usd):
             run.status = RunStatus.FAILURE
@@ -102,11 +112,13 @@ class Executor:
                 finished_at=run.finished_at,
                 error_message=run.error_message,
             )
+            await self._emit(run_id, "task_failed", run.error_message)
             await self.notifier.send_run_notification(run)
             return run
 
         if self.config.dry_run:
             logger.info("DRY RUN: would execute %s/%s", project.name, task_name)
+            await self._emit(run_id, "dry_run", "dry_run=true — skipping Claude execution")
             run.status = RunStatus.SUCCESS
             run.cost_usd = 0.0
             run.finished_at = datetime.now(UTC)
@@ -116,6 +128,7 @@ class Executor:
                 finished_at=run.finished_at,
                 cost_usd=0.0,
             )
+            await self._emit(run_id, "task_completed", "done (dry run)")
             return run
 
         worktree_path: Path | None = None
@@ -172,6 +185,7 @@ class Executor:
             if output.is_error:
                 run.status = RunStatus.FAILURE
                 run.error_message = output.result[:500]
+                await self._emit(run_id, "task_failed", run.error_message)
             else:
                 pr_url = await self._create_pr(
                     cwd=str(worktree_path),
@@ -182,14 +196,18 @@ class Executor:
                 )
                 run.status = RunStatus.SUCCESS
                 run.pr_url = pr_url
+                msg = f"done — PR: {pr_url}" if pr_url else "done (no changes)"
+                await self._emit(run_id, "task_completed", msg)
 
         except TimeoutError:
             run.status = RunStatus.TIMEOUT
             run.error_message = f"Timed out after {self.config.timeout_minutes} minutes"
+            await self._emit(run_id, "task_failed", run.error_message)
         except Exception as e:
             run.status = RunStatus.FAILURE
             run.error_message = str(e)[:500]
             logger.exception("Task execution failed: %s/%s", project.name, task_name)
+            await self._emit(run_id, "task_failed", run.error_message)
         finally:
             run.finished_at = datetime.now(UTC)
             self.history.update_run(
