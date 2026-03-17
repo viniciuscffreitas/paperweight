@@ -236,6 +236,8 @@ notifications:
 integrations:
   linear_api_key: ${LINEAR_API_KEY}
   discord_bot_token: ${DISCORD_BOT_TOKEN}
+  github_token: ${GITHUB_TOKEN}           # for Project Hub source polling
+  slack_bot_token: ${SLACK_BOT_TOKEN}     # for Project Hub source polling
 ```
 
 All secrets from environment variables. Nothing hardcoded.
@@ -261,6 +263,49 @@ Default is `pr-only`. You're always in control of what lands on `main`.
 ![paperweight dashboard](docs/dashboard.png)
 
 *Live stream of every tool call, run history, budget gauge. Powered by [NiceGUI](https://nicegui.io).*
+
+### Project Hub
+
+The dashboard includes a **Project Hub** — a command center where you can manage projects, create tasks, and launch runs without editing YAML files.
+
+#### Creating a project
+
+Click **+ New Project** in the dashboard sidebar. The setup wizard walks you through:
+
+1. **Basics** — project name, repo path, default branch
+2. **Discover Sources** — auto-discovers linked Linear teams, GitHub repos, and Slack channels
+3. **Notifications** — choose where to receive daily digests and urgent alerts
+
+Existing YAML projects are auto-imported on first dashboard load.
+
+#### Creating a task
+
+Inside a project page, click **+ Task**. Each task has:
+
+| Field | What it does |
+|---|---|
+| **Name** | Identifier for the task (e.g., `fix-bugs`, `daily-review`) |
+| **Intent** | The prompt — natural language instructions for Claude. This is what the agent actually reads and executes. |
+| **Trigger** | *When* the task runs: `manual` (on-demand), `schedule` (cron), or `webhook` (Linear/GitHub events) |
+| **Model** | Which Claude model: `sonnet` (balanced), `opus` (most capable), `haiku` (fastest/cheapest) |
+| **Max budget** | Cost ceiling per run in USD. The agent stops if it exceeds this. |
+| **Autonomy** | *What happens with the result* — see [Autonomy modes](#autonomy-modes) above |
+
+**Example task — daily code review:**
+- **Name**: `daily-review`
+- **Intent**: "Review all open PRs. Check test coverage, code quality, and CLAUDE.md compliance. Comment suggestions directly on the PR."
+- **Trigger**: `schedule` (every day at 9am)
+- **Model**: `sonnet`
+- **Budget**: $3.00
+- **Autonomy**: `notify` (analyze only, don't change code)
+
+#### Running a task
+
+From the project page, click **Run** to:
+- **Run an existing task** — pick from the dropdown
+- **Ad-hoc run** — type a one-off intent without saving it as a task
+
+The live stream shows every tool call as it happens.
 
 ---
 
@@ -349,7 +394,7 @@ Scheduled tasks (`schedule: "0 6 * * *"`) and manual triggers (`POST /tasks/{pro
 
 ```bash
 uv run python -m pytest tests/ -v
-# 80+ tests across executor, streaming, budget, webhooks, scheduler
+# 299 tests across executor, streaming, budget, webhooks, scheduler, project hub
 ```
 
 ---
@@ -371,7 +416,7 @@ uv run python -m pytest tests/ -v
 - [ ] Run diffing — show what changed across attempts
 - [ ] Email + PagerDuty notifications
 - [ ] Docker image + Hetzner one-click deploy
-- [ ] Web UI for project + task management (without editing YAML)
+- [x] Web UI for project + task management (without editing YAML)
 
 ---
 
