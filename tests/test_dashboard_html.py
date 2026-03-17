@@ -1,9 +1,6 @@
 """Tests for HTMX dashboard HTML routes."""
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -11,14 +8,14 @@ from fastapi.testclient import TestClient
 from agents.app_state import AppState
 from agents.budget import BudgetManager
 from agents.config import BudgetConfig, ExecutionConfig, GlobalConfig
+from agents.dashboard_html import setup_dashboard
 from agents.executor import Executor
 from agents.history import HistoryDB
 from agents.notifier import Notifier
 from agents.project_store import ProjectStore
-from agents.dashboard_html import setup_dashboard
 
 
-@pytest.fixture()
+@pytest.fixture
 def app_with_dashboard(tmp_path):
     """Create a minimal FastAPI app with dashboard routes mounted."""
     app = FastAPI()

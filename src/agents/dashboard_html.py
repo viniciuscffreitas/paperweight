@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
+
     from agents.app_state import AppState
     from agents.config import GlobalConfig
 
@@ -18,7 +19,7 @@ _BASE = Path(__file__).parent
 _TEMPLATES = Jinja2Templates(directory=_BASE / "templates")
 
 
-def setup_dashboard(app: "FastAPI", state: "AppState", config: "GlobalConfig") -> None:
+def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None:
     """Mount static files and register all HTML routes."""
     app.mount("/static", StaticFiles(directory=_BASE / "static"), name="static")
 
