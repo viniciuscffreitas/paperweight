@@ -96,3 +96,10 @@ def register_project_hub_routes(app: FastAPI, state: AppState) -> None:
         project_id: str, source: str | None = None, limit: int = 100
     ) -> list[dict]:
         return state.project_store.list_events(project_id, source=source, limit=limit)
+
+    # --- Auto-discovery ---
+
+    @app.post("/api/discover")
+    async def discover_sources(data: dict) -> list[dict]:
+        from agents.dashboard_setup_wizard import _discover_sources
+        return await _discover_sources(data.get("name", ""), state)

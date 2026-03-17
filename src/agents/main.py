@@ -184,8 +184,14 @@ def create_app(
             for project in project_store.list_projects():
                 await notification_engine.send_digest(project["id"])
 
+        async def cleanup_old_events() -> None:
+            deleted = project_store.cleanup_old_events(days=90)
+            if deleted:
+                logger.info("Cleaned up %d old events", deleted)
+
         register_jobs(scheduler, state.projects, scheduled_run)
         scheduler.add_job(run_daily_digest, "cron", hour=9, minute=0, id="daily_digest")
+        scheduler.add_job(cleanup_old_events, "cron", hour=3, minute=0, id="event_cleanup")
         scheduler.start()
         logger.info("Scheduler started with %d jobs", len(scheduler.get_jobs()))
         aggregator_task = asyncio.create_task(aggregator.start(poll_interval_seconds=300))
