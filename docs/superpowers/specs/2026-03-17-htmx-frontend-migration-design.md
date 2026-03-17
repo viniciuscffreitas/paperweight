@@ -22,20 +22,21 @@ fighting, zero build step.
 
 ```
 Browser
-  ├── HTMX 2.x (CDN)         — panel swaps, tab nav, form submissions
-  ├── Tailwind CSS (CDN)      — utility styling, zero build step
+  ├── HTMX 2.x (CDN)            — panel swaps, tab nav, form submissions
+  ├── Tailwind CSS (CDN)         — utility styling, zero build step
   ├── Ubuntu Mono (Google Fonts) — terminal Linux identity
-  └── static/ws.js (~60 LOC)  — WebSocket live streaming
+  └── static/ws.js (~60 LOC)    — WebSocket live streaming (per-run + global)
 
 FastAPI
-  ├── GET  /dashboard          — full page (Jinja2)
-  ├── GET  /hub/{id}           — right panel fragment
-  ├── GET  /hub/{id}/activity  — activity tab fragment
-  ├── GET  /hub/{id}/tasks     — tasks tab fragment
-  ├── GET  /hub/{id}/runs      — runs tab fragment
-  └── WS   /ws/runs/{id}       — live streaming (unchanged)
+  ├── GET  /dashboard            — full page (Jinja2)
+  ├── GET  /hub/{id}             — right panel fragment
+  ├── GET  /hub/{id}/activity    — activity tab fragment
+  ├── GET  /hub/{id}/tasks       — tasks tab fragment
+  ├── GET  /hub/{id}/runs        — runs tab fragment
+  ├── WS   /ws/runs/{run_id}     — per-run live streaming (unchanged)
+  └── WS   /ws/runs              — global all-runs stream (unchanged, used by dashboard)
 
-JSON API (/api/*, /webhooks/*)  — fully intact, no changes
+JSON API (/api/*, /webhooks/*)   — fully intact, no changes
 ```
 
 ---
@@ -84,7 +85,13 @@ Tab navigation via HTMX swap:
 
 ## Live Streaming
 
-WebSocket endpoint `/ws/runs/{run_id}` is unchanged. ~60 lines of vanilla JS in `static/ws.js`:
+Two WebSocket endpoints serve streaming — both unchanged from current implementation:
+
+- **`/ws/runs/{run_id}`** — per-run stream (opened when user clicks a run row in the hub)
+- **`/ws/runs`** — global broadcast stream (connected on `/dashboard` page load for the
+  "Live Stream" panel showing all agent activity)
+
+`static/ws.js` handles both:
 
 ```js
 function connectRunStream(runId, targetId) {
@@ -94,7 +101,62 @@ function connectRunStream(runId, targetId) {
   ws.onerror = () => { el.textContent += '\n[connection error]' }
   return ws
 }
+
+function connectGlobalStream(targetId) {
+  return connectRunStream('', targetId)  // /ws/runs (no id = global)
+}
 ```
+
+---
+
+## `dashboard_formatters.py` — Kept
+
+`dashboard_formatters.py` contains pure Python formatting helpers with no NiceGUI dependency.
+It is **kept and reused** by `dashboard_html.py` route handlers to prepare data before passing
+it into Jinja2 templates. `tests/test_dashboard_formatters.py` is also **kept unchanged**.
+
+---
+
+## `main.py` Integration Point
+
+Current call to replace (lines 402–403):
+```python
+from agents.dashboard import setup_dashboard
+setup_dashboard(app, state, config)
+```
+
+Replacement:
+```python
+from agents.dashboard_html import setup_dashboard
+setup_dashboard(app, state, config)
+```
+
+`dashboard_html.setup_dashboard()` performs:
+```python
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None:
+    base = Path(__file__).parent
+    app.mount("/static", StaticFiles(directory=base / "static"), name="static")
+    templates = Jinja2Templates(directory=base / "templates")
+    # ... register routes ...
+```
+
+The `ui.run_with(app)` call from NiceGUI is **removed entirely** — no equivalent needed.
+
+---
+
+## Form Submissions
+
+HTMX form submissions use standard `application/x-www-form-urlencoded` encoding
+(`hx-post` with `hx-include` or inside a `<form>`). FastAPI needs `python-multipart`
+to parse `Form(...)` parameters. This is required for:
+- Creating/editing tasks (name, trigger type, model, budget)
+- Triggering a run (project id, task selection)
+
+Forms that create entities (new project wizard) are **deferred to v1.1** — paridade
+estrita covers read flows and simple actions first.
 
 ---
 
@@ -116,19 +178,19 @@ src/agents/
       run_row.html       ← reusable run history row
   static/
     ws.js                ← WebSocket streaming (~60 LOC)
-  dashboard_html.py      ← HTML routes (replaces all dashboard*.py NiceGUI files)
+  dashboard_formatters.py ← KEPT, pure Python, no NiceGUI
+  dashboard_html.py       ← HTML routes (replaces NiceGUI dashboard*.py files)
 ```
 
 ---
 
 ## Files Deleted
 
-All 6 NiceGUI dashboard files are removed:
+Five NiceGUI dashboard files removed (not `dashboard_formatters.py`):
 - `dashboard.py`
 - `dashboard_project_hub.py`
 - `dashboard_setup_wizard.py`
 - `dashboard_task_manager.py`
-- `dashboard_formatters.py`
 - `dashboard_theme.py`
 
 NiceGUI removed from `pyproject.toml` dependencies.
@@ -137,32 +199,40 @@ NiceGUI removed from `pyproject.toml` dependencies.
 
 ## Migration Order
 
-1. Add `jinja2` and `python-multipart` to dependencies (if not present)
-2. Create `templates/base.html` + `static/ws.js`
-3. Create `dashboard_html.py` with all HTML routes
-4. Wire `dashboard_html.py` into `main.py` (replace `setup_dashboard()` call)
-5. Smoke test all routes
-6. Remove NiceGUI from `pyproject.toml`, run `uv sync`
-7. Delete 6 `dashboard*.py` files
-8. Delete/rewrite tests (NiceGUI unit tests → FastAPI TestClient HTML tests)
+1. Add `jinja2` and `python-multipart` to `pyproject.toml` explicitly
+2. Create `src/agents/static/` and `src/agents/templates/` directories
+3. Create `templates/base.html` + `static/ws.js`
+4. Create `dashboard_html.py` with all HTML routes and `setup_dashboard()`
+5. Update `main.py`: replace NiceGUI import/call with `dashboard_html.setup_dashboard()`
+6. Smoke test all routes with FastAPI TestClient
+7. Remove NiceGUI from `pyproject.toml`, run `uv sync`
+8. Delete 5 `dashboard*.py` NiceGUI files
+9. Delete NiceGUI-specific tests, add new HTML route tests
 
 ---
 
 ## Testing Strategy
 
-**Delete:** `tests/test_dashboard.py`, `tests/agents/test_dashboard_project_hub.py`,
-`tests/agents/test_dashboard_theme.py`, `tests/agents/test_dashboard_setup_wizard.py`,
-`tests/agents/test_dashboard_task_manager.py` — these tested NiceGUI internals, not behavior.
+**Delete** (test NiceGUI internals, not behavior):
+- `tests/test_dashboard.py`
+- `tests/agents/test_dashboard_project_hub.py`
+- `tests/agents/test_dashboard_theme.py`
+- `tests/agents/test_dashboard_setup_wizard.py`
+- `tests/agents/test_dashboard_task_manager.py`
 
-**New tests in `tests/test_dashboard_html.py`:**
-- `GET /dashboard` → 200, contains sidebar HTML
-- `GET /hub/{id}` → 200, contains project name
-- `GET /hub/{id}/activity` → 200, contains event cards
-- `GET /hub/{id}/tasks` → 200, contains task rows
-- `GET /hub/{id}/runs` → 200, contains run rows
-- `GET /hub/missing` → 404
+**Keep unchanged:**
+- `tests/test_dashboard_formatters.py` — pure Python, no NiceGUI
+- All API route tests, WebSocket tests, webhook tests
 
-**Unchanged:** all API route tests, WebSocket tests, webhook tests.
+**New `tests/test_dashboard_html.py`:**
+- `GET /dashboard` → 200, contains sidebar with project names
+- `GET /hub/{id}` → 200, contains project name in header
+- `GET /hub/{id}/activity` → 200, contains event cards HTML
+- `GET /hub/{id}/tasks` → 200, contains task rows HTML
+- `GET /hub/{id}/runs` → 200, contains run rows HTML
+- `GET /hub/missing-id` → 404
+
+Project creation POST flows deferred to v1.1.
 
 ---
 
@@ -170,7 +240,9 @@ NiceGUI removed from `pyproject.toml` dependencies.
 
 | Risk | Mitigation |
 |------|-----------|
-| NiceGUI pins Starlette version | `uv remove nicegui` then `uv sync` resolves version conflicts |
-| Missing Jinja2 in deps | Add explicitly to `pyproject.toml` |
-| Static file serving | FastAPI `StaticFiles` mount for `/static` |
+| NiceGUI pins Starlette version | `uv remove nicegui` then `uv sync` resolves conflicts |
+| Jinja2 was transitive via NiceGUI | Add explicitly to `pyproject.toml` before removing NiceGUI |
+| `python-multipart` needed for Form() | Added explicitly in step 1 |
+| Static file serving | FastAPI `StaticFiles` mount in `setup_dashboard()` |
 | CSS regression | Visual smoke test via Playwright after migration |
+| Global live stream path | `/ws/runs` endpoint already exists, ws.js connects on page load |
