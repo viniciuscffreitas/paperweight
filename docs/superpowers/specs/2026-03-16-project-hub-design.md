@@ -18,21 +18,34 @@ Transformar a dashboard do Paperweight de um monitor de runs para um **centro de
 │  (polling + webhooks → SQLite → broadcast)  │
 ├─────────────────────────────────────────────┤
 │         Integrations (existentes)           │
-│  Linear │ GitHub │ Slack │ Discord          │
+│  Linear │ GitHub │ Slack ║ Discord (notify) │
 └─────────────────────────────────────────────┘
 ```
 
 Three layers:
 - **Dashboard UI** — NiceGUI pages for project hub, task management, settings
 - **Aggregator Service** — background polling + webhook ingestion → normalized events in SQLite
-- **Integrations** — existing Linear, GitHub, Slack, Discord clients (extended as needed)
+- **Integrations** — Linear client exists (`linear_client.py`), Discord notifier exists (`discord_notifier.py`), Slack notifier exists (`notifier.py` — outbound only). GitHub API client and Slack read client (Bot API) are **new builds** (see Prerequisites)
+
+## Prerequisites — New Integrations Required
+
+### GitHub API Client (new)
+The codebase only has `webhooks/github.py` for receiving webhook events. A new `github_client.py` must be built to poll: open PRs, CI/check status, branches. Uses PyGithub or httpx with GitHub REST API.
+
+### Slack Bot Client (new)
+The codebase only has `notifier.py` which sends messages via webhook URL (outbound only). A new `slack_client.py` must be built using the Slack Bot API to *read* channel messages and search. Requires a Slack Bot token with scopes: `channels:history`, `groups:history`, `search:read`, `channels:read`, `users:read`. This is a significant new integration — not an extension of the existing webhook notifier.
+
+### Existing code to extend
+- `discovery.py` — already does Linear team discovery and Discord channel discovery by name. Will be extended with GitHub and Slack discovery.
+- `linear_client.py` — existing GraphQL client. Will be extended with additional queries for polling.
+- `notifier.py` / `discord_notifier.py` — existing outbound notification. Will be reused by the Notification Engine.
 
 ## Data Model
 
 ### New SQLite Tables
 
 #### `projects`
-Replaces YAML config files. Stores project configuration.
+Stores project configuration. During migration, both YAML and SQLite configs are supported — the system merges both, with SQLite taking precedence on conflicts. After migration is complete, YAMLs are kept as backup but no longer read.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -55,6 +68,28 @@ Maps projects to their data sources.
 | source_name | TEXT | Human-readable name |
 | config | JSON | Source-specific config (e.g., which events to monitor) |
 | enabled | BOOLEAN | Toggle without deleting |
+| created_at | DATETIME | When the source was linked |
+| updated_at | DATETIME | Last modification |
+
+#### `tasks`
+Stores task definitions (replaces task entries in YAML project files).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | TEXT PK | UUID |
+| project_id | TEXT FK | Reference to projects |
+| name | TEXT | Task display name |
+| intent | TEXT | What the agent should do |
+| trigger_type | TEXT | "manual", "schedule", "webhook" |
+| trigger_config | JSON | Cron expression, webhook event filters, etc. |
+| model | TEXT | "opus", "sonnet", "haiku" |
+| max_budget | REAL | Max cost per run |
+| autonomy | TEXT | "pr-only", "auto-merge", "notify" |
+| enabled | BOOLEAN | Active/paused toggle |
+| created_at | DATETIME | Creation timestamp |
+| updated_at | DATETIME | Last update timestamp |
+
+Note: The existing `TaskConfig` model validator enforces `schedule XOR trigger`. A new `trigger_type = "manual"` option will be added, where neither schedule nor webhook trigger is set — the task only runs when explicitly launched from the dashboard or API.
 
 #### `aggregated_events`
 Normalized feed of events from all sources.
@@ -126,12 +161,20 @@ Webhooks and polling may capture the same event. Dedup by `source` + native item
 
 ### Auto-discovery
 
-Module that searches for candidate sources for a project:
-- **Linear**: fuzzy name search on projects/teams
-- **GitHub**: fuzzy name search on org repos
-- **Slack**: channel name search + `search.messages` API to find channels where project name is mentioned frequently
+Extends the existing `discovery.py` module (which already handles Linear team and Discord channel discovery by name). New capabilities:
+- **Linear**: fuzzy name search on projects/teams (extend existing `auto_discover_project_ids`)
+- **GitHub**: fuzzy name search on org repos (new — uses GitHub API client)
+- **Slack**: channel name search + `search.messages` API to find channels where project name is mentioned frequently (new — uses Slack Bot client)
 
-Results presented in setup wizard with confidence score.
+Results presented in setup wizard. Confidence scoring: exact name match = high, contains match = medium, mention-frequency-only = low. High confidence sources are pre-checked in the wizard.
+
+### Failure recovery
+
+Polling tasks use a simple retry strategy: on exception, log the error, wait 30s, and retry. After 3 consecutive failures for a source, mark it as degraded in the UI (yellow indicator) and back off to 15 min intervals. Recovery is automatic when the next poll succeeds.
+
+### Data retention
+
+`aggregated_events` are retained for 90 days by default. A daily cleanup task purges older entries. Configurable per project in settings.
 
 ## Component 2: Project Hub UI
 
@@ -302,13 +345,32 @@ Each alert includes direct link to item + link to project dashboard.
 - **Quiet hours**: optional, configurable (e.g., no alerts between 10 PM - 8 AM)
 - All configurable in project settings page
 
+## Implementation Phases
+
+Recommended build order:
+
+1. **Data model + Project CRUD** — SQLite tables, project create/edit/delete API
+2. **Task Manager** — tasks table, CRUD UI, TaskConfig model changes for "manual" trigger
+3. **Run Launcher** — manual run trigger from dashboard, ad-hoc runs
+4. **Aggregator — Linear** — polling with existing `linear_client.py`, event normalization
+5. **GitHub API client + Aggregator** — new client, polling for PRs/CI
+6. **Slack Bot client + Aggregator** — new client, polling for messages/mentions
+7. **Project Hub UI** — feed + section cards + sidebar
+8. **Auto-discovery** — extend `discovery.py` with GitHub + Slack
+9. **Notification Engine** — digest first, then real-time alerts, then anti-spam
+10. **YAML migration wizard** — import existing configs
+
+Each phase is independently deployable and testable.
+
 ## Migration Strategy
 
 1. New SQLite tables are additive — no breaking changes to existing schema
-2. YAML project configs continue to work during transition
-3. Import wizard migrates YAML → SQLite on first use
-4. Existing webhook handlers extended to also feed Aggregator
-5. Existing dashboard pages (runs, streaming) remain untouched
+2. During transition, both YAML and SQLite configs are supported — system merges both, SQLite takes precedence on conflicts
+3. Import wizard migrates YAML → SQLite on first use, keeps YAMLs as backup
+4. After full migration, YAMLs are no longer read (but not deleted)
+5. Existing webhook handlers extended to also feed Aggregator
+6. Existing dashboard pages (runs, streaming) remain untouched
+7. `TaskConfig` model updated to support `trigger_type = "manual"` (relaxes existing `schedule XOR trigger` validator)
 
 ## Success Criteria
 
