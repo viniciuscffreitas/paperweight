@@ -83,6 +83,13 @@ def create_app(
         slack_client=slack_bot_client,
     )
 
+    from agents.notification_engine import NotificationEngine
+    notification_engine = NotificationEngine(
+        store=project_store,
+        slack_notifier=notifier,
+        discord_notifier=discord_notifier_client,
+    )
+
     async def broadcast_event(run_id: str, event: StreamEvent) -> None:
         msg = event.model_dump_json()
         dead: set[WebSocket] = set()
@@ -173,7 +180,12 @@ def create_app(
                         },
                     )
 
+        async def run_daily_digest() -> None:
+            for project in project_store.list_projects():
+                await notification_engine.send_digest(project["id"])
+
         register_jobs(scheduler, state.projects, scheduled_run)
+        scheduler.add_job(run_daily_digest, "cron", hour=9, minute=0, id="daily_digest")
         scheduler.start()
         logger.info("Scheduler started with %d jobs", len(scheduler.get_jobs()))
         aggregator_task = asyncio.create_task(aggregator.start(poll_interval_seconds=300))
@@ -356,6 +368,12 @@ def create_app(
                 await websocket.receive_text()
         except WebSocketDisconnect:
             state.ws_global_clients.discard(websocket)
+
+    @app.post("/api/migrate-yaml")
+    async def migrate_yaml() -> dict[str, int]:
+        from agents.migration import migrate_yaml_projects
+        count = migrate_yaml_projects(state.projects, state.project_store)
+        return {"migrated": count}
 
     from agents.project_hub_routes import register_project_hub_routes
     register_project_hub_routes(app, state)
