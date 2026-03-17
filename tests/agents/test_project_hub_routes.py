@@ -43,7 +43,7 @@ def test_discover_endpoint_returns_empty_list_without_clients():
     state = _make_mock_state()
     app = _make_test_app(state)
 
-    with patch("agents.dashboard_setup_wizard._discover_sources", new=AsyncMock(return_value=[])):
+    with patch("agents.project_hub_routes._discover_sources", new=AsyncMock(return_value=[])):
         client = TestClient(app)
         resp = client.post("/api/discover", json={"name": "myproject"})
 
@@ -57,7 +57,7 @@ def test_discover_endpoint_passes_name_to_discover_sources():
     app = _make_test_app(state)
 
     mock_discover = AsyncMock(return_value=[])
-    with patch("agents.dashboard_setup_wizard._discover_sources", mock_discover):
+    with patch("agents.project_hub_routes._discover_sources", mock_discover):
         client = TestClient(app)
         client.post("/api/discover", json={"name": "coolproject"})
 
@@ -70,7 +70,7 @@ def test_discover_endpoint_uses_empty_string_when_name_missing():
     app = _make_test_app(state)
 
     mock_discover = AsyncMock(return_value=[])
-    with patch("agents.dashboard_setup_wizard._discover_sources", mock_discover):
+    with patch("agents.project_hub_routes._discover_sources", mock_discover):
         client = TestClient(app)
         client.post("/api/discover", json={})
 
@@ -93,7 +93,7 @@ def test_discover_endpoint_returns_sources_from_discover_sources():
         },
     ]
     mock_discover = AsyncMock(return_value=expected)
-    with patch("agents.dashboard_setup_wizard._discover_sources", mock_discover):
+    with patch("agents.project_hub_routes._discover_sources", mock_discover):
         client = TestClient(app)
         resp = client.post("/api/discover", json={"name": "myproject"})
 
@@ -107,7 +107,7 @@ def test_discover_endpoint_accepts_empty_body():
     app = _make_test_app(state)
 
     mock_discover = AsyncMock(return_value=[])
-    with patch("agents.dashboard_setup_wizard._discover_sources", mock_discover):
+    with patch("agents.project_hub_routes._discover_sources", mock_discover):
         client = TestClient(app)
         resp = client.post("/api/discover", json={})
 
