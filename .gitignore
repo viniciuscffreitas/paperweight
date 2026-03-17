@@ -8,5 +8,6 @@ dist/
 .env
 firebase-debug.log
 .superpowers/
+.worktrees/
 projects/*.yaml
 !projects/example.yaml
