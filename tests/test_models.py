@@ -158,3 +158,87 @@ def test_project_config_with_linear_and_discord():
     )
     assert project.linear_team_id == "TEAM-123"
     assert project.discord_channel_id == "123456789"
+
+
+from agents.models import (
+    AggregatedEvent,
+    NotificationRule,
+    ProjectRecord,
+    ProjectSource,
+    TaskRecord,
+)
+
+
+def test_project_record_creation() -> None:
+    p = ProjectRecord(id="momease", name="MomEase", repo_path="/repos/momease")
+    assert p.id == "momease"
+    assert p.default_branch == "main"
+    assert p.created_at is not None
+
+
+def test_project_source_creation() -> None:
+    s = ProjectSource(
+        id="src-1",
+        project_id="momease",
+        source_type="linear",
+        source_id="LIN-123",
+        source_name="MomEase Project",
+    )
+    assert s.enabled is True
+    assert s.config == {}
+
+
+def test_task_record_creation() -> None:
+    t = TaskRecord(
+        id="task-1",
+        project_id="momease",
+        name="Fix bugs",
+        intent="Fix all open bugs",
+        trigger_type="manual",
+        model="sonnet",
+        max_budget=5.0,
+        autonomy="pr-only",
+    )
+    assert t.enabled is True
+    assert t.trigger_config == {}
+
+
+def test_task_record_schedule_trigger() -> None:
+    t = TaskRecord(
+        id="task-2",
+        project_id="momease",
+        name="Daily review",
+        intent="Review open PRs",
+        trigger_type="schedule",
+        trigger_config={"cron": "0 9 * * *"},
+        model="sonnet",
+        max_budget=5.0,
+        autonomy="pr-only",
+    )
+    assert t.trigger_config["cron"] == "0 9 * * *"
+
+
+def test_aggregated_event_creation() -> None:
+    e = AggregatedEvent(
+        id="evt-1",
+        project_id="momease",
+        source="linear",
+        event_type="issue_created",
+        title="Fix login crash",
+        timestamp="2026-03-16T10:00:00Z",
+        source_item_id="LIN-42",
+    )
+    assert e.priority == "none"
+    assert e.raw_data == {}
+
+
+def test_notification_rule_creation() -> None:
+    r = NotificationRule(
+        id="rule-1",
+        project_id="momease",
+        rule_type="digest",
+        channel="slack",
+        channel_target="dm",
+    )
+    assert r.enabled is True
+    assert r.config == {}
