@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html as html_mod
 import json
 import re
 from datetime import UTC, datetime
@@ -129,16 +130,18 @@ def format_event_html(data: dict) -> str:
     time_str = datetime.fromtimestamp(ts, tz=UTC).strftime("%H:%M:%S") if ts else "--:--:--"
 
     if event_type == "tool_use":
-        label = f"<span style='color:{color}'>{_format_tool_use(tool_name, content)}</span>"
+        escaped = html_mod.escape(_format_tool_use(tool_name, content))
+        label = f"<span style='color:{color}'>{escaped}</span>"
     elif event_type == "tool_result":
-        label = f"<span style='color:#6b7280'>{_format_tool_result(content)}</span>"
+        escaped = html_mod.escape(_format_tool_result(content))
+        label = f"<span style='color:#6b7280'>{escaped}</span>"
     elif event_type == "assistant":
         preview = _shorten_path(content)
         if len(preview) > 200:
             preview = preview[:200] + "\u2026"
-        label = preview
+        label = html_mod.escape(preview)
     else:
-        label = content or event_type
+        label = html_mod.escape(content or event_type)
 
     return (
         "<div style='display:flex;gap:8px;padding:3px 0;border-bottom:1px solid #1e2130'>"
@@ -150,27 +153,13 @@ def format_event_html(data: dict) -> str:
     )
 
 
-STREAM_COLORS: dict[str, str] = {
-    "task_started": "#22d3ee",
-    "task_completed": "#4ade80",
-    "task_failed": "#f87171",
-    "dry_run": "#fbbf24",
-    "tool_use": "#d4d4d8",
-    "tool_result": "#6b7280",
-    "assistant": "#a1a1aa",
-    "result": "#4ade80",
-    "system": "#22d3ee",
-    "unknown": "#6b7280",
-}
-
-
 def format_stream_html(data: dict) -> str:
     """Colored HTML line for the live stream panel. No emoji, no timestamp column."""
     short = short_run_id(data.get("run_id", "?"))
     event_type = data.get("type", "")
     content = str(data.get("content") or "")
     tool_name = data.get("tool_name") or ""
-    color = STREAM_COLORS.get(event_type, "#6b7280")
+    color = EVENT_COLORS.get(event_type, "#6b7280")
 
     if event_type == "tool_use":
         label = _format_tool_use(tool_name, content)
@@ -191,8 +180,8 @@ def format_stream_html(data: dict) -> str:
 
     return (
         "<div style='display:flex;gap:6px;padding:1px 0;font-size:12px;font-family:monospace'>"
-        f"<span style='color:#6b7280;flex-shrink:0'>[{short}]</span>"
-        f"<span style='color:{color};word-break:break-all'>{label}</span>"
+        f"<span style='color:#6b7280;flex-shrink:0'>[{html_mod.escape(short)}]</span>"
+        f"<span style='color:{color};word-break:break-all'>{html_mod.escape(label)}</span>"
         "</div>"
     )
 
