@@ -8,81 +8,47 @@ from datetime import UTC, datetime
 
 _WORKTREE_RE = re.compile(r"/(?:private/)?tmp/agents/[^/]+/")
 
-TOOL_ICONS: dict[str, str] = {
-    "Read": "\U0001f4d6",
-    "Bash": "\U0001f527",
-    "Edit": "\u270f\ufe0f",
-    "Write": "\U0001f4dd",
-    "Glob": "\U0001f50d",
-    "Grep": "\U0001f50d",
-    "Agent": "\U0001f916",
-    "Skill": "\u26a1",
-    "TodoWrite": "\U0001f4cb",
-}
-
-
 def _shorten_path(path: str) -> str:
     """Strip worktree prefixes from absolute paths to show relative paths."""
     return _WORKTREE_RE.sub("", path)
 
 
-def _format_tool_use(tool_name: str, content: str) -> tuple[str, str]:
-    """Return (icon, formatted_label) for a tool_use event.
-
-    Parses the JSON content to extract meaningful info per tool type.
-    """
-    icon = TOOL_ICONS.get(tool_name, "\U0001f527")
-
+def _format_tool_use(tool_name: str, content: str) -> str:
+    """Return formatted label for a tool_use event."""
     try:
         inp = json.loads(content) if content else {}
     except (json.JSONDecodeError, TypeError):
         inp = {}
 
     if tool_name == "Read":
-        fp = _shorten_path(inp.get("file_path", content))
-        return icon, f"Read {fp}"
-
+        return f"Read {_shorten_path(inp.get('file_path', content))}"
     if tool_name == "Bash":
         cmd = inp.get("command", content)
         cmd = _shorten_path(cmd.replace("\n", " "))
         if len(cmd) > 80:
             cmd = cmd[:80] + "\u2026"
-        return icon, f"Bash: {cmd}"
-
+        return f"Bash: {cmd}"
     if tool_name == "Edit":
-        fp = _shorten_path(inp.get("file_path", content))
-        return icon, f"Edit {fp}"
-
+        return f"Edit {_shorten_path(inp.get('file_path', content))}"
     if tool_name == "Write":
-        fp = _shorten_path(inp.get("file_path", content))
-        return icon, f"Write {fp}"
-
+        return f"Write {_shorten_path(inp.get('file_path', content))}"
     if tool_name == "Glob":
-        pattern = inp.get("pattern", content)
-        return icon, f"Glob {pattern}"
-
+        return f"Glob {inp.get('pattern', content)}"
     if tool_name == "Grep":
-        pattern = inp.get("pattern", content)
-        return icon, f'Grep "{pattern}"'
-
+        return f'Grep "{inp.get("pattern", content)}"'
     if tool_name == "Agent":
         desc = inp.get("description", inp.get("prompt", content))
         if len(desc) > 80:
             desc = desc[:80] + "\u2026"
-        return icon, f"Agent: {desc}"
-
+        return f"Agent: {desc}"
     if tool_name == "Skill":
-        skill = inp.get("skill", content)
-        return icon, f"Skill: {skill}"
-
+        return f"Skill: {inp.get('skill', content)}"
     if tool_name == "TodoWrite":
-        return icon, "TodoWrite"
-
-    # Fallback for unknown tools
+        return "TodoWrite"
     preview = _shorten_path(content)
     if len(preview) > 80:
         preview = preview[:80] + "\u2026"
-    return icon, f"{tool_name}: {preview}"
+    return f"{tool_name}: {preview}"
 
 
 def _format_tool_result(content: str) -> str:
@@ -92,18 +58,6 @@ def _format_tool_result(content: str) -> str:
     if len(clean) > 120:
         clean = clean[:120] + "\u2026"
     return f"\u2192 {clean}"
-
-EVENT_ICONS: dict[str, str] = {
-    "system": "🔄",
-    "assistant": "💬",
-    "tool_use": "🔧",
-    "tool_result": "📋",
-    "result": "✅",
-    "task_started": "🚀",
-    "task_completed": "✅",
-    "task_failed": "❌",
-    "dry_run": "⚡",
-}
 
 EVENT_COLORS: dict[str, str] = {
     "task_started": "#22d3ee",
@@ -149,30 +103,28 @@ def short_run_id(run_id: str) -> str:
 
 
 def format_event_line(data: dict) -> str:
-    """Single-line text for the global live stream log."""
+    """Single-line plain text for logging. No emoji, no HTML."""
     short = short_run_id(data.get("run_id", "?"))
     event_type = data.get("type", "")
     content = str(data.get("content") or "")
     tool_name = data.get("tool_name") or ""
 
     if event_type in ("task_started", "task_completed", "task_failed", "dry_run"):
-        icon = EVENT_ICONS.get(event_type, "\u2022")
-        return f"{icon} [{short}] {content}"
+        return f"[{short}] {content}"
     if event_type == "system":
-        return f"{EVENT_ICONS['system']} [{short}] session started"
+        return f"[{short}] session started"
     if event_type == "tool_use":
-        icon, label = _format_tool_use(tool_name, content)
-        return f"{icon} [{short}] {label}"
+        return f"[{short}] {_format_tool_use(tool_name, content)}"
     if event_type == "tool_result":
-        return f"{EVENT_ICONS['tool_result']} [{short}] {_format_tool_result(content)}"
+        return f"[{short}] {_format_tool_result(content)}"
     if event_type == "assistant":
         preview = _shorten_path(content)
         if len(preview) > 120:
             preview = preview[:120] + "\u2026"
-        return f"{EVENT_ICONS['assistant']} [{short}] {preview}"
+        return f"[{short}] {preview}"
     if event_type == "result":
-        return f"{EVENT_ICONS['result']} [{short}] done"
-    return f"\u2022 [{short}] {event_type}: {_shorten_path(content)[:80]}"
+        return f"[{short}] done"
+    return f"[{short}] {event_type}: {_shorten_path(content)[:80]}"
 
 
 def format_event_html(data: dict) -> str:
@@ -185,27 +137,23 @@ def format_event_html(data: dict) -> str:
     time_str = datetime.fromtimestamp(ts, tz=UTC).strftime("%H:%M:%S") if ts else "--:--:--"
 
     if event_type == "tool_use":
-        icon, label_text = _format_tool_use(tool_name, content)
+        label_text = _format_tool_use(tool_name, content)
         label = f"<span style='color:#9ca3af'>{label_text}</span>"
     elif event_type == "tool_result":
-        icon = EVENT_ICONS.get(event_type, "\u2022")
         result_text = _format_tool_result(content)
         label = f"<span style='color:#6b7280'>{result_text}</span>"
     elif event_type == "assistant":
-        icon = EVENT_ICONS.get(event_type, "\u2022")
         preview = _shorten_path(content)
         if len(preview) > 200:
             preview = preview[:200] + "\u2026"
         label = preview
     else:
-        icon = EVENT_ICONS.get(event_type, "\u2022")
         label = content or event_type
 
     return (
         "<div style='display:flex;gap:8px;padding:3px 0;border-bottom:1px solid #1e2130'>"
         f"<span style='color:#374151;font-size:10px;min-width:60px;padding-top:1px'>"
         f"{time_str}</span>"
-        f"<span style='font-size:12px'>{icon}</span>"
         f"<span style='color:{color};font-size:12px;font-family:monospace;"
         f"word-break:break-all'>{label}</span>"
         "</div>"

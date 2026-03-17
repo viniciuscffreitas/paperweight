@@ -27,10 +27,16 @@ def test_short_run_id_fallback_for_short_string():
 def test_format_event_line_task_started():
     from agents.dashboard_formatters import format_event_line
 
-    data = {"run_id": "sekit-ci-fix-x", "type": "task_started", "content": "sekit/ci-fix [github]"}
+    data = {
+        "run_id": "sekit-ci-fix-20260316-120000-abcd1234",
+        "type": "task_started",
+        "content": "sekit/ci-fix [github]",
+    }
     line = format_event_line(data)
-    assert "🚀" in line
-    assert "sekit/ci-fix" in line
+    assert "[sekit/ci-fix]" in line
+    assert "sekit/ci-fix [github]" in line
+    # No emoji
+    assert "🚀" not in line
 
 
 def test_format_event_line_task_completed():
@@ -46,8 +52,8 @@ def test_format_event_line_task_failed():
 
     data = {"run_id": "a-b-x", "type": "task_failed", "content": "Budget exceeded"}
     line = format_event_line(data)
-    assert "❌" in line
     assert "Budget exceeded" in line
+    assert "❌" not in line
 
 
 def test_format_event_line_dry_run():
@@ -55,7 +61,8 @@ def test_format_event_line_dry_run():
 
     data = {"run_id": "a-b-x", "type": "dry_run", "content": "dry_run=true — skipping"}
     line = format_event_line(data)
-    assert "⚡" in line
+    assert "dry_run=true" in line
+    assert "⚡" not in line
 
 
 def test_format_event_line_tool_use_truncates():
@@ -85,8 +92,8 @@ def test_format_event_line_assistant():
 
     data = {"run_id": "a-b-x", "type": "assistant", "content": "I found the issue."}
     line = format_event_line(data)
-    assert "💬" in line
     assert "I found the issue." in line
+    assert "💬" not in line
 
 
 def test_format_event_line_result():
