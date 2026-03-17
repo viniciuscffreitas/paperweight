@@ -21,7 +21,9 @@ async def test_fetch_issue_returns_parsed_dict(linear_client):
                 "title": "Fix login bug",
                 "description": "Users cannot log in",
                 "state": {"name": "In Progress"},
-                "labels": {"nodes": [{"name": "bug", "id": "lbl-1"}, {"name": "urgent", "id": "lbl-2"}]},
+                "labels": {"nodes": [
+                    {"name": "bug", "id": "lbl-1"}, {"name": "urgent", "id": "lbl-2"},
+                ]},
             }
         }
     }
@@ -184,6 +186,28 @@ async def test_fetch_teams_returns_name_to_id_mapping(linear_client):
     with patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client):
         result = await linear_client.fetch_teams()
     assert result == {"sekit": "team-1", "jarvis": "team-2"}
+
+
+@pytest.mark.asyncio
+async def test_fetch_team_issues(linear_client):
+    mock_client = _make_mock_client([{
+        "data": {
+            "team": {
+                "issues": {
+                    "nodes": [
+                        {"id": "i1", "title": "Bug", "priority": 1,
+                         "state": {"name": "In Progress"}, "identifier": "MOB-1",
+                         "url": "https://linear.app/MOB-1",
+                         "assignee": {"name": "Dev"}, "description": "Details"},
+                    ]
+                }
+            }
+        }
+    }])
+    with patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client):
+        issues = await linear_client.fetch_team_issues("team-123")
+    assert len(issues) == 1
+    assert issues[0]["title"] == "Bug"
 
 
 @pytest.mark.asyncio

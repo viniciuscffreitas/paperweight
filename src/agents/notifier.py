@@ -40,6 +40,9 @@ class Notifier:
             f"${status.daily_limit_usd:.2f} used today ({pct}%)"
         )
 
+    async def send_text(self, text: str) -> None:
+        await self._send(text)
+
     async def send_run_notification(self, run: RunRecord) -> None:
         msg = self.format_message(run)
         await self._send(msg)

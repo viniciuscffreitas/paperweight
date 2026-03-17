@@ -1,6 +1,5 @@
 """Tests for DiscordRunNotifier."""
 
-import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -150,7 +149,7 @@ class TestFinalizeRunMessage:
 class TestFindChannelByName:
     @pytest.mark.asyncio
     async def test_find_channel_by_name_returns_channel_id(self, notifier):
-        mock_client, mock_response = _mock_async_client(
+        mock_client, _mock_response = _mock_async_client(
             response_json=[
                 {"id": "chan-1", "name": "general", "type": 0},
                 {"id": "chan-2", "name": "sekit-dev", "type": 0},
@@ -163,7 +162,7 @@ class TestFindChannelByName:
 
     @pytest.mark.asyncio
     async def test_find_channel_by_name_returns_none_when_not_found(self, notifier):
-        mock_client, mock_response = _mock_async_client(
+        mock_client, _mock_response = _mock_async_client(
             response_json=[
                 {"id": "chan-1", "name": "general", "type": 0},
             ]

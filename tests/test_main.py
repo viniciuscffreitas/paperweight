@@ -41,7 +41,9 @@ tasks:
 """)
     from agents.main import create_app
 
-    app = create_app(config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data")
+    app = create_app(
+        config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data"
+    )
     return app
 
 
@@ -105,8 +107,8 @@ async def test_github_webhook_no_signature(client):
 async def test_broadcast_event_persists_to_db(test_app):
     """Events emitted via broadcast_event must be persisted to SQLite."""
     state = test_app.state.app_state
-    project = list(state.projects.values())[0]
-    task_name = list(project.tasks.keys())[0]
+    project = next(iter(state.projects.values()))
+    task_name = next(iter(project.tasks.keys()))
 
     run = await state.executor.run_task(project, task_name, trigger_type="manual")
 
@@ -120,8 +122,8 @@ async def test_broadcast_event_persists_to_db(test_app):
 async def test_broadcast_event_persists_dry_run_events(test_app):
     """Dry run events (dry_run + task_completed) are persisted to SQLite."""
     state = test_app.state.app_state
-    project = list(state.projects.values())[0]
-    task_name = list(project.tasks.keys())[0]
+    project = next(iter(state.projects.values()))
+    task_name = next(iter(project.tasks.keys()))
 
     run = await state.executor.run_task(project, task_name, trigger_type="manual")
 
@@ -157,7 +159,9 @@ integrations:
     projects_dir = tmp_path / "projects"
     projects_dir.mkdir()
     from agents.main import create_app
-    app = create_app(config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data")
+    app = create_app(
+        config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data"
+    )
     state = app.state.app_state
     assert state.executor.linear_client is not None
     assert state.executor.discord_notifier is not None
@@ -203,10 +207,15 @@ tasks:
         label: agent
 """)
     from unittest.mock import AsyncMock, patch
+
     from agents.main import create_app
 
-    with patch("agents.discovery.auto_discover_project_ids", new_callable=AsyncMock) as mock_discover:
-        app = create_app(config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data")
+    with patch(
+        "agents.discovery.auto_discover_project_ids", new_callable=AsyncMock
+    ):
+        create_app(
+            config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data"
+        )
 
     # Since lifespan doesn't run in this test context, verify the import works
     from agents.discovery import auto_discover_project_ids
@@ -214,8 +223,200 @@ tasks:
 
 
 @pytest.mark.asyncio
+async def test_create_project(client):
+    response = await client.post("/api/projects", json={
+        "id": "proj-1",
+        "name": "Test Project",
+        "repo_path": "/tmp/test-repo",
+    })
+    assert response.status_code == 201
+    data = response.json()
+    assert data["id"] == "proj-1"
+    assert data["name"] == "Test Project"
+    assert data["repo_path"] == "/tmp/test-repo"
+    assert data["default_branch"] == "main"
+
+
+@pytest.mark.asyncio
+async def test_list_projects(client):
+    await client.post("/api/projects", json={
+        "id": "proj-list-1",
+        "name": "List Project",
+        "repo_path": "/tmp/list-repo",
+    })
+    response = await client.get("/api/projects")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    ids = [p["id"] for p in data]
+    assert "proj-list-1" in ids
+
+
+@pytest.mark.asyncio
+async def test_get_project(client):
+    await client.post("/api/projects", json={
+        "id": "proj-get-1",
+        "name": "Get Project",
+        "repo_path": "/tmp/get-repo",
+    })
+    response = await client.get("/api/projects/proj-get-1")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == "proj-get-1"
+    assert data["name"] == "Get Project"
+
+
+@pytest.mark.asyncio
+async def test_get_project_not_found(client):
+    response = await client.get("/api/projects/nonexistent-proj")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_project(client):
+    await client.post("/api/projects", json={
+        "id": "proj-del-1",
+        "name": "Delete Project",
+        "repo_path": "/tmp/del-repo",
+    })
+    response = await client.delete("/api/projects/proj-del-1")
+    assert response.status_code == 204
+    get_response = await client.get("/api/projects/proj-del-1")
+    assert get_response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_task(client):
+    await client.post("/api/projects", json={
+        "id": "proj-task-1",
+        "name": "Task Project",
+        "repo_path": "/tmp/task-repo",
+    })
+    response = await client.post("/api/projects/proj-task-1/tasks", json={
+        "name": "My Task",
+        "intent": "Do something useful",
+        "trigger_type": "manual",
+    })
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "My Task"
+    assert data["intent"] == "Do something useful"
+    assert data["trigger_type"] == "manual"
+    assert data["project_id"] == "proj-task-1"
+
+
+@pytest.mark.asyncio
+async def test_list_tasks(client):
+    await client.post("/api/projects", json={
+        "id": "proj-task-list-1",
+        "name": "Task List Project",
+        "repo_path": "/tmp/task-list-repo",
+    })
+    await client.post("/api/projects/proj-task-list-1/tasks", json={
+        "name": "Listed Task",
+        "intent": "Be listed",
+        "trigger_type": "schedule",
+    })
+    response = await client.get("/api/projects/proj-task-list-1/tasks")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    names = [t["name"] for t in data]
+    assert "Listed Task" in names
+
+
+@pytest.mark.asyncio
+async def test_delete_task(client):
+    await client.post("/api/projects", json={
+        "id": "proj-task-del-1",
+        "name": "Task Del Project",
+        "repo_path": "/tmp/task-del-repo",
+    })
+    create_resp = await client.post("/api/projects/proj-task-del-1/tasks", json={
+        "name": "Del Task",
+        "intent": "To be deleted",
+        "trigger_type": "manual",
+    })
+    task_id = create_resp.json()["id"]
+    response = await client.delete(f"/api/tasks/{task_id}")
+    assert response.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_create_source(client):
+    await client.post("/api/projects", json={
+        "id": "proj-src-1",
+        "name": "Source Project",
+        "repo_path": "/tmp/src-repo",
+    })
+    response = await client.post("/api/projects/proj-src-1/sources", json={
+        "source_type": "github",
+        "source_id": "myorg/myrepo",
+        "source_name": "My Repo",
+    })
+    assert response.status_code == 201
+    data = response.json()
+    assert data["source_type"] == "github"
+    assert data["source_id"] == "myorg/myrepo"
+    assert data["source_name"] == "My Repo"
+    assert data["project_id"] == "proj-src-1"
+
+
+@pytest.mark.asyncio
+async def test_list_sources(client):
+    await client.post("/api/projects", json={
+        "id": "proj-src-list-1",
+        "name": "Source List Project",
+        "repo_path": "/tmp/src-list-repo",
+    })
+    await client.post("/api/projects/proj-src-list-1/sources", json={
+        "source_type": "linear",
+        "source_id": "team-abc",
+        "source_name": "My Linear Team",
+    })
+    response = await client.get("/api/projects/proj-src-list-1/sources")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    names = [s["source_name"] for s in data]
+    assert "My Linear Team" in names
+
+
+@pytest.mark.asyncio
+async def test_launch_run_accepted(client):
+    await client.post("/api/projects", json={"id": "p-run-1", "name": "Run P", "repo_path": "/r"})
+    resp = await client.post("/api/projects/p-run-1/run", json={"adhoc": True})
+    assert resp.status_code == 202
+    data = resp.json()
+    assert data["project_id"] == "p-run-1"
+    assert data["status"] == "accepted"
+    assert data["mode"] == "adhoc"
+
+
+@pytest.mark.asyncio
+async def test_launch_run_task_mode(client):
+    await client.post("/api/projects", json={"id": "p-run-2", "name": "Run P2", "repo_path": "/r"})
+    resp = await client.post("/api/projects/p-run-2/run", json={})
+    assert resp.status_code == 202
+    assert resp.json()["mode"] == "task"
+
+
+@pytest.mark.asyncio
+async def test_launch_run_project_not_found(client):
+    resp = await client.post("/api/projects/nonexistent/run", json={})
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_list_events(client):
+    await client.post("/api/projects", json={"id": "p-evt-1", "name": "Evt P", "repo_path": "/r"})
+    resp = await client.get("/api/projects/p-evt-1/events")
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+@pytest.mark.asyncio
 async def test_linear_webhook_detects_agent_issue(tmp_path):
-    from unittest.mock import AsyncMock, patch
 
     config_file = tmp_path / "config.yaml"
     config_file.write_text("""
@@ -255,9 +456,12 @@ tasks:
       filter:
         label: agent
 """)
-    from agents.main import create_app
     from httpx import ASGITransport, AsyncClient
-    app = create_app(config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data")
+
+    from agents.main import create_app
+    app = create_app(
+        config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data"
+    )
     state = app.state.app_state
 
     # Patch run_task to track calls and check agent issue path

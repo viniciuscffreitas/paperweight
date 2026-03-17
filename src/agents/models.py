@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 
 class TriggerType(StrEnum):
@@ -41,9 +41,7 @@ class TaskConfig(BaseModel):
         if self.schedule and self.trigger:
             msg = "schedule and trigger are mutually exclusive"
             raise ValueError(msg)
-        if not self.schedule and not self.trigger:
-            msg = "Either schedule or trigger must be set"
-            raise ValueError(msg)
+        # Allow manual tasks (neither schedule nor trigger)
         return self
 
     @model_validator(mode="after")
@@ -97,3 +95,68 @@ class BudgetStatus(BaseModel):
     @property
     def is_exceeded(self) -> bool:
         return self.spent_today_usd >= self.daily_limit_usd
+
+
+def _now() -> datetime:
+    return datetime.now(UTC)
+
+
+class ProjectRecord(BaseModel):
+    id: str
+    name: str
+    repo_path: str
+    default_branch: str = "main"
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+
+class ProjectSource(BaseModel):
+    id: str
+    project_id: str
+    source_type: str  # "linear", "github", "slack"
+    source_id: str
+    source_name: str
+    config: dict = Field(default_factory=dict)
+    enabled: bool = True
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+
+class TaskRecord(BaseModel):
+    id: str
+    project_id: str
+    name: str
+    intent: str
+    trigger_type: str  # "manual", "schedule", "webhook"
+    trigger_config: dict = Field(default_factory=dict)
+    model: str = "sonnet"
+    max_budget: float = 5.0
+    autonomy: str = "pr-only"
+    enabled: bool = True
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+
+class AggregatedEvent(BaseModel):
+    id: str
+    project_id: str
+    source: str  # "linear", "github", "slack", "paperweight"
+    event_type: str
+    title: str
+    body: str = ""
+    author: str = ""
+    url: str = ""
+    priority: str = "none"
+    timestamp: str
+    source_item_id: str
+    raw_data: dict = Field(default_factory=dict)
+
+
+class NotificationRule(BaseModel):
+    id: str
+    project_id: str
+    rule_type: str  # "digest", "alert"
+    channel: str  # "slack", "discord"
+    channel_target: str  # channel ID or "dm"
+    config: dict = Field(default_factory=dict)
+    enabled: bool = True

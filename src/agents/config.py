@@ -48,6 +48,8 @@ class IntegrationsConfig(BaseModel):
     linear_api_key: str = ""
     discord_bot_token: str = ""
     discord_guild_id: str = ""
+    github_token: str = ""
+    slack_bot_token: str = ""
 
 
 class GlobalConfig(BaseModel):

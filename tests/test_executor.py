@@ -370,10 +370,13 @@ async def test_run_task_agent_issue_calls_linear_and_discord_on_dry_run(tmp_path
         "team_id": "team-1",
     }
 
-    run = await executor.run_task(project, "issue-resolver", trigger_type="linear", variables=variables)
+    run = await executor.run_task(
+        project, "issue-resolver", trigger_type="linear", variables=variables
+    )
 
     assert run.status == "success"
-    # Linear should have been called: update_status("In Progress") + post_comment("iniciou") + post_comment("Concluído") + remove_label
+    # Linear should have been called:
+    # update_status("In Progress") + post_comment x2 + remove_label
     assert mock_linear.update_status.call_count >= 1
     assert mock_linear.post_comment.call_count >= 2
     mock_linear.remove_label.assert_called_once_with("issue-xyz", "agent")
@@ -388,7 +391,8 @@ def test_write_progress_log(tmp_path):
     from agents.executor import write_progress_log
 
     path = write_progress_log(
-        tmp_path / "progress", "issue-abc", attempt=1, issue_title="Add pagination", issue_description="Add to user list"
+        tmp_path / "progress", "issue-abc", attempt=1,
+        issue_title="Add pagination", issue_description="Add to user list",
     )
     assert path.exists()
     content = path.read_text()
@@ -399,8 +403,12 @@ def test_write_progress_log(tmp_path):
 def test_append_progress_log(tmp_path):
     from agents.executor import append_progress_log, write_progress_log
 
-    write_progress_log(tmp_path / "progress", "issue-abc", attempt=1, issue_title="T", issue_description="D")
-    append_progress_log(tmp_path / "progress", "issue-abc", attempt=1, error="Tests failed: 3 assertions")
+    write_progress_log(
+        tmp_path / "progress", "issue-abc", attempt=1, issue_title="T", issue_description="D"
+    )
+    append_progress_log(
+        tmp_path / "progress", "issue-abc", attempt=1, error="Tests failed: 3 assertions"
+    )
     content = (tmp_path / "progress" / "issue-abc.txt").read_text()
     assert "Tests failed" in content
 
@@ -408,7 +416,9 @@ def test_append_progress_log(tmp_path):
 def test_delete_progress_log(tmp_path):
     from agents.executor import delete_progress_log, write_progress_log
 
-    path = write_progress_log(tmp_path / "progress", "issue-abc", attempt=1, issue_title="T", issue_description="D")
+    path = write_progress_log(
+        tmp_path / "progress", "issue-abc", attempt=1, issue_title="T", issue_description="D"
+    )
     assert path.exists()
     delete_progress_log(tmp_path / "progress", "issue-abc")
     assert not path.exists()

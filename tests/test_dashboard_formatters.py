@@ -256,7 +256,10 @@ def test_format_stream_html_no_emoji():
 
 def test_format_stream_html_uses_correct_color_for_tool_use():
     from agents.dashboard_formatters import format_stream_html
-    data = {"run_id": "p-t-x", "type": "tool_use", "tool_name": "Read", "content": '{"file_path":"src/main.py"}'}
+    data = {
+        "run_id": "p-t-x", "type": "tool_use",
+        "tool_name": "Read", "content": '{"file_path":"src/main.py"}',
+    }
     html = format_stream_html(data)
     assert "#d4d4d8" in html
     assert "Read src/main.py" in html

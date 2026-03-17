@@ -152,10 +152,10 @@ def test_build_prompt_substitutes_variables_in_intent():
 
 
 def test_global_config_integrations_defaults():
-    from agents.config import load_global_config
-
     import tempfile
     from pathlib import Path
+
+    from agents.config import load_global_config
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         f.write("budget:\n  daily_limit_usd: 10.00\n")

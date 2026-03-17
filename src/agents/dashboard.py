@@ -13,6 +13,9 @@ from agents.dashboard_formatters import (
     format_event_html,
     format_stream_html,
 )
+from agents.dashboard_project_hub import setup_project_hub
+from agents.dashboard_setup_wizard import setup_wizard_page
+from agents.dashboard_task_manager import setup_task_manager
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -188,10 +191,41 @@ def _build_run_drawer(
 def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None:
     """Mount NiceGUI dashboard. State accessed via closure (not app.state)."""
 
+    setup_project_hub(app, state)
+    setup_wizard_page(app, state)
+    setup_task_manager(app, state)
+
     @ui.page("/dashboard")
     async def dashboard_page(client: Client) -> None:
         ui.dark_mode(True)
         ui.add_head_html(_DASHBOARD_CSS)
+
+        # Migration prompt: offer to import YAML projects not yet in the store
+        if (
+            hasattr(state, 'projects') and state.projects
+            and hasattr(state, 'project_store') and state.project_store
+        ):
+            stored_ids = {p["id"] for p in state.project_store.list_projects()}
+            unmigrated = [name for name in state.projects if name not in stored_ids]
+            if unmigrated:
+                with ui.dialog() as migration_dialog, ui.card().classes("w-96"):
+                    ui.label("Import Projects").classes("text-lg font-bold")
+                    ui.label(
+                        f"Found {len(unmigrated)} project(s) in YAML not yet imported."
+                    ).classes("text-sm text-gray-300")
+                    for name in unmigrated:
+                        ui.label(f"  • {name}").classes("text-sm text-gray-400")
+
+                    async def do_migrate() -> None:
+                        from agents.migration import migrate_yaml_projects
+                        count = migrate_yaml_projects(state.projects, state.project_store)
+                        ui.notify(f"Imported {count} project(s)!", type="positive")
+                        migration_dialog.close()
+
+                    with ui.row().classes("gap-2 mt-4"):
+                        ui.button("Import All", on_click=do_migrate).props("color=green")
+                        ui.button("Skip", on_click=migration_dialog.close).props("flat")
+                migration_dialog.open()
 
         runs = state.history.list_runs_today()
         a_count = sum(1 for r in runs if r.status == "running")
@@ -299,6 +333,28 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         with ui.row().classes("w-full flex-1").style(
             "height: calc(100vh - 48px); overflow: hidden"
         ):
+            # Sidebar: Project List
+            with ui.column().classes("h-full px-3 py-2").style(
+                "width:180px;flex-shrink:0;background:#0d0f18;"
+                "border-right:1px solid #1e2130;overflow-y:auto"
+            ):
+                ui.button(
+                    "+ New Project",
+                    on_click=lambda: ui.navigate.to("/dashboard/project/new"),
+                ).props("color=blue dense flat").classes("w-full mb-2")
+                projects = state.project_store.list_projects() if state.project_store else []
+                if projects:
+                    ui.label("Projects").classes(
+                        "text-xs text-gray-500 uppercase tracking-wide mb-1"
+                    )
+                    for p in projects:
+                        ui.link(p["name"], f"/dashboard/project/{p['id']}").classes(
+                            "text-sm text-blue-400 hover:text-blue-300 block py-0.5"
+                        )
+                    ui.separator().classes("my-2")
+
+            ui.html('<div class="panel-divider"></div>')
+
             # Live Stream
             with ui.column().classes("flex-1 h-full").style("flex: 1.2"):
                 ui.label("Live Stream").classes("section-label")
