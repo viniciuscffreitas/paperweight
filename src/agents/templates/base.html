@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>paperweight</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Ubuntu+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <script src="/static/ws.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { mono: ['"Ubuntu Mono"', 'monospace'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { font-family: "Ubuntu Mono", monospace; }
+    html, body { margin: 0; padding: 0; height: 100%; background: #0d0f18; color: #e5e7eb; }
+    .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+    .status-dot.running  { background: #3b82f6; }
+    .status-dot.success  { background: #4ade80; }
+    .status-dot.failure,
+    .status-dot.failed   { background: #f87171; }
+    .status-dot.timeout  { background: #fb923c; }
+    .status-dot.cancelled{ background: #6b7280; }
+    @keyframes live-pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .live-pulse { animation: live-pulse 1.4s ease-in-out infinite; }
+  </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+  <!-- Sidebar -->
+  <nav style="width:160px;min-width:160px;background:#0d0f18;border-right:1px solid #1e2130;display:flex;flex-direction:column;flex-shrink:0;">
+    <div style="padding:16px 12px;border-bottom:1px solid #1e2130;">
+      <span style="font-size:11px;font-weight:700;letter-spacing:2px;color:#6b7280;text-transform:uppercase;">paperweight</span>
+    </div>
+    <div style="padding:8px 0;flex:1;overflow-y:auto;">
+      <div style="padding:4px 12px;font-size:9px;color:#4b5563;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">Projects</div>
+      {% for p in projects %}
+      <div hx-get="/hub/{{ p.id }}"
+           hx-target="#panel-content"
+           hx-on::after-request="openPanel()"
+           style="padding:8px 12px;font-size:12px;color:#9ca3af;cursor:pointer;border-radius:4px;margin:1px 6px;transition:background .15s;"
+           onmouseover="this.style.background='#1e2130';this.style.color='#e5e7eb'"
+           onmouseout="this.style.background='transparent';this.style.color='#9ca3af'">
+        {{ p.name }}
+      </div>
+      {% endfor %}
+    </div>
+    <div style="padding:8px 12px;border-top:1px solid #1e2130;">
+      <a href="/dashboard" style="font-size:11px;color:#4b5563;text-decoration:none;letter-spacing:.5px;">Dashboard</a>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Right panel (position:fixed, full viewport height minus sidebar) -->
+  <!-- Note: display:none via inline style only — no Tailwind 'hidden' class so JS style toggle works -->
+  <div id="right-panel"
+       style="display:none;position:fixed;top:0;bottom:0;right:0;left:160px;
+              background:#0d0f18;border-left:1px solid #2d3142;
+              z-index:50;flex-direction:column;">
+    <div id="panel-content" style="display:flex;flex-direction:column;height:100%;"></div>
+  </div>
+
+  <script>
+    function openPanel() {
+      var p = document.getElementById('right-panel');
+      p.style.display = 'flex';
+    }
+    function closePanel() {
+      var p = document.getElementById('right-panel');
+      p.style.display = 'none';
+    }
+  </script>
+</body>
+</html>
