@@ -72,14 +72,6 @@ EVENT_COLORS: dict[str, str] = {
     "unknown": "#6b7280",
 }
 
-STATUS_ICONS: dict[str, str] = {
-    "success": "✅",
-    "failure": "❌",
-    "running": "🔄",
-    "timeout": "⏰",
-    "cancelled": "🚫",
-}
-
 STATUS_COLORS: dict[str, str] = {
     "success": "#4ade80",
     "running": "#3b82f6",
@@ -222,7 +214,7 @@ def build_history_rows(runs: list) -> list[dict]:
                 "id": r.id,
                 "project": r.project,
                 "task": r.task,
-                "status": STATUS_ICONS.get(r.status, r.status),
+                "status": r.status,
                 "raw_status": r.status,
                 "model": r.model or "—",
                 "cost": f"${r.cost_usd:.3f}" if r.cost_usd else "—",

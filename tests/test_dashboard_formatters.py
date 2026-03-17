@@ -223,6 +223,20 @@ def test_build_history_rows_capped_at_30():
     assert len(rows) == 30
 
 
+def test_build_history_rows_status_is_raw_string():
+    from agents.dashboard_formatters import build_history_rows
+    rows = build_history_rows([_make_run(status="success")])
+    assert rows[0]["status"] == "success"
+    assert "✅" not in rows[0]["status"]
+
+
+def test_build_history_rows_has_raw_status_field():
+    from agents.dashboard_formatters import build_history_rows
+    rows = build_history_rows([_make_run(status="failure")])
+    assert rows[0]["status"] == "failure"
+    assert rows[0]["raw_status"] == "failure"
+
+
 # ── format_stream_html ──────────────────────────────────────────────────────
 
 def test_format_stream_html_returns_html_div():

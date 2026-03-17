@@ -61,8 +61,6 @@ _HISTORY_COLS = [
     {"name": "project", "label": "Project", "field": "project", "align": "left"},
     {"name": "task", "label": "Task", "field": "task", "align": "left"},
     {"name": "status", "label": "", "field": "status", "align": "center"},
-    {"name": "model", "label": "Model", "field": "model", "align": "left"},
-    {"name": "cost", "label": "Cost", "field": "cost", "align": "right"},
     {"name": "duration", "label": "Time", "field": "duration", "align": "right"},
 ]
 
