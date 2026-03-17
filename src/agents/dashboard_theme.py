@@ -44,11 +44,10 @@ body { background: #0a0c14 !important; font-family: 'JetBrains Mono', monospace;
 .q-table tbody tr { cursor: pointer; }
 .q-table tbody tr:hover td { background: #1e2130 !important; }
 .run-drawer .q-dialog__inner {
-    position: fixed !important;
-    right: 0 !important; top: 0 !important; bottom: 0 !important;
     margin: 0 !important;
     max-height: 100vh !important; height: 100vh !important;
     width: 560px !important; max-width: 560px !important;
+    border-radius: 0 !important;
 }
 .run-drawer .q-card {
     border-radius: 0 !important; height: 100% !important;
@@ -65,9 +64,6 @@ body { background: #0a0c14 !important; font-family: 'JetBrains Mono', monospace;
 
 /* ── Bottom Sheet ──────────────────────────────────────────── */
 .bottom-sheet .q-dialog__inner {
-    position: fixed !important;
-    bottom: 0 !important; left: 0 !important; right: 0 !important;
-    top: auto !important;
     width: 100% !important; max-width: 100% !important;
     height: 82vh !important; max-height: 82vh !important;
     margin: 0 !important;
@@ -76,14 +72,16 @@ body { background: #0a0c14 !important; font-family: 'JetBrains Mono', monospace;
     border: 1px solid #2d3142 !important;
     border-bottom: none !important;
     box-shadow: 0 -24px 64px rgba(0,0,0,0.7) !important;
-    animation: sheet-up 0.32s cubic-bezier(0.32, 0.72, 0, 1) !important;
     overflow: hidden !important;
     display: flex !important; flex-direction: column !important;
+    white-space: nowrap;
 }
 .bottom-sheet .q-card {
     border-radius: 0 !important; background: transparent !important;
     box-shadow: none !important; height: 100% !important;
+    width: 100% !important; max-width: 100% !important;
     display: flex !important; flex-direction: column !important;
+    overflow: hidden !important;
 }
 @keyframes sheet-up {
     from { transform: translateY(100%); }
@@ -121,10 +119,7 @@ body { background: #0a0c14 !important; font-family: 'JetBrains Mono', monospace;
 
 /* ── Right Panel ───────────────────────────────────────────── */
 .right-panel .q-dialog__inner {
-    position: fixed !important;
-    right: 0 !important; top: 0 !important; bottom: 0 !important;
-    left: auto !important;
-    width: 62% !important; max-width: 62% !important;
+    width: calc(100vw - 160px) !important; max-width: calc(100vw - 160px) !important;
     min-width: 480px !important;
     height: 100vh !important; max-height: 100vh !important;
     margin: 0 !important;
@@ -132,13 +127,13 @@ body { background: #0a0c14 !important; font-family: 'JetBrains Mono', monospace;
     background: #0d0f18 !important;
     border-left: 1px solid #2d3142 !important;
     box-shadow: -16px 0 48px rgba(0,0,0,0.6) !important;
-    animation: panel-in 0.28s cubic-bezier(0.32, 0.72, 0, 1) !important;
     overflow: hidden !important;
     display: flex !important; flex-direction: column !important;
 }
 .right-panel .q-card {
     border-radius: 0 !important; background: transparent !important;
     box-shadow: none !important; height: 100% !important;
+    width: 100% !important;
     display: flex !important; flex-direction: column !important;
 }
 @keyframes panel-in {
