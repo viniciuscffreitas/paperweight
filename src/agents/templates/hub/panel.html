@@ -1,1 +1,56 @@
-<div id="hub-panel-placeholder">{{ project.name }}</div>
+<!-- Hub panel: header + tabs + tab content area (loaded via HTMX) -->
+<div style="display:flex;flex-direction:column;height:100%;">
+
+  <!-- Panel header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;
+              padding:0 20px;height:56px;min-height:56px;flex-shrink:0;
+              border-bottom:1px solid #1e2130;">
+    <span style="font-size:14px;font-weight:700;color:#e5e7eb;">{{ project.name }}</span>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button onclick="closePanel()"
+              style="background:transparent;border:none;color:#6b7280;cursor:pointer;
+                     padding:4px 8px;font-size:11px;font-family:inherit;
+                     border-radius:3px;transition:color .15s;"
+              onmouseover="this.style.color='#e5e7eb'"
+              onmouseout="this.style.color='#6b7280'">✕</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div style="display:flex;border-bottom:1px solid #1e2130;padding:0 20px;flex-shrink:0;">
+    <button hx-get="/hub/{{ id }}/activity"
+            hx-target="#tab-content"
+            style="padding:10px 16px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;
+                   color:#e5e7eb;cursor:pointer;border:none;background:transparent;
+                   border-bottom:2px solid #3b82f6;margin-bottom:-1px;font-family:inherit;">
+      ACTIVITY
+    </button>
+    <button hx-get="/hub/{{ id }}/tasks"
+            hx-target="#tab-content"
+            style="padding:10px 16px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;
+                   color:#4b5563;cursor:pointer;border:none;background:transparent;
+                   border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;
+                   transition:color .15s;"
+            onmouseover="this.style.color='#9ca3af'"
+            onmouseout="this.style.color='#4b5563'">
+      TASKS
+    </button>
+    <button hx-get="/hub/{{ id }}/runs"
+            hx-target="#tab-content"
+            style="padding:10px 16px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;
+                   color:#4b5563;cursor:pointer;border:none;background:transparent;
+                   border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;
+                   transition:color .15s;"
+            onmouseover="this.style.color='#9ca3af'"
+            onmouseout="this.style.color='#4b5563'">
+      RUNS
+    </button>
+  </div>
+
+  <!-- Tab content — loaded via HTMX, defaults to activity -->
+  <div id="tab-content"
+       style="flex:1;overflow-y:auto;"
+       hx-get="/hub/{{ id }}/activity"
+       hx-trigger="load">
+  </div>
+</div>

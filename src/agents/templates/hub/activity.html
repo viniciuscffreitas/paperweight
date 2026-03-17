@@ -1,1 +1,11 @@
-<div id="activity-placeholder">activity</div>
+<div style="padding:16px;display:flex;flex-direction:column;gap:2px;">
+  {% if events %}
+    {% for event in events %}
+      {% include "partials/event_card.html" %}
+    {% endfor %}
+  {% else %}
+  <div style="padding:24px;text-align:center;color:#4b5563;font-size:13px;font-style:italic;">
+    No events yet. Configure sources to start aggregating.
+  </div>
+  {% endif %}
+</div>
