@@ -5,7 +5,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fastapi import Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+import re
+import time as _time
+
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -76,6 +79,45 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
             "hub/tasks.html",
             {"tasks": tasks, "id": project_id},
         )
+
+    @app.post("/setup/discover", response_class=HTMLResponse)
+    async def setup_discover(request: Request) -> HTMLResponse:
+        from agents.project_hub_routes import _discover_sources
+        form = await request.form()
+        name = str(form.get("name", ""))
+        repo_path = str(form.get("repo_path", ""))
+        sources = await _discover_sources(name, state)
+        return _TEMPLATES.TemplateResponse(
+            request,
+            "setup/step2.html",
+            {"sources": sources, "name": name, "repo_path": repo_path},
+        )
+
+    @app.post("/setup/create")
+    async def setup_create(request: Request) -> Response:
+        form = await request.form()
+        name = str(form.get("name", ""))
+        repo_path = str(form.get("repo_path", ""))
+        project_id = re.sub(r"[^a-z0-9-]", "-", name.lower().strip()).strip("-") or "project"
+        if state.project_store.get_project(project_id):
+            project_id = f"{project_id}-{int(_time.time()) % 10000}"
+        state.project_store.create_project(
+            id=project_id,
+            name=name,
+            repo_path=repo_path,
+        )
+        for source_str in form.getlist("source"):
+            parts = source_str.split("|", 2)
+            if len(parts) == 3:
+                state.project_store.create_source(
+                    project_id=project_id,
+                    source_type=parts[0],
+                    source_id=parts[1],
+                    source_name=parts[2],
+                )
+        response = Response(status_code=204)
+        response.headers["HX-Redirect"] = "/dashboard"
+        return response
 
     @app.get("/hub/{project_id}/runs", response_class=HTMLResponse)
     async def hub_runs(request: Request, project_id: str) -> HTMLResponse:

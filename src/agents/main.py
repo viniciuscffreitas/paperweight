@@ -163,6 +163,11 @@ def create_app(
             projects, linear_client, discord_notifier_client, config.integrations.discord_guild_id,
         )
 
+        from agents.migration import migrate_yaml_projects
+        _migrated = migrate_yaml_projects(projects, project_store)
+        if _migrated:
+            logger.info("Auto-migrated %d YAML project(s) to SQLite", _migrated)
+
         scheduler = create_scheduler()
 
         async def scheduled_run(project_name: str, task_name: str) -> None:

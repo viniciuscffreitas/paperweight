@@ -283,3 +283,38 @@ def test_dashboard_chrome_label_contrast(app_with_dashboard):
     html = resp.content
     # #6b7280 on #0d0f18 fails WCAG AA for small text; #9ca3af passes
     assert b"color:#6b7280;text-transform:uppercase" not in html
+
+
+# ---------------------------------------------------------------------------
+# Setup wizard
+# ---------------------------------------------------------------------------
+
+
+def test_dashboard_empty_state_has_add_project_cta(app_with_dashboard):
+    """When no projects exist, sidebar shows an 'add project' call-to-action."""
+    resp = app_with_dashboard.get("/dashboard")
+    assert b"add project" in resp.content
+
+
+def test_setup_discover_returns_200(app_with_dashboard):
+    """POST /setup/discover returns HTTP 200."""
+    resp = app_with_dashboard.post(
+        "/setup/discover", data={"name": "myproject", "repo_path": "/tmp/repo"}
+    )
+    assert resp.status_code == 200
+
+
+def test_setup_discover_returns_html(app_with_dashboard):
+    """POST /setup/discover returns text/html content-type."""
+    resp = app_with_dashboard.post(
+        "/setup/discover", data={"name": "myproject", "repo_path": "/tmp/repo"}
+    )
+    assert "text/html" in resp.headers["content-type"]
+
+
+def test_setup_create_returns_hx_redirect(app_with_dashboard):
+    """POST /setup/create returns HX-Redirect header pointing to /dashboard."""
+    resp = app_with_dashboard.post(
+        "/setup/create", data={"name": "My New Project", "repo_path": "/tmp/my-project"}
+    )
+    assert resp.headers.get("hx-redirect") == "/dashboard"

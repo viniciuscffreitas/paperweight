@@ -64,6 +64,19 @@
            onmouseout="this.style.background='transparent';this.style.color='#9ca3af'">
         {{ p.name }}
       </div>
+      {% else %}
+      <div style="padding:12px 12px 8px;">
+        <div style="font-size:10px;color:#374151;font-style:italic;margin-bottom:8px;">no projects yet</div>
+        <button onclick="openWizard()"
+                aria-label="Adicionar projeto"
+                style="width:100%;padding:7px 0;font-size:10px;color:#6b7280;background:transparent;
+                       border:1px dashed #2d3142;border-radius:4px;cursor:pointer;font-family:inherit;
+                       letter-spacing:.5px;transition:all .15s;"
+                onmouseover="this.style.color='#9ca3af';this.style.borderColor='#4b5563'"
+                onmouseout="this.style.color='#6b7280';this.style.borderColor='#2d3142'">
+          + add project
+        </button>
+      </div>
       {% endfor %}
     </div>
     <div style="padding:8px 12px;border-top:1px solid #1e2130;">
@@ -170,8 +183,19 @@
         {{ p.name }}
       </div>
       {% else %}
-      <div style="padding:24px;text-align:center;color:#6b7280;font-size:12px;font-style:italic;">
-        Nenhum projeto configurado.
+      <div style="padding:20px 16px;">
+        <div style="text-align:center;color:#374151;font-size:12px;font-style:italic;margin-bottom:12px;">
+          Nenhum projeto configurado.
+        </div>
+        <button onclick="closeProjectsSheet();openWizard()"
+                aria-label="Adicionar projeto"
+                style="width:100%;padding:10px 0;font-size:12px;color:#6b7280;background:transparent;
+                       border:1px dashed #2d3142;border-radius:4px;cursor:pointer;font-family:inherit;
+                       letter-spacing:.5px;transition:all .15s;"
+                onmouseover="this.style.color='#9ca3af';this.style.borderColor='#4b5563'"
+                onmouseout="this.style.color='#6b7280';this.style.borderColor='#2d3142'">
+          + add project
+        </button>
       </div>
       {% endfor %}
     </div>
@@ -210,6 +234,118 @@
       <span>Projects</span>
     </button>
   </nav>
+
+
+  <!-- Setup wizard modal -->
+  <div id="wizard-overlay"
+       role="dialog"
+       aria-label="Criar novo projeto"
+       aria-modal="true"
+       style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);
+              z-index:300;align-items:center;justify-content:center;padding:16px;">
+    <div id="wizard-card"
+         style="background:#111520;border:1px solid #2d3142;border-radius:8px;
+                width:480px;max-width:100%;padding:32px;position:relative;
+                box-shadow:0 24px 48px rgba(0,0,0,.5);">
+
+      <!-- Close -->
+      <button onclick="closeWizard()"
+              aria-label="Fechar"
+              style="position:absolute;top:14px;right:14px;background:transparent;
+                     border:none;color:#4b5563;cursor:pointer;font-size:20px;
+                     line-height:1;font-family:inherit;padding:2px 8px;border-radius:3px;
+                     transition:color .15s;"
+              onmouseover="this.style.color='#9ca3af'"
+              onmouseout="this.style.color='#4b5563'">×</button>
+
+      <!-- Step progress -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:28px;">
+        <div id="wizard-dot-1"
+             style="width:6px;height:6px;border-radius:50%;background:#3b82f6;transition:background .2s;"></div>
+        <div style="flex:1;height:1px;background:#1e2130;"></div>
+        <div id="wizard-dot-2"
+             style="width:6px;height:6px;border-radius:50%;background:#2d3142;transition:background .2s;"></div>
+      </div>
+
+      <!-- Wizard body — HTMX swaps here for step 2 -->
+      <div id="wizard-body">
+        <!-- Step 1: project info -->
+        <div style="margin-bottom:4px;font-size:9px;color:#4b5563;letter-spacing:1.5px;text-transform:uppercase;">
+          Step 1 of 2
+        </div>
+        <div style="font-size:14px;color:#e5e7eb;margin-bottom:22px;font-weight:700;">New project</div>
+
+        <form hx-post="/setup/discover"
+              hx-target="#wizard-body"
+              hx-swap="innerHTML"
+              hx-on:htmx:before-request="document.getElementById('wizard-dot-2').style.background='#3b82f6'">
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:9px;color:#9ca3af;text-transform:uppercase;
+                          letter-spacing:1.5px;margin-bottom:6px;">Project name</label>
+            <input name="name" required placeholder="my-project" autocomplete="off"
+                   style="width:100%;background:#0d0f18;border:1px solid #2d3142;border-radius:4px;
+                          padding:8px 12px;font-size:13px;color:#e5e7eb;font-family:inherit;
+                          outline:none;box-sizing:border-box;transition:border-color .15s;"
+                   onfocus="this.style.borderColor='#3b82f6'"
+                   onblur="this.style.borderColor='#2d3142'">
+          </div>
+          <div style="margin-bottom:24px;">
+            <label style="display:block;font-size:9px;color:#9ca3af;text-transform:uppercase;
+                          letter-spacing:1.5px;margin-bottom:6px;">Repository path</label>
+            <input name="repo_path" required placeholder="/Users/you/my-project" autocomplete="off"
+                   style="width:100%;background:#0d0f18;border:1px solid #2d3142;border-radius:4px;
+                          padding:8px 12px;font-size:13px;color:#e5e7eb;font-family:inherit;
+                          outline:none;box-sizing:border-box;transition:border-color .15s;"
+                   onfocus="this.style.borderColor='#3b82f6'"
+                   onblur="this.style.borderColor='#2d3142'">
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <button type="button" onclick="closeWizard()"
+                    style="padding:7px 14px;font-size:11px;color:#6b7280;background:transparent;
+                           border:1px solid #1e2130;border-radius:4px;cursor:pointer;font-family:inherit;
+                           letter-spacing:.3px;transition:all .15s;"
+                    onmouseover="this.style.borderColor='#2d3142';this.style.color='#9ca3af'"
+                    onmouseout="this.style.borderColor='#1e2130';this.style.color='#6b7280'">
+              Cancel
+            </button>
+            <button type="submit"
+                    style="padding:7px 18px;font-size:11px;color:#e5e7eb;background:#1e3a5f;
+                           border:1px solid #3b82f6;border-radius:4px;cursor:pointer;font-family:inherit;
+                           letter-spacing:.3px;transition:all .15s;"
+                    onmouseover="this.style.background='#1d4ed8'"
+                    onmouseout="this.style.background='#1e3a5f'">
+              Discover sources →
+            </button>
+          </div>
+        </form>
+      </div><!-- #wizard-body -->
+
+    </div><!-- #wizard-card -->
+  </div><!-- #wizard-overlay -->
+
+  <script>
+    var _wizardStep1Html = '';
+    document.addEventListener('DOMContentLoaded', function () {
+      _wizardStep1Html = document.getElementById('wizard-body').innerHTML;
+    });
+
+    function openWizard() {
+      var overlay = document.getElementById('wizard-overlay');
+      overlay.style.display = 'flex';
+      setTimeout(function () {
+        var input = overlay.querySelector('input[name="name"]');
+        if (input) input.focus();
+      }, 60);
+    }
+
+    function closeWizard() {
+      document.getElementById('wizard-overlay').style.display = 'none';
+      var body = document.getElementById('wizard-body');
+      body.innerHTML = _wizardStep1Html;
+      if (window.htmx) htmx.process(body);
+      document.getElementById('wizard-dot-2').style.background = '#2d3142';
+    }
+  </script>
 
 </body>
 </html>

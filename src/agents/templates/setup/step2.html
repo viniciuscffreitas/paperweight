@@ -1,0 +1,73 @@
+{% set type_styles = {
+  'linear': 'background:#2d1b5e;color:#9d7de8',
+  'github': 'background:#1a2030;color:#8b949e',
+  'slack':  'background:#0d2a35;color:#36c5f0'
+} %}
+
+<div style="margin-bottom:4px;font-size:9px;color:#4b5563;letter-spacing:1.5px;text-transform:uppercase;">
+  Step 2 of 2
+</div>
+<div style="font-size:14px;color:#e5e7eb;margin-bottom:6px;font-weight:700;">Link sources</div>
+<div style="font-size:12px;color:#6b7280;margin-bottom:20px;">
+  Auto-discovered integrations for <span style="color:#9ca3af;">{{ name }}</span>
+</div>
+
+<form hx-post="/setup/create" hx-swap="none">
+  <input type="hidden" name="name" value="{{ name }}">
+  <input type="hidden" name="repo_path" value="{{ repo_path }}">
+
+  {% if sources %}
+  <div style="border:1px solid #1e2130;border-radius:4px;overflow:hidden;margin-bottom:20px;">
+    {% for source in sources %}
+    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;
+                  {% if not loop.last %}border-bottom:1px solid #1e2130;{% endif %}
+                  transition:background .15s;"
+           onmouseover="this.style.background='rgba(255,255,255,.03)'"
+           onmouseout="this.style.background='transparent'">
+      <input type="checkbox"
+             name="source"
+             value="{{ source.source_type }}|{{ source.source_id }}|{{ source.source_name }}"
+             checked
+             style="accent-color:#3b82f6;flex-shrink:0;">
+      <span style="flex:0 0 auto;padding:2px 6px;border-radius:3px;font-size:9px;
+                   letter-spacing:.5px;text-transform:uppercase;
+                   {{ type_styles.get(source.source_type, 'background:#1e2130;color:#6b7280') }};">
+        {{ source.source_type }}
+      </span>
+      <span style="flex:1;font-size:12px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+        {{ source.source_name }}
+      </span>
+      {% if source.confidence == "high" %}
+      <span style="font-size:9px;color:#34d399;letter-spacing:.5px;flex-shrink:0;">high</span>
+      {% else %}
+      <span style="font-size:9px;color:#4b5563;letter-spacing:.5px;flex-shrink:0;">medium</span>
+      {% endif %}
+    </label>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="padding:20px;text-align:center;color:#4b5563;font-size:12px;font-style:italic;
+              margin-bottom:20px;border:1px dashed #1e2130;border-radius:4px;">
+    No integrations discovered. Project will be created without linked sources.
+  </div>
+  {% endif %}
+
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <button type="button" onclick="closeWizard()"
+            style="padding:7px 14px;font-size:11px;color:#6b7280;background:transparent;
+                   border:1px solid #1e2130;border-radius:4px;cursor:pointer;font-family:inherit;
+                   letter-spacing:.3px;transition:all .15s;"
+            onmouseover="this.style.borderColor='#2d3142';this.style.color='#9ca3af'"
+            onmouseout="this.style.borderColor='#1e2130';this.style.color='#6b7280'">
+      Cancel
+    </button>
+    <button type="submit"
+            style="padding:7px 18px;font-size:11px;color:#e5e7eb;background:#1e3a5f;
+                   border:1px solid #3b82f6;border-radius:4px;cursor:pointer;font-family:inherit;
+                   letter-spacing:.3px;transition:all .15s;"
+            onmouseover="this.style.background='#1d4ed8'"
+            onmouseout="this.style.background='#1e3a5f'">
+      Create project →
+    </button>
+  </div>
+</form>
