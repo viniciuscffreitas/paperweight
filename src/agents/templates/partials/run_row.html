@@ -1,0 +1,11 @@
+{% set status_colors = {"success": "#4ade80", "failure": "#f87171", "running": "#3b82f6", "timeout": "#fb923c", "cancelled": "#6b7280"} %}
+<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1e2130;">
+  <span class="status-dot {{ run.status }}" style="background:{{ status_colors.get(run.status, '#6b7280') }};"></span>
+  <span style="flex:1;font-size:12px;color:#e5e7eb;">{{ run.task }}</span>
+  {% if run.cost_usd %}
+  <span style="font-size:11px;color:#6b7280;">${{ "%.2f" | format(run.cost_usd) }}</span>
+  {% endif %}
+  {% if run.pr_url %}
+  <a href="{{ run.pr_url }}" target="_blank" style="font-size:11px;color:#3b82f6;text-decoration:none;">PR ↗</a>
+  {% endif %}
+</div>
