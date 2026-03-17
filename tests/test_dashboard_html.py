@@ -286,6 +286,31 @@ def test_dashboard_chrome_label_contrast(app_with_dashboard):
 
 
 # ---------------------------------------------------------------------------
+# Chrome L — borderless floating card
+# ---------------------------------------------------------------------------
+
+
+def test_dashboard_chrome_sidebar_no_right_border(app_with_dashboard):
+    """Sidebar must not have border-right — separation via color contrast only."""
+    import re
+    resp = app_with_dashboard.get("/dashboard")
+    html = resp.text
+    match = re.search(r'id="sidebar"[^>]*style="([^"]*)"', html)
+    assert match, "#sidebar not found"
+    assert "border-right" not in match.group(1)
+
+
+def test_dashboard_chrome_topbar_no_bottom_border(app_with_dashboard):
+    """#app-topbar must not have border-bottom — floating card effect."""
+    import re
+    resp = app_with_dashboard.get("/dashboard")
+    html = resp.text
+    match = re.search(r'id="app-topbar"[^>]*style="([^"]*)"', html)
+    assert match, "#app-topbar not found"
+    assert "border-bottom" not in match.group(1)
+
+
+# ---------------------------------------------------------------------------
 # Chrome L — height alignment
 # ---------------------------------------------------------------------------
 
