@@ -399,7 +399,7 @@ def create_app(
     from agents.project_hub_routes import register_project_hub_routes
     register_project_hub_routes(app, state)
 
-    from agents.dashboard import setup_dashboard
+    from agents.dashboard_html import setup_dashboard
     setup_dashboard(app, state, config)
 
     return app

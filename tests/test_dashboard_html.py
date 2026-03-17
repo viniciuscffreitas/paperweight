@@ -186,3 +186,12 @@ def test_hub_tasks_returns_200(app_with_project):
 def test_hub_runs_returns_200(app_with_project):
     resp = app_with_project.get("/hub/p1/runs")
     assert resp.status_code == 200
+
+
+def test_main_imports_dashboard_html_not_nicegui():
+    """main.py must import from dashboard_html, not from dashboard (NiceGUI)."""
+    import inspect
+    from agents import main
+    source = inspect.getsource(main)
+    assert "from agents.dashboard_html import setup_dashboard" in source
+    assert "from agents.dashboard import setup_dashboard" not in source
