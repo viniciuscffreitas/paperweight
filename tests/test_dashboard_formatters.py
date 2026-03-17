@@ -114,6 +114,13 @@ def test_format_event_html_contains_color_for_type():
     html = format_event_html(data)
     assert EVENT_COLORS["tool_use"] in html
     assert "Bash" in html
+    # No emoji
+    assert not any(ord(c) > 0x1F000 for c in html)
+
+
+def test_format_event_html_tool_use_color_is_light_gray():
+    from agents.dashboard_formatters import EVENT_COLORS
+    assert EVENT_COLORS["tool_use"] == "#d4d4d8"
 
 
 def test_format_event_html_includes_timestamp():

@@ -64,9 +64,9 @@ EVENT_COLORS: dict[str, str] = {
     "task_completed": "#4ade80",
     "task_failed": "#f87171",
     "dry_run": "#fbbf24",
-    "tool_use": "#fbbf24",
+    "tool_use": "#d4d4d8",
     "tool_result": "#6b7280",
-    "assistant": "#e2e8f0",
+    "assistant": "#a1a1aa",
     "result": "#4ade80",
     "system": "#22d3ee",
     "unknown": "#6b7280",
@@ -128,7 +128,7 @@ def format_event_line(data: dict) -> str:
 
 
 def format_event_html(data: dict) -> str:
-    """Rich HTML row for the run detail drawer."""
+    """Rich HTML row for the run detail drawer. No emoji."""
     event_type = data.get("type", "")
     content = str(data.get("content") or "")
     tool_name = data.get("tool_name") or ""
@@ -137,11 +137,9 @@ def format_event_html(data: dict) -> str:
     time_str = datetime.fromtimestamp(ts, tz=UTC).strftime("%H:%M:%S") if ts else "--:--:--"
 
     if event_type == "tool_use":
-        label_text = _format_tool_use(tool_name, content)
-        label = f"<span style='color:#9ca3af'>{label_text}</span>"
+        label = f"<span style='color:{color}'>{_format_tool_use(tool_name, content)}</span>"
     elif event_type == "tool_result":
-        result_text = _format_tool_result(content)
-        label = f"<span style='color:#6b7280'>{result_text}</span>"
+        label = f"<span style='color:#6b7280'>{_format_tool_result(content)}</span>"
     elif event_type == "assistant":
         preview = _shorten_path(content)
         if len(preview) > 200:
