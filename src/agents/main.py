@@ -10,12 +10,14 @@ from typing import Any
 
 from fastapi import BackgroundTasks, FastAPI, Request, Response, WebSocket, WebSocketDisconnect
 
+from agents.app_state import AppState
 from agents.budget import BudgetManager
 from agents.config import GlobalConfig, load_global_config, load_project_configs
 from agents.executor import Executor
 from agents.history import HistoryDB
 from agents.models import ProjectConfig
 from agents.notifier import Notifier
+from agents.project_store import ProjectStore
 from agents.scheduler import create_scheduler, register_jobs
 from agents.streaming import StreamEvent
 from agents.webhooks.github import (
@@ -30,43 +32,6 @@ from agents.webhooks.linear import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-class AppState:
-    def __init__(
-        self,
-        projects: dict[str, ProjectConfig],
-        executor: Executor,
-        history: HistoryDB,
-        budget: BudgetManager,
-        notifier: Notifier,
-        github_secret: str,
-        linear_secret: str,
-    ) -> None:
-        self.projects = projects
-        self.executor = executor
-        self.history = history
-        self.budget = budget
-        self.notifier = notifier
-        self.github_secret = github_secret
-        self.linear_secret = linear_secret
-        self._semaphore: asyncio.Semaphore | None = None
-        self._repo_semaphores: dict[str, asyncio.Semaphore] = {}
-        self.ws_clients: dict[str, set[WebSocket]] = {}
-        self.ws_global_clients: set[WebSocket] = set()
-        self.stream_queues: list[asyncio.Queue] = []
-        self.run_events: dict[str, list[dict]] = {}
-        self._agent_issue_seen: dict[str, float] = {}  # issue_id → timestamp (dedup cooldown)
-
-    def get_semaphore(self, max_concurrent: int) -> asyncio.Semaphore:
-        if self._semaphore is None:
-            self._semaphore = asyncio.Semaphore(max_concurrent)
-        return self._semaphore
-
-    def get_repo_semaphore(self, repo: str) -> asyncio.Semaphore:
-        if repo not in self._repo_semaphores:
-            self._repo_semaphores[repo] = asyncio.Semaphore(2)
-        return self._repo_semaphores[repo]
 
 
 def create_app(
@@ -88,6 +53,7 @@ def create_app(
     history = HistoryDB(db_path)
     budget = BudgetManager(config=config.budget, history=history)
     notifier = Notifier(webhook_url=config.notifications.slack_webhook_url)
+    project_store = ProjectStore(data_dir / "project_hub.db")
 
     from agents.discord_notifier import DiscordRunNotifier
     from agents.linear_client import LinearClient
@@ -155,13 +121,13 @@ def create_app(
         notifier=notifier,
         github_secret=config.webhooks.github_secret,
         linear_secret=config.webhooks.linear_secret,
+        project_store=project_store,
     )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         history.mark_running_as_cancelled()
 
-        # Auto-discover project IDs from Linear/Discord APIs
         from agents.discovery import auto_discover_project_ids
         await auto_discover_project_ids(
             projects, linear_client, discord_notifier_client, config.integrations.discord_guild_id,
@@ -197,6 +163,8 @@ def create_app(
     app = FastAPI(title="Background Agent Runner", lifespan=lifespan)
     app.state.app_state = state
 
+    # --- Core routes ---
+
     @app.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
@@ -214,10 +182,7 @@ def create_app(
     @app.get("/status/budget")
     async def budget_status() -> dict[str, Any]:
         s = state.budget.get_status()
-        return {
-            **s.model_dump(),
-            "remaining_usd": s.remaining_usd,
-        }
+        return {**s.model_dump(), "remaining_usd": s.remaining_usd}
 
     @app.post("/tasks/{project_name}/{task_name}/run", status_code=202, response_model=None)
     async def manual_trigger(
@@ -227,15 +192,9 @@ def create_app(
     ) -> Response | dict[str, str]:
         project = state.projects.get(project_name)
         if project is None:
-            return Response(
-                status_code=404,
-                content=f"Project {project_name} not found",
-            )
+            return Response(status_code=404, content=f"Project {project_name} not found")
         if task_name not in project.tasks:
-            return Response(
-                status_code=404,
-                content=f"Task {task_name} not found",
-            )
+            return Response(status_code=404, content=f"Task {task_name} not found")
 
         async def _run() -> None:
             async with (
@@ -246,6 +205,15 @@ def create_app(
 
         background_tasks.add_task(_run)
         return {"run_id": f"{project_name}-{task_name}", "status": "enqueued"}
+
+    @app.post("/runs/{run_id}/cancel", response_model=None)
+    async def cancel_run(run_id: str) -> Response | dict[str, str]:
+        cancelled = await state.executor.cancel_run(run_id)
+        if not cancelled:
+            return Response(status_code=404, content="Run not found or not running")
+        return {"status": "cancelled"}
+
+    # --- Webhook routes ---
 
     @app.post("/webhooks/github", response_model=None)
     async def github_webhook(
@@ -285,9 +253,7 @@ def create_app(
     ) -> Response | dict[str, str]:
         body = await request.body()
         signature = request.headers.get("Linear-Signature", "")
-        if state.linear_secret and not verify_linear_signature(
-            body, signature, state.linear_secret
-        ):
+        if state.linear_secret and not verify_linear_signature(body, signature, state.linear_secret):
             return Response(status_code=401, content="Invalid signature")
         payload = await request.json()
         event_type = payload.get("type", "")
@@ -310,7 +276,6 @@ def create_app(
 
                     background_tasks.add_task(_run)
 
-        # Agent issue detection (with cooldown to prevent webhook flood loops)
         from agents.webhooks.linear import match_agent_issue, extract_agent_issue_variables
         import time as _time
 
@@ -318,14 +283,11 @@ def create_app(
             variables = extract_agent_issue_variables(payload)
             issue_id = variables.get("issue_id", "")
             team_id = variables.get("team_id", "")
-
-            # Cooldown: ignore duplicate webhooks for same issue within 120s
             now = _time.time()
             last_seen = state._agent_issue_seen.get(issue_id, 0)
             if now - last_seen < 120:
                 logger.info("Cooldown: skipping agent issue %s (seen %.0fs ago)", issue_id, now - last_seen)
             else:
-                # DB dedup: skip if already running or succeeded
                 existing = state.history.find_run_by_issue_id(issue_id)
                 if existing and existing.status in ("running", "success"):
                     logger.info("Dedup: skipping agent issue %s — already %s", issue_id, existing.status)
@@ -349,12 +311,7 @@ def create_app(
 
         return {"status": "processed"}
 
-    @app.post("/runs/{run_id}/cancel", response_model=None)
-    async def cancel_run(run_id: str) -> Response | dict[str, str]:
-        cancelled = await state.executor.cancel_run(run_id)
-        if not cancelled:
-            return Response(status_code=404, content="Run not found or not running")
-        return {"status": "cancelled"}
+    # --- WebSocket routes ---
 
     @app.websocket("/ws/runs/{run_id}")
     async def ws_run(websocket: WebSocket, run_id: str) -> None:
@@ -376,8 +333,10 @@ def create_app(
         except WebSocketDisconnect:
             state.ws_global_clients.discard(websocket)
 
-    from agents.dashboard import setup_dashboard
+    from agents.project_hub_routes import register_project_hub_routes
+    register_project_hub_routes(app, state)
 
+    from agents.dashboard import setup_dashboard
     setup_dashboard(app, state, config)
 
     return app

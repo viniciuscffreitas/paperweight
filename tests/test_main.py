@@ -214,6 +214,166 @@ tasks:
 
 
 @pytest.mark.asyncio
+async def test_create_project(client):
+    response = await client.post("/api/projects", json={
+        "id": "proj-1",
+        "name": "Test Project",
+        "repo_path": "/tmp/test-repo",
+    })
+    assert response.status_code == 201
+    data = response.json()
+    assert data["id"] == "proj-1"
+    assert data["name"] == "Test Project"
+    assert data["repo_path"] == "/tmp/test-repo"
+    assert data["default_branch"] == "main"
+
+
+@pytest.mark.asyncio
+async def test_list_projects(client):
+    await client.post("/api/projects", json={
+        "id": "proj-list-1",
+        "name": "List Project",
+        "repo_path": "/tmp/list-repo",
+    })
+    response = await client.get("/api/projects")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    ids = [p["id"] for p in data]
+    assert "proj-list-1" in ids
+
+
+@pytest.mark.asyncio
+async def test_get_project(client):
+    await client.post("/api/projects", json={
+        "id": "proj-get-1",
+        "name": "Get Project",
+        "repo_path": "/tmp/get-repo",
+    })
+    response = await client.get("/api/projects/proj-get-1")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == "proj-get-1"
+    assert data["name"] == "Get Project"
+
+
+@pytest.mark.asyncio
+async def test_get_project_not_found(client):
+    response = await client.get("/api/projects/nonexistent-proj")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_project(client):
+    await client.post("/api/projects", json={
+        "id": "proj-del-1",
+        "name": "Delete Project",
+        "repo_path": "/tmp/del-repo",
+    })
+    response = await client.delete("/api/projects/proj-del-1")
+    assert response.status_code == 204
+    get_response = await client.get("/api/projects/proj-del-1")
+    assert get_response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_task(client):
+    await client.post("/api/projects", json={
+        "id": "proj-task-1",
+        "name": "Task Project",
+        "repo_path": "/tmp/task-repo",
+    })
+    response = await client.post("/api/projects/proj-task-1/tasks", json={
+        "name": "My Task",
+        "intent": "Do something useful",
+        "trigger_type": "manual",
+    })
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "My Task"
+    assert data["intent"] == "Do something useful"
+    assert data["trigger_type"] == "manual"
+    assert data["project_id"] == "proj-task-1"
+
+
+@pytest.mark.asyncio
+async def test_list_tasks(client):
+    await client.post("/api/projects", json={
+        "id": "proj-task-list-1",
+        "name": "Task List Project",
+        "repo_path": "/tmp/task-list-repo",
+    })
+    await client.post("/api/projects/proj-task-list-1/tasks", json={
+        "name": "Listed Task",
+        "intent": "Be listed",
+        "trigger_type": "schedule",
+    })
+    response = await client.get("/api/projects/proj-task-list-1/tasks")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    names = [t["name"] for t in data]
+    assert "Listed Task" in names
+
+
+@pytest.mark.asyncio
+async def test_delete_task(client):
+    await client.post("/api/projects", json={
+        "id": "proj-task-del-1",
+        "name": "Task Del Project",
+        "repo_path": "/tmp/task-del-repo",
+    })
+    create_resp = await client.post("/api/projects/proj-task-del-1/tasks", json={
+        "name": "Del Task",
+        "intent": "To be deleted",
+        "trigger_type": "manual",
+    })
+    task_id = create_resp.json()["id"]
+    response = await client.delete(f"/api/tasks/{task_id}")
+    assert response.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_create_source(client):
+    await client.post("/api/projects", json={
+        "id": "proj-src-1",
+        "name": "Source Project",
+        "repo_path": "/tmp/src-repo",
+    })
+    response = await client.post("/api/projects/proj-src-1/sources", json={
+        "source_type": "github",
+        "source_id": "myorg/myrepo",
+        "source_name": "My Repo",
+    })
+    assert response.status_code == 201
+    data = response.json()
+    assert data["source_type"] == "github"
+    assert data["source_id"] == "myorg/myrepo"
+    assert data["source_name"] == "My Repo"
+    assert data["project_id"] == "proj-src-1"
+
+
+@pytest.mark.asyncio
+async def test_list_sources(client):
+    await client.post("/api/projects", json={
+        "id": "proj-src-list-1",
+        "name": "Source List Project",
+        "repo_path": "/tmp/src-list-repo",
+    })
+    await client.post("/api/projects/proj-src-list-1/sources", json={
+        "source_type": "linear",
+        "source_id": "team-abc",
+        "source_name": "My Linear Team",
+    })
+    response = await client.get("/api/projects/proj-src-list-1/sources")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    names = [s["source_name"] for s in data]
+    assert "My Linear Team" in names
+
+
+@pytest.mark.asyncio
 async def test_linear_webhook_detects_agent_issue(tmp_path):
     from unittest.mock import AsyncMock, patch
 
