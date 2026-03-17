@@ -131,9 +131,11 @@ def _build_run_drawer(
 def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None:
     """Mount NiceGUI dashboard. State accessed via closure (not app.state)."""
 
-    setup_project_hub(app, state)
+    # Wizard MUST be registered before hub — /project/new must match
+    # before /project/{project_id} captures "new" as an ID
     setup_wizard_page(app, state)
     setup_task_manager(app, state)
+    setup_project_hub(app, state)
 
     @ui.page("/dashboard")
     async def dashboard_page(client: Client) -> None:
