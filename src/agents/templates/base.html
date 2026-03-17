@@ -44,10 +44,10 @@
        style="width:160px;min-width:160px;background:#0d0f18;border-right:1px solid #1e2130;
               display:flex;flex-direction:column;flex-shrink:0;">
     <div style="padding:16px 12px;border-bottom:1px solid #1e2130;">
-      <span style="font-size:11px;font-weight:700;letter-spacing:2px;color:#6b7280;text-transform:uppercase;">paperweight</span>
+      <span style="font-size:11px;font-weight:700;letter-spacing:2px;color:#9ca3af;text-transform:uppercase;">paperweight</span>
     </div>
     <div style="padding:8px 0;flex:1;overflow-y:auto;">
-      <div style="padding:4px 12px;font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;"
+      <div style="padding:4px 12px;font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;"
            aria-hidden="true">Projects</div>
       {% for p in projects %}
       <div hx-get="/hub/{{ p.id }}"
@@ -92,7 +92,7 @@
                      border-radius:3px;transition:color .15s;"
               onmouseover="this.style.color='#e5e7eb'"
               onmouseout="this.style.color='#9ca3af'">☰</button>
-      <span style="font-size:10px;letter-spacing:2px;color:#6b7280;text-transform:uppercase;"
+      <span style="font-size:10px;letter-spacing:2px;color:#9ca3af;text-transform:uppercase;"
             aria-hidden="true">paperweight</span>
     </div>
 
@@ -106,8 +106,7 @@
     <div id="content-card"
          style="flex:1;overflow:hidden;display:flex;flex-direction:column;
                 border-radius:10px 0 0 0;
-                border-top:1px solid #2d3142;border-left:1px solid #2d3142;
-                background:#111520;margin-top:-1px;">
+                background:#111520;">
       {% block content %}{% endblock %}
     </div>
   </main>
@@ -150,7 +149,7 @@
       <div style="width:36px;height:4px;border-radius:2px;background:#2d3142;"></div>
     </div>
     <!-- Header -->
-    <div style="padding:0 16px 10px;font-size:9px;color:#6b7280;
+    <div style="padding:0 16px 10px;font-size:9px;color:#9ca3af;
                 text-transform:uppercase;letter-spacing:1.5px;flex-shrink:0;">
       Projects
     </div>

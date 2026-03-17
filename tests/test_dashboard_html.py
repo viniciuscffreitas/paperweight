@@ -259,3 +259,27 @@ def test_main_imports_dashboard_html_not_nicegui():
     source = inspect.getsource(main)
     assert "from agents.dashboard_html import setup_dashboard" in source
     assert "from agents.dashboard import setup_dashboard" not in source
+
+
+def test_dashboard_chrome_no_redundant_border(app_with_dashboard):
+    """content-card must NOT have border-top/border-left/margin-top that duplicate
+    the sidebar border-right and topbar border-bottom."""
+    resp = app_with_dashboard.get("/dashboard")
+    html = resp.text
+    # These styles on #content-card cause double-border artifacts in the L-chrome
+    assert "margin-top:-1px" not in html
+    # content-card must not carry its own border (sidebar/topbar already define the L frame)
+    import re
+    content_card_match = re.search(r'id="content-card"[^>]*style="([^"]*)"', html)
+    assert content_card_match, "content-card element not found"
+    card_style = content_card_match.group(1)
+    assert "border-top" not in card_style, "content-card must not have border-top"
+    assert "border-left" not in card_style, "content-card must not have border-left"
+
+
+def test_dashboard_chrome_label_contrast(app_with_dashboard):
+    """Chrome labels ('paperweight', 'Projects') must use #9ca3af (WCAG AA) not #6b7280."""
+    resp = app_with_dashboard.get("/dashboard")
+    html = resp.content
+    # #6b7280 on #0d0f18 fails WCAG AA for small text; #9ca3af passes
+    assert b"color:#6b7280;text-transform:uppercase" not in html
