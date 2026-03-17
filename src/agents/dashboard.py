@@ -11,7 +11,7 @@ from agents.dashboard_formatters import (
     STATUS_COLORS,
     build_history_rows,
     format_event_html,
-    format_event_line,
+    format_stream_html,
 )
 
 if TYPE_CHECKING:
@@ -193,157 +193,152 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         ui.dark_mode(True)
         ui.add_head_html(_DASHBOARD_CSS)
 
-        # ── Header ────────────────────────────────────────────────────────────
-        with ui.row().classes("header-row w-full items-center justify-between px-6 py-3"):
+        runs = state.history.list_runs_today()
+        a_count = sum(1 for r in runs if r.status == "running")
+        f_count = sum(1 for r in runs if r.status in ("failure", "timeout"))
+
+        # ── Header ──────────────────────────────────────────────────
+        with ui.row().classes("header-row w-full items-center justify-between px-4 py-2"):
             with ui.row().classes("items-center gap-3"):
-                ui.icon("smart_toy").classes("text-blue-400 text-2xl")
-                ui.label("Agent Runner").classes("text-xl font-bold text-white")
+                ui.label("Agent Runner").classes("text-base font-bold text-white")
                 if config.execution.dry_run:
                     ui.badge("DRY RUN").props("color=orange").classes("text-xs font-mono")
+
+                ui.html('<div class="header-divider"></div>')
+
+                # Inline stats
+                with ui.row().classes("items-center gap-3"):
+                    ui.html(
+                        f'<span class="status-dot active{" live-pulse" if a_count > 0 else ""}"'
+                        f' style="{("" if a_count > 0 else "opacity:0.4")}"></span>'
+                    )
+                    stat_active = ui.label(f"{a_count} active").classes(
+                        f"text-xs font-mono {'text-gray-400' if a_count > 0 else 'text-gray-600'}"
+                    )
+                    ui.html(
+                        f'<span class="status-dot failed"'
+                        f' style="{("" if f_count > 0 else "opacity:0.4")}"></span>'
+                    )
+                    stat_failed = ui.label(f"{f_count} failed").classes(
+                        f"text-xs font-mono {'text-red-300' if f_count > 0 else 'text-gray-600'}"
+                    )
+
             with ui.row().classes("items-center gap-3"):
                 budget = state.budget.get_status()
                 budget_label = ui.label(
                     f"${budget.spent_today_usd:.2f} / ${budget.daily_limit_usd:.2f}"
-                ).classes("text-sm text-gray-300 font-mono")
+                ).classes("text-xs text-gray-400 font-mono")
                 ratio = (
                     budget.spent_today_usd / budget.daily_limit_usd
                     if budget.daily_limit_usd > 0
                     else 0.0
                 )
+                bar_color = "red" if ratio >= 1.0 else "orange" if ratio >= 0.8 else "blue"
                 budget_bar = ui.linear_progress(
                     value=min(ratio, 1.0), show_value=False
-                ).classes("w-32").props("color=blue size=6px")
-                ui.label("daily budget").classes("text-xs text-gray-500")
+                ).classes("w-24").props(f"color={bar_color} size=4px")
 
-        # ── Stats ─────────────────────────────────────────────────────────────
-        runs = state.history.list_runs_today()
-
-        with ui.row().classes("w-full gap-3 px-6 pt-5"):
-            def _stat(label: str, value: str, color: str, icon_name: str) -> ui.label:
-                with ui.card().classes("stat-card p-4 min-w-[120px]"):
-                    with ui.row().classes("items-center gap-1 mb-1"):
-                        ui.icon(icon_name).classes(f"text-{color}-400 text-sm")
-                        ui.label(label).classes("text-xs text-gray-400 uppercase tracking-widest")
-                    return ui.label(value).classes(f"text-2xl font-bold text-{color}-300")
-
-            s_count = sum(1 for r in runs if r.status == "success")
-            f_count = sum(1 for r in runs if r.status in ("failure", "timeout"))
-            t_cost = sum(r.cost_usd or 0 for r in runs)
-            a_count = sum(1 for r in runs if r.status == "running")
-
-            stat_runs = _stat("Runs Today", str(len(runs)), "blue", "list")
-            stat_success = _stat("Success", str(s_count), "green", "check_circle")
-            stat_failed = _stat("Failed", str(f_count), "red", "cancel")
-            stat_cost = _stat("Cost", f"${t_cost:.2f}", "yellow", "attach_money")
-            stat_active = _stat("Active", str(a_count), "cyan", "sync")
-
-        # ── Live Stream + Run History ──────────────────────────────────────────
-        with ui.row().classes("w-full gap-4 px-6 pt-4"):
-            with ui.card().classes("panel-card flex-1 p-4"):
-                with ui.row().classes("items-center gap-2 mb-3"):
-                    ui.icon("stream").classes("text-blue-400")
-                    ui.label("Live Stream").classes("text-sm font-semibold text-gray-200")
-                    stream_badge = ui.badge("idle").props("color=grey").classes("text-xs font-mono")
-                log_area = ui.log(max_lines=200).classes("w-full font-mono text-xs rounded")
-                log_area.style(
-                    "height:280px; background:#0f1117; color:#a3e635; border:1px solid #2d3142"
+                # Trigger button + popover
+                trigger_btn = ui.button("Run", icon="play_arrow").props(
+                    "flat dense size=sm color=grey"
                 )
-                log_area.push("— waiting for agent activity —")
+                with trigger_btn:  # noqa: SIM117
+                    with ui.element("q-menu").classes("trigger-menu"):
+                        with ui.card().classes("p-3").style(
+                            "background:#1a1d27;min-width:220px"
+                        ):
+                            project_names = sorted(state.projects.keys())
+                            project_sel = ui.select(
+                                project_names,
+                                label="Project",
+                                value=project_names[0] if project_names else None,
+                            ).classes("w-full")
+                            task_sel = ui.select([], label="Task").classes("w-full mt-1")
+                            trigger_status = ui.label("").classes(
+                                "text-xs text-gray-500 mt-1 font-mono"
+                            )
 
-            with ui.card().classes("panel-card flex-1 p-4"):
-                with ui.row().classes("items-center gap-2 mb-3"):
-                    ui.icon("history").classes("text-purple-400")
-                    ui.label("Run History").classes("text-sm font-semibold text-gray-200")
-                    ui.label("click a row to inspect").classes("text-xs text-gray-600 ml-auto")
+                            def _init_tasks(proj_name: str | None) -> None:
+                                project = state.projects.get(proj_name or "")
+                                if project:
+                                    names = list(project.tasks.keys())
+                                    task_sel.options = names
+                                    task_sel.value = names[0] if names else None
+                                    task_sel.update()
+
+                            project_sel.on_value_change(lambda e: _init_tasks(e.value))
+                            _init_tasks(project_names[0] if project_names else None)
+
+                            async def trigger_run() -> None:
+                                if not project_sel.value or not task_sel.value:
+                                    return
+                                import httpx
+
+                                trigger_status.set_text("triggering…")
+                                try:
+                                    async with httpx.AsyncClient() as http:
+                                        resp = await http.post(
+                                            f"http://localhost:{config.server.port}"
+                                            f"/tasks/{project_sel.value}"
+                                            f"/{task_sel.value}/run"
+                                        )
+                                    if resp.status_code == 202:
+                                        trigger_status.set_text(
+                                            f"ok {project_sel.value}/{task_sel.value}"
+                                        )
+                                    else:
+                                        trigger_status.set_text(f"error {resp.status_code}")
+                                except Exception as exc:
+                                    trigger_status.set_text(f"error: {exc}")
+
+                            ui.button("Run Task", on_click=trigger_run).props(
+                                "color=primary dense size=sm"
+                            ).classes("w-full mt-2")
+
+        # ── Two Panels ──────────────────────────────────────────────────────
+        with ui.row().classes("w-full flex-1").style(
+            "height: calc(100vh - 48px); overflow: hidden"
+        ):
+            # Live Stream
+            with ui.column().classes("flex-1 h-full").style("flex: 1.2"):
+                ui.label("Live Stream").classes("section-label")
+                with ui.scroll_area().classes("flex-1 px-3 pb-2").style(
+                    "background: #0f1117"
+                ) as stream_scroll:
+                    stream_col = ui.column().classes("w-full gap-0")
+                with stream_col:
+                    ui.html(
+                        "<div style='color:#4b5563;font-size:11px;font-family:monospace'>"
+                        "— waiting for agent activity —</div>"
+                    )
+
+            ui.html('<div class="panel-divider"></div>')
+
+            # Run History
+            with ui.column().classes("flex-1 h-full"):
+                with ui.row().classes(
+                    "items-center justify-between"
+                ).style("padding:8px 12px;border-bottom:1px solid #1e2130"):
+                    ui.label("Run History").classes(
+                        "text-xs text-gray-500 uppercase tracking-widest"
+                    )
+                    ui.label("click a row to inspect").classes("text-xs text-gray-700")
                 history_table = ui.table(
                     columns=_HISTORY_COLS,
                     rows=build_history_rows(runs),
                     row_key="id",
-                ).classes("w-full text-xs")
-                history_table.style("max-height:280px; overflow-y:auto")
-
-        # ── Manual Trigger + Scheduled Tasks ──────────────────────────────────
-        with ui.row().classes("w-full gap-4 px-6 pt-4 pb-8 items-start"):
-            with ui.card().classes("panel-card p-4 w-72"):
-                with ui.row().classes("items-center gap-2 mb-3"):
-                    ui.icon("play_circle").classes("text-green-400")
-                    ui.label("Manual Trigger").classes("text-sm font-semibold text-gray-200")
-                project_names = sorted(state.projects.keys())
-                project_sel = ui.select(
-                    project_names,
-                    label="Project",
-                    value=project_names[0] if project_names else None,
-                ).classes("w-full")
-                task_sel = ui.select([], label="Task").classes("w-full mt-2")
-                trigger_status = ui.label("").classes("text-xs text-gray-500 mt-1 font-mono")
-
-                def _init_tasks(proj_name: str | None) -> None:
-                    project = state.projects.get(proj_name or "")
-                    if project:
-                        names = list(project.tasks.keys())
-                        task_sel.options = names
-                        task_sel.value = names[0] if names else None
-                        task_sel.update()
-
-                project_sel.on_value_change(lambda e: _init_tasks(e.value))
-                _init_tasks(project_names[0] if project_names else None)
-
-                async def trigger_run() -> None:
-                    if not project_sel.value or not task_sel.value:
-                        return
-                    import httpx
-
-                    trigger_status.set_text("triggering…")
-                    try:
-                        async with httpx.AsyncClient() as http:
-                            resp = await http.post(
-                                f"http://localhost:{config.server.port}"
-                                f"/tasks/{project_sel.value}/{task_sel.value}/run"
-                            )
-                        if resp.status_code == 202:
-                            proj_task = f"{project_sel.value}/{task_sel.value}"
-                            trigger_status.set_text(f"✓ enqueued {proj_task}")
-                            ui.notify(
-                                f"Triggered {project_sel.value}/{task_sel.value}",
-                                type="positive",
-                            )
-                        else:
-                            trigger_status.set_text(f"error {resp.status_code}")
-                    except Exception as exc:
-                        trigger_status.set_text(f"error: {exc}")
-
-                ui.button("Run Task", on_click=trigger_run, icon="play_arrow").props(
-                    "color=primary"
-                ).classes("w-full mt-3")
-
-            with ui.card().classes("panel-card flex-1 p-4"):
-                with ui.row().classes("items-center gap-2 mb-3"):
-                    ui.icon("schedule").classes("text-orange-400")
-                    ui.label("Scheduled Tasks").classes("text-sm font-semibold text-gray-200")
-                sched_cols = [
-                    {"name": "name", "label": "Task", "field": "name", "align": "left"},
-                    {"name": "schedule", "label": "Cron", "field": "schedule", "align": "left"},
-                    {"name": "model", "label": "Model", "field": "model", "align": "left"},
-                    {"name": "cost", "label": "Max $", "field": "cost", "align": "right"},
-                    {"name": "autonomy", "label": "Autonomy", "field": "autonomy", "align": "left"},
-                ]
-                sched_rows = [
-                    {
-                        "name": f"{proj.name}/{tname}",
-                        "schedule": task.schedule,
-                        "model": task.model,
-                        "cost": f"${task.max_cost_usd:.2f}",
-                        "autonomy": task.autonomy,
-                    }
-                    for proj in state.projects.values()
-                    for tname, task in proj.tasks.items()
-                    if task.schedule
-                ]
-                ui.table(columns=sched_cols, rows=sched_rows, row_key="name").classes(
-                    "w-full text-xs"
+                ).classes("w-full text-xs flex-1")
+                # Render status column as colored dot
+                _pulse = "animation:live-pulse 1.4s infinite"
+                _slot = (
+                    "<q-td :props=\"props\" style=\"text-align:center\">"
+                    "<span :class=\"'status-dot ' + props.row.raw_status\""
+                    f" :style=\"props.row.raw_status === 'running' ? '{_pulse}' : ''\">"
+                    "</span></q-td>"
                 )
+                history_table.add_slot("body-cell-status", _slot)
 
-        # ── Run detail drawer ─────────────────────────────────────────────────
+        # ── Run detail drawer ──────────────────────────────────────────
         detail_dialog = ui.dialog().props("no-backdrop-dismiss").classes("run-drawer")
         detail_queue: asyncio.Queue = asyncio.Queue(maxsize=200)
         detail_run_id_ref: list[str] = [""]
@@ -354,7 +349,11 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
                 run_id = row.get("id", "")
                 if run_id:
                     memory_events = state.run_events.get(run_id)
-                    events = memory_events if memory_events is not None else state.history.list_events(run_id)
+                    events = (
+                        memory_events
+                        if memory_events is not None
+                        else state.history.list_events(run_id)
+                    )
                     _build_run_drawer(
                         dialog=detail_dialog,
                         run_id=run_id,
@@ -368,48 +367,52 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
 
         history_table.on("rowClick", on_row_click)
 
-        # ── Global live stream queue ──────────────────────────────────────────
+        # ── Global live stream queue ───────────────────────────────────
         queue: asyncio.Queue = asyncio.Queue(maxsize=500)
         state.stream_queues.append(queue)
 
+        max_stream_lines = 200
+        stream_line_count = [0]
+
         def drain_queue() -> None:
-            has_active = False
-            has_done = False
             while not queue.empty():
                 with contextlib.suppress(asyncio.QueueEmpty):
                     data = queue.get_nowait()
                     if detail_run_id_ref[0] == data.get("run_id"):
                         with contextlib.suppress(asyncio.QueueFull):
                             detail_queue.put_nowait(data)
-                    log_area.push(format_event_line(data))
-                    if data.get("type") == "task_started":
-                        has_active = True
-                    if data.get("type") in ("task_completed", "task_failed"):
-                        has_done = True
-            if has_active:
-                stream_badge.set_text("active")
-                stream_badge.props("color=green")
-            if has_done:
-                stream_badge.set_text("idle")
-                stream_badge.props("color=grey")
+                    if stream_line_count[0] == 0:
+                        stream_col.clear()
+                    with stream_col:
+                        ui.html(format_stream_html(data))
+                    stream_line_count[0] += 1
+                    if stream_line_count[0] > max_stream_lines:
+                        children = list(stream_col)
+                        if children:
+                            stream_col.remove(children[0])
+                            stream_line_count[0] -= 1
+                    stream_scroll.scroll_to(percent=1.0)
 
         ui.timer(0.15, drain_queue)
 
         async def refresh() -> None:
             updated = state.history.list_runs_today()
-            sc = sum(1 for r in updated if r.status == "success")
-            fc = sum(1 for r in updated if r.status in ("failure", "timeout"))
-            tc = sum(r.cost_usd or 0 for r in updated)
             ac = sum(1 for r in updated if r.status == "running")
-            stat_runs.set_text(str(len(updated)))
-            stat_success.set_text(str(sc))
-            stat_failed.set_text(str(fc))
-            stat_cost.set_text(f"${tc:.2f}")
-            stat_active.set_text(str(ac))
+            fc = sum(1 for r in updated if r.status in ("failure", "timeout"))
+            stat_active.set_text(f"{ac} active")
+            stat_failed.set_text(f"{fc} failed")
             b = state.budget.get_status()
-            budget_label.set_text(f"${b.spent_today_usd:.2f} / ${b.daily_limit_usd:.2f}")
-            r = b.spent_today_usd / b.daily_limit_usd if b.daily_limit_usd > 0 else 0.0
+            budget_label.set_text(
+                f"${b.spent_today_usd:.2f} / ${b.daily_limit_usd:.2f}"
+            )
+            r = (
+                b.spent_today_usd / b.daily_limit_usd
+                if b.daily_limit_usd > 0
+                else 0.0
+            )
             budget_bar.set_value(min(r, 1.0))
+            bar_color = "red" if r >= 1.0 else "orange" if r >= 0.8 else "blue"
+            budget_bar.props(f"color={bar_color} size=4px")
             history_table.rows = build_history_rows(updated)
             history_table.update()
 
