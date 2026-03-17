@@ -187,6 +187,28 @@ async def test_fetch_teams_returns_name_to_id_mapping(linear_client):
 
 
 @pytest.mark.asyncio
+async def test_fetch_team_issues(linear_client):
+    mock_client = _make_mock_client([{
+        "data": {
+            "team": {
+                "issues": {
+                    "nodes": [
+                        {"id": "i1", "title": "Bug", "priority": 1,
+                         "state": {"name": "In Progress"}, "identifier": "MOB-1",
+                         "url": "https://linear.app/MOB-1",
+                         "assignee": {"name": "Dev"}, "description": "Details"},
+                    ]
+                }
+            }
+        }
+    }])
+    with patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client):
+        issues = await linear_client.fetch_team_issues("team-123")
+    assert len(issues) == 1
+    assert issues[0]["title"] == "Bug"
+
+
+@pytest.mark.asyncio
 async def test_remove_label_not_found_logs_warning(linear_client):
     fetch_labels_response = {
         "data": {"issue": {"labels": {"nodes": [

@@ -79,6 +79,23 @@ class LinearClient:
         self._team_states_cache[team_id] = states
         return states
 
+    async def fetch_team_issues(self, team_id: str) -> list[dict]:
+        query = """
+            query($teamId: String!) {
+                team(id: $teamId) {
+                    issues(first: 50, orderBy: updatedAt) {
+                        nodes {
+                            id title description priority url identifier
+                            state { name }
+                            assignee { name }
+                        }
+                    }
+                }
+            }
+        """
+        data = await self._graphql(query, {"teamId": team_id})
+        return data.get("data", {}).get("team", {}).get("issues", {}).get("nodes", [])
+
     async def remove_label(self, issue_id: str, label_name: str) -> None:
         data = await self._graphql(
             """query($id: String!) { issue(id: $id) { labels { nodes { id name } } } }""",
