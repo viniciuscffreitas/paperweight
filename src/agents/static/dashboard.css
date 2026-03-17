@@ -90,6 +90,8 @@ html, body { margin: 0; padding: 0; height: 100%; background: #0d0f18; color: #e
   #content-card {
     border-radius: 0 !important;
     border-left: none !important;
+    border-top: none !important;
+    background: #0d0f18 !important;
   }
   #app-topbar { border-bottom: none; }
 }
