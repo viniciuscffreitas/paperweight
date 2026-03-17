@@ -24,7 +24,9 @@ class SlackBotClient:
         query_lower = query.lower()
         return [ch for ch in channels if query_lower in ch.get("name", "").lower()]
 
-    async def get_channel_history(self, channel_id: str, *, limit: int = 50, oldest: str | None = None) -> list[dict]:
+    async def get_channel_history(
+        self, channel_id: str, *, limit: int = 50, oldest: str | None = None
+    ) -> list[dict]:
         params: dict[str, object] = {"channel": channel_id, "limit": limit}
         if oldest:
             params["oldest"] = oldest

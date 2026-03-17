@@ -1,8 +1,11 @@
 """Aggregator service: normalizers and polling loop."""
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
 from datetime import UTC, datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +25,9 @@ def normalize_linear_issue(raw: dict, *, project_id: str) -> dict:
     return {
         "project_id": project_id,
         "source": "linear",
-        "event_type": f"issue_{raw.get('state', {}).get('name', 'unknown').lower().replace(' ', '_')}",
+        "event_type": (
+            f"issue_{raw.get('state', {}).get('name', 'unknown').lower().replace(' ', '_')}"
+        ),
         "title": f"[{identifier}] {title}" if identifier else title,
         "body": raw.get("description", ""),
         "author": raw.get("assignee", {}).get("name", "") if raw.get("assignee") else "",
@@ -96,10 +101,10 @@ class AggregatorService:
     def __init__(
         self,
         *,
-        store,
-        linear_client=None,
-        github_client=None,
-        slack_client=None,
+        store: Any,
+        linear_client: Any = None,
+        github_client: Any = None,
+        slack_client: Any = None,
     ) -> None:
         self.store = store
         self.linear_client = linear_client
@@ -132,7 +137,8 @@ class AggregatorService:
         ]
         for source in sources:
             source_key = f"linear:{source['source_id']}"
-            config = json.loads(source["config"]) if isinstance(source["config"], str) else source["config"]
+            raw_cfg = source["config"]
+            config = json.loads(raw_cfg) if isinstance(raw_cfg, str) else raw_cfg
             team_id = config.get("team_id", source["source_id"])
             try:
                 issues = await self.linear_client.fetch_team_issues(team_id)
@@ -152,7 +158,8 @@ class AggregatorService:
             s for s in self.store.list_sources(project_id) if s["source_type"] == "github"
         ]
         for source in sources:
-            config = json.loads(source["config"]) if isinstance(source["config"], str) else source["config"]
+            raw_cfg = source["config"]
+            config = json.loads(raw_cfg) if isinstance(raw_cfg, str) else raw_cfg
             repo = config.get("repo", source["source_id"])
             source_key = f"github:{repo}"
             try:
@@ -176,7 +183,8 @@ class AggregatorService:
             s for s in self.store.list_sources(project_id) if s["source_type"] == "slack"
         ]
         for source in sources:
-            config = json.loads(source["config"]) if isinstance(source["config"], str) else source["config"]
+            raw_cfg = source["config"]
+            config = json.loads(raw_cfg) if isinstance(raw_cfg, str) else raw_cfg
             channel_id = config.get("channel_id", source["source_id"])
             channel_name = source["source_name"]
             source_key = f"slack:{channel_id}"

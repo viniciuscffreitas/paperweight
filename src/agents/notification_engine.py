@@ -1,12 +1,21 @@
 """Notification Engine — daily digests and real-time urgent alerts."""
+from __future__ import annotations
+
 import logging
 from collections import Counter
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class NotificationEngine:
-    def __init__(self, *, store, slack_notifier=None, discord_notifier=None):
+    def __init__(
+        self,
+        *,
+        store: Any,
+        slack_notifier: Any = None,
+        discord_notifier: Any = None,
+    ) -> None:
         self.store = store
         self.slack_notifier = slack_notifier
         self.discord_notifier = discord_notifier

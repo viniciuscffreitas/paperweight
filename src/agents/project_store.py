@@ -114,7 +114,8 @@ class ProjectStore:
         now = datetime.now(UTC).isoformat()
         with self._conn() as conn:
             conn.execute(
-                """INSERT INTO projects (id, name, repo_path, default_branch, created_at, updated_at)
+                """INSERT INTO projects
+                   (id, name, repo_path, default_branch, created_at, updated_at)
                    VALUES (?, ?, ?, ?, ?, ?)""",
                 (id, name, repo_path, default_branch, now, now),
             )
@@ -169,7 +170,8 @@ class ProjectStore:
         with self._conn() as conn:
             conn.execute(
                 """INSERT INTO project_sources
-                   (id, project_id, source_type, source_id, source_name, config, enabled, created_at, updated_at)
+                   (id, project_id, source_type, source_id, source_name,
+                    config, enabled, created_at, updated_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     sid,
@@ -195,7 +197,9 @@ class ProjectStore:
 
     def get_source(self, source_id: str) -> dict | None:
         with self._conn() as conn:
-            row = conn.execute("SELECT * FROM project_sources WHERE id = ?", (source_id,)).fetchone()
+            row = conn.execute(
+                "SELECT * FROM project_sources WHERE id = ?", (source_id,)
+            ).fetchone()
         return dict(row) if row else None
 
     def delete_source(self, source_id: str) -> None:
@@ -259,7 +263,10 @@ class ProjectStore:
         return [dict(row) for row in rows]
 
     def update_task(self, task_id: str, **kwargs: object) -> None:
-        allowed = {"name", "intent", "trigger_type", "trigger_config", "model", "max_budget", "autonomy", "enabled"}
+        allowed = {
+            "name", "intent", "trigger_type", "trigger_config",
+            "model", "max_budget", "autonomy", "enabled",
+        }
         updates: dict[str, object] = {}
         for k, v in kwargs.items():
             if k not in allowed:

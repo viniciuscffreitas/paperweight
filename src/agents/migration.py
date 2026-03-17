@@ -1,10 +1,13 @@
 """YAML to SQLite migration for project configurations."""
+from __future__ import annotations
+
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-def migrate_yaml_projects(projects, store) -> int:
+def migrate_yaml_projects(projects: Any, store: Any) -> int:
     migrated = 0
     for project_id, config in projects.items():
         if store.get_project(project_id):
