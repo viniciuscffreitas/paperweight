@@ -10,109 +10,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Ubuntu+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <script src="/static/ws.js"></script>
+  <script src="/static/dashboard.js"></script>
+  <link rel="stylesheet" href="/static/dashboard.css">
   <script>
     tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { mono: ['"Ubuntu Mono"', 'monospace'] }
-        }
-      }
+      theme: { extend: { fontFamily: { mono: ['"Ubuntu Mono"', 'monospace'] } } }
     }
   </script>
-  <style>
-    * { font-family: "Ubuntu Mono", monospace; }
-    html, body { margin: 0; padding: 0; height: 100%; background: #0d0f18; color: #e5e7eb; }
-
-    /* ── Status dots ── */
-    .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-    .status-dot.running  { background: #3b82f6; }
-    .status-dot.success  { background: #4ade80; }
-    .status-dot.failure,
-    .status-dot.failed   { background: #f87171; }
-    .status-dot.timeout  { background: #fb923c; }
-    .status-dot.cancelled{ background: #6b7280; }
-
-    /* ── Animations ── */
-    @keyframes live-pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-    .live-pulse { animation: live-pulse 1.4s ease-in-out infinite; }
-
-    /* ── Accessibility ── */
-    .sr-only {
-      position: absolute; width: 1px; height: 1px;
-      padding: 0; margin: -1px; overflow: hidden;
-      clip: rect(0,0,0,0); white-space: nowrap; border-width: 0;
-    }
-    :focus-visible {
-      outline: 2px solid #3b82f6;
-      outline-offset: 2px;
-      border-radius: 3px;
-    }
-
-    /* ── Mobile: sidebar off-canvas drawer ── */
-    @media (max-width: 767px) {
-      #sidebar {
-        position: fixed;
-        left: 0; top: 0;
-        height: 100%;
-        z-index: 100;
-        transform: translateX(-160px);
-        transition: transform 0.22s ease;
-      }
-      #sidebar.sidebar-open {
-        transform: translateX(0);
-        box-shadow: 4px 0 24px rgba(0,0,0,0.65);
-      }
-      #sidebar-backdrop {
-        display: none;
-        position: fixed; inset: 0;
-        background: rgba(0,0,0,0.45);
-        z-index: 99;
-        cursor: pointer;
-      }
-      #sidebar-backdrop.sidebar-open { display: block; }
-      #hamburger-btn { display: flex !important; }
-
-      /* ── Bottom sheet: right panel slides up from bottom ── */
-      /* display is controlled by JS; these override inline position/size */
-      #right-panel {
-        top: auto !important;
-        bottom: 52px !important; /* above bottom nav */
-        left: 0 !important;
-        right: 0 !important;
-        height: 85vh !important;
-        border-left: none !important;
-        border-top: 1px solid #2d3142 !important;
-        border-radius: 12px 12px 0 0 !important;
-        transform: translateY(110%);
-        transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
-      }
-      #right-panel.sheet-open {
-        transform: translateY(0);
-      }
-      #panel-backdrop {
-        display: none;
-        position: fixed; inset: 0;
-        background: rgba(0,0,0,0.45);
-        z-index: 48;
-      }
-      #panel-backdrop.panel-open { display: block; }
-      #sheet-handle { display: flex !important; }
-
-      /* ── Bottom nav ── */
-      #bottom-nav { display: flex !important; }
-      main { padding-bottom: 52px; }
-    }
-
-    /* ── Desktop: sidebar always visible, side panel ── */
-    @media (min-width: 768px) {
-      #sidebar { transform: none !important; }
-      #sidebar-backdrop { display: none !important; }
-      #hamburger-btn { display: none !important; }
-      #sheet-handle { display: none !important; }
-      #bottom-nav { display: none !important; }
-      #panel-backdrop { display: none !important; }
-    }
-  </style>
 </head>
 <body class="flex h-screen overflow-hidden">
 
@@ -215,6 +119,52 @@
     <div id="panel-content" style="display:flex;flex-direction:column;height:100%;overflow:hidden;"></div>
   </div>
 
+  <!-- Projects sheet backdrop (mobile only) -->
+  <div id="projects-backdrop" onclick="closeProjectsSheet()" aria-hidden="true"></div>
+
+  <!-- Projects bottom sheet (mobile only) -->
+  <div id="projects-sheet"
+       role="dialog"
+       aria-label="Projetos"
+       aria-modal="true"
+       style="display:none;position:fixed;z-index:55;background:#0d0f18;
+              flex-direction:column;overflow:hidden;">
+    <!-- Drag handle -->
+    <div id="projects-sheet-handle"
+         style="display:flex;justify-content:center;align-items:center;
+                padding:10px 0 6px;flex-shrink:0;cursor:grab;"
+         aria-hidden="true">
+      <div style="width:36px;height:4px;border-radius:2px;background:#2d3142;"></div>
+    </div>
+    <!-- Header -->
+    <div style="padding:0 16px 10px;font-size:9px;color:#6b7280;
+                text-transform:uppercase;letter-spacing:1.5px;flex-shrink:0;">
+      Projects
+    </div>
+    <!-- Project list -->
+    <div style="overflow-y:auto;flex:1;padding-bottom:8px;">
+      {% for p in projects %}
+      <div hx-get="/hub/{{ p.id }}"
+           hx-target="#panel-content"
+           hx-on::after-request="closeProjectsSheet(); openPanel()"
+           role="button"
+           tabindex="0"
+           aria-label="Abrir projeto {{ p.name }}"
+           onkeydown="if(event.key==='Enter'||event.key===' '){this.click()}"
+           style="padding:12px 16px;font-size:13px;color:#9ca3af;cursor:pointer;
+                  border-bottom:1px solid #1a1d27;transition:background .15s;"
+           onmouseover="this.style.background='#1e2130';this.style.color='#e5e7eb'"
+           onmouseout="this.style.background='transparent';this.style.color='#9ca3af'">
+        {{ p.name }}
+      </div>
+      {% else %}
+      <div style="padding:24px;text-align:center;color:#6b7280;font-size:12px;font-style:italic;">
+        Nenhum projeto configurado.
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
   <!-- Bottom navigation (mobile only) -->
   <nav id="bottom-nav"
        role="navigation"
@@ -236,10 +186,8 @@
       <span class="material-icons" aria-hidden="true" style="font-size:18px;">dashboard</span>
       <span>Dashboard</span>
     </a>
-    <button onclick="toggleSidebar()"
+    <button onclick="openProjectsSheet()"
             aria-label="Abrir lista de projetos"
-            aria-expanded="false"
-            aria-controls="sidebar"
             style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
                    gap:2px;background:transparent;border:none;border-top:2px solid transparent;
                    color:#6b7280;cursor:pointer;font-size:9px;letter-spacing:.5px;text-transform:uppercase;
@@ -251,104 +199,5 @@
     </button>
   </nav>
 
-  <script>
-    // ── Panel (right panel / bottom sheet) ──
-    function openPanel() {
-      var p = document.getElementById('right-panel');
-      if (window.innerWidth < 768) {
-        // show first, then animate in (double-RAF ensures display:flex paints before transition)
-        p.style.display = 'flex';
-        requestAnimationFrame(function() {
-          requestAnimationFrame(function() {
-            p.classList.add('sheet-open');
-            document.getElementById('panel-backdrop').classList.add('panel-open');
-            p.setAttribute('aria-hidden', 'false');
-          });
-        });
-      } else {
-        p.style.display = 'flex';
-        p.style.left = '160px';
-        p.setAttribute('aria-hidden', 'false');
-      }
-    }
-
-    function closePanel() {
-      var p = document.getElementById('right-panel');
-      if (window.innerWidth < 768) {
-        p.classList.remove('sheet-open');
-        p.style.transform = '';
-        document.getElementById('panel-backdrop').classList.remove('panel-open');
-        p.setAttribute('aria-hidden', 'true');
-        // hide from a11y tree only after animation completes
-        p.addEventListener('transitionend', function handler() {
-          p.style.display = 'none';
-          p.removeEventListener('transitionend', handler);
-        });
-      } else {
-        p.style.display = 'none';
-        p.setAttribute('aria-hidden', 'true');
-      }
-    }
-
-    // ── Sidebar drawer ──
-    function toggleSidebar() {
-      var s = document.getElementById('sidebar');
-      var b = document.getElementById('sidebar-backdrop');
-      var isOpen = s.classList.toggle('sidebar-open');
-      b.classList.toggle('sidebar-open');
-      // sync aria-expanded on all sidebar toggles
-      document.querySelectorAll('[aria-controls="sidebar"]').forEach(function(btn) {
-        btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-      });
-    }
-
-    function closeSidebar() {
-      document.getElementById('sidebar').classList.remove('sidebar-open');
-      document.getElementById('sidebar-backdrop').classList.remove('sidebar-open');
-      document.querySelectorAll('[aria-controls="sidebar"]').forEach(function(btn) {
-        btn.setAttribute('aria-expanded', 'false');
-      });
-    }
-
-    // ── Swipe-to-close bottom sheet ──
-    (function() {
-      var handle = document.getElementById('sheet-handle');
-      var panel  = document.getElementById('right-panel');
-      var startY = 0, currentY = 0, dragging = false;
-
-      handle.addEventListener('touchstart', function(e) {
-        startY = e.touches[0].clientY;
-        currentY = startY; // reset so a tap-without-move never triggers false dismiss
-        dragging = true;
-        panel.style.transition = 'none';
-      }, { passive: true });
-
-      handle.addEventListener('touchmove', function(e) {
-        if (!dragging) return;
-        currentY = e.touches[0].clientY;
-        var delta = Math.max(0, currentY - startY);
-        panel.style.transform = 'translateY(' + delta + 'px)';
-      }, { passive: true });
-
-      handle.addEventListener('touchend', function() {
-        dragging = false;
-        panel.style.transition = '';
-        if ((currentY - startY) > 80) {
-          closePanel();
-        } else {
-          panel.style.transform = '';
-        }
-        startY = 0; currentY = 0;
-      });
-    })();
-
-    // ── Close panel on Escape ──
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-        closePanel();
-        closeSidebar();
-      }
-    });
-  </script>
 </body>
 </html>
