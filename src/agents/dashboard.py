@@ -141,33 +141,41 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
     async def dashboard_page(client: Client) -> None:
         apply_dark_theme()
 
-        # Migration prompt: offer to import YAML projects not yet in the store
+        # Migration prompt: only on first visit (no projects in store yet)
         if (
             hasattr(state, 'projects') and state.projects
             and hasattr(state, 'project_store') and state.project_store
+            and not state.project_store.list_projects()
         ):
-            stored_ids = {p["id"] for p in state.project_store.list_projects()}
-            unmigrated = [name for name in state.projects if name not in stored_ids]
-            if unmigrated:
-                with ui.dialog() as migration_dialog, ui.card().classes("w-96"):
-                    ui.label("Import Projects").classes("text-lg font-bold")
-                    ui.label(
-                        f"Found {len(unmigrated)} project(s) in YAML not yet imported."
-                    ).classes("text-sm text-gray-300")
-                    for name in unmigrated:
-                        ui.label(f"  • {name}").classes("text-sm text-gray-400")
+            with ui.dialog() as migration_dialog, ui.card().classes("w-96"):
+                ui.label("Import Projects").classes("text-lg font-bold")
+                ui.label(
+                    f"Found {len(state.projects)} project(s) in YAML. "
+                    "Import them to the dashboard?"
+                ).classes("text-sm text-gray-300")
+                for name in state.projects:
+                    ui.label(f"  • {name}").classes("text-sm text-gray-400")
 
-                    async def do_migrate() -> None:
-                        from agents.migration import migrate_yaml_projects
-                        count = migrate_yaml_projects(state.projects, state.project_store)
-                        ui.notify(f"Imported {count} project(s)!", type="positive")
-                        migration_dialog.close()
-                        ui.navigate.reload()
+                async def do_migrate() -> None:
+                    from agents.migration import migrate_yaml_projects
+                    count = migrate_yaml_projects(
+                        state.projects, state.project_store
+                    )
+                    ui.notify(
+                        f"Imported {count} project(s)!",
+                        type="positive",
+                    )
+                    migration_dialog.close()
+                    ui.navigate.reload()
 
-                    with ui.row().classes("gap-2 mt-4"):
-                        ui.button("Import All", on_click=do_migrate).props("color=green")
-                        ui.button("Skip", on_click=migration_dialog.close).props("flat")
-                migration_dialog.open()
+                with ui.row().classes("gap-2 mt-4"):
+                    ui.button(
+                        "Import All", on_click=do_migrate
+                    ).props("color=green")
+                    ui.button(
+                        "Skip", on_click=migration_dialog.close
+                    ).props("flat")
+            migration_dialog.open()
 
         runs = state.history.list_runs_today()
         a_count = sum(1 for r in runs if r.status == "running")
