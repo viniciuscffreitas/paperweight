@@ -1,13 +1,12 @@
 """HTMX + Jinja2 dashboard — replaces NiceGUI dashboard*.py files."""
 from __future__ import annotations
 
+import re
+import time as _time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fastapi import Request
-import re
-import time as _time
-
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -86,7 +85,7 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         form = await request.form()
         name = str(form.get("name", ""))
         repo_path = str(form.get("repo_path", ""))
-        sources = await _discover_sources(name, state)
+        sources = await _discover_sources(name, state) if state.project_store else []
         return _TEMPLATES.TemplateResponse(
             request,
             "setup/step2.html",
@@ -95,6 +94,8 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
 
     @app.post("/setup/create")
     async def setup_create(request: Request) -> Response:
+        if not state.project_store:
+            return Response(status_code=503, content="Store unavailable")
         form = await request.form()
         name = str(form.get("name", ""))
         repo_path = str(form.get("repo_path", ""))

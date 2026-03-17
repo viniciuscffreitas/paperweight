@@ -286,6 +286,45 @@ def test_dashboard_chrome_label_contrast(app_with_dashboard):
 
 
 # ---------------------------------------------------------------------------
+# Chrome L — height alignment
+# ---------------------------------------------------------------------------
+
+
+def test_dashboard_chrome_l_sidebar_header_no_internal_border(app_with_dashboard):
+    """Sidebar header must not have its own border-bottom (causes misaligned L)."""
+    import re
+    resp = app_with_dashboard.get("/dashboard")
+    html = resp.text
+    match = re.search(r'<div[^>]*style="([^"]*)"[^>]*>\s*<span[^>]*>paperweight', html)
+    assert match, "Sidebar header div not found"
+    assert "border-bottom" not in match.group(1), (
+        "Sidebar header border-bottom creates a second horizontal line that breaks the L"
+    )
+
+
+def test_dashboard_chrome_l_sidebar_header_height(app_with_dashboard):
+    """Sidebar header must declare height:44px to align with topbar."""
+    import re
+    resp = app_with_dashboard.get("/dashboard")
+    html = resp.text
+    match = re.search(r'<div[^>]*style="([^"]*)"[^>]*>\s*<span[^>]*>paperweight', html)
+    assert match, "Sidebar header div not found"
+    assert "height:44px" in match.group(1)
+
+
+def test_dashboard_chrome_l_topbar_height(app_with_dashboard):
+    """Topbar content must be 44px tall to match sidebar header."""
+    import re
+    resp = app_with_dashboard.get("/dashboard")
+    html = resp.text
+    topbar_region = re.search(
+        r'id="app-topbar"[^>]*>(.*?)</div>\s*<!--', html, re.DOTALL
+    )
+    assert topbar_region, "#app-topbar region not found"
+    assert "height:44px" in topbar_region.group(1)
+
+
+# ---------------------------------------------------------------------------
 # Setup wizard
 # ---------------------------------------------------------------------------
 
