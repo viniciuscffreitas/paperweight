@@ -3,10 +3,10 @@
 
   <!-- Panel header -->
   <div style="display:flex;align-items:center;justify-content:space-between;
-              padding:0 20px;height:56px;min-height:56px;flex-shrink:0;
+              padding:0 16px;height:52px;min-height:52px;flex-shrink:0;
               border-bottom:1px solid #1e2130;">
-    <span style="font-size:14px;font-weight:700;color:#e5e7eb;">{{ project.name }}</span>
-    <div style="display:flex;align-items:center;gap:8px;">
+    <span style="font-size:13px;font-weight:700;color:#e5e7eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 48px);">{{ project.name }}</span>
+    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
       <button onclick="closePanel()"
               style="background:transparent;border:none;color:#6b7280;cursor:pointer;
                      padding:4px 8px;font-size:11px;font-family:inherit;
@@ -17,30 +17,31 @@
   </div>
 
   <!-- Tabs -->
-  <div style="display:flex;border-bottom:1px solid #1e2130;padding:0 20px;flex-shrink:0;">
+  <div style="display:flex;border-bottom:1px solid #1e2130;padding:0 12px;flex-shrink:0;overflow-x:auto;">
     <button hx-get="/hub/{{ id }}/activity"
             hx-target="#tab-content"
-            style="padding:10px 16px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;
+            style="padding:10px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;
                    color:#e5e7eb;cursor:pointer;border:none;background:transparent;
-                   border-bottom:2px solid #3b82f6;margin-bottom:-1px;font-family:inherit;">
+                   border-bottom:2px solid #3b82f6;margin-bottom:-1px;font-family:inherit;
+                   white-space:nowrap;flex-shrink:0;">
       ACTIVITY
     </button>
     <button hx-get="/hub/{{ id }}/tasks"
             hx-target="#tab-content"
-            style="padding:10px 16px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;
+            style="padding:10px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;
                    color:#4b5563;cursor:pointer;border:none;background:transparent;
                    border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;
-                   transition:color .15s;"
+                   transition:color .15s;white-space:nowrap;flex-shrink:0;"
             onmouseover="this.style.color='#9ca3af'"
             onmouseout="this.style.color='#4b5563'">
       TASKS
     </button>
     <button hx-get="/hub/{{ id }}/runs"
             hx-target="#tab-content"
-            style="padding:10px 16px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;
+            style="padding:10px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;
                    color:#4b5563;cursor:pointer;border:none;background:transparent;
                    border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;
-                   transition:color .15s;"
+                   transition:color .15s;white-space:nowrap;flex-shrink:0;"
             onmouseover="this.style.color='#9ca3af'"
             onmouseout="this.style.color='#4b5563'">
       RUNS

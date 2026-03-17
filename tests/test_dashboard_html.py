@@ -194,6 +194,16 @@ def test_root_redirects_to_dashboard(app_with_dashboard):
     assert resp.headers["location"] == "/dashboard"
 
 
+def test_dashboard_has_mobile_hamburger(app_with_dashboard):
+    resp = app_with_dashboard.get("/dashboard")
+    assert b"toggleSidebar" in resp.content
+
+
+def test_dashboard_table_has_overflow_scroll(app_with_dashboard):
+    resp = app_with_dashboard.get("/dashboard")
+    assert b"overflow-x" in resp.content
+
+
 def test_main_imports_dashboard_html_not_nicegui():
     """main.py must import from dashboard_html, not from dashboard (NiceGUI)."""
     import inspect
