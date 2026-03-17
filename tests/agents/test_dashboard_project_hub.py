@@ -324,3 +324,100 @@ def test_render_hub_content_project_not_found_renders_error():
 
     label_calls = [str(c) for c in mock_ui.label.call_args_list]
     assert any("not found" in c.lower() for c in label_calls)
+
+
+def test_render_hub_header_has_full_width():
+    """Header div in render_hub_content must include width:100% to fill the panel.
+
+    Without width:100%, the header collapses to content width inside the flex
+    column, causing the 'narrow centered content' visual bug.
+    """
+    state = _make_mock_state(projects=[{"id": "p1", "name": "Test"}])
+    on_close = MagicMock()
+
+    # Track every style string applied to any ui.element("div")
+    style_calls: list[str] = []
+    ctx = _make_ui_ctx_mock()
+
+    def capture_style(s: str):
+        style_calls.append(s)
+        return ctx
+
+    ctx.style = capture_style
+
+    mock_ui = _make_ui_mock()
+    mock_ui.element.return_value = ctx
+    mock_ui.tabs.return_value = _make_ui_ctx_mock()
+    mock_ui.tab.return_value = _make_ui_ctx_mock()
+    mock_ui.tab_panels.return_value = _make_ui_ctx_mock()
+    mock_ui.tab_panel.return_value = _make_ui_ctx_mock()
+    mock_ui.html.return_value = MagicMock()
+
+    with patch("agents.dashboard_project_hub.ui", mock_ui):
+        from agents.dashboard_project_hub import render_hub_content
+        render_hub_content("p1", state, on_close)
+
+    assert any("width:100%" in s for s in style_calls), (
+        f"Expected at least one element to have width:100% but got: {style_calls}"
+    )
+
+
+def test_open_hub_uses_div_not_card(tmp_path):
+    """open_hub wraps render_hub_content in ui.element(div), not ui.card.
+
+    ui.card (QCard) inside a flex column dialog applies its own centering
+    behavior — replacing it with a plain div gives full-width control.
+    """
+    import asyncio
+    from pathlib import Path
+
+    # We need _make_state_and_config so import here
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from test_dashboard import _make_state_and_config, _make_dashboard_ui_mock
+
+    state, config = _make_state_and_config(tmp_path)
+    state.project_store = MagicMock()
+    state.project_store.list_projects.return_value = [{"id": "p1", "name": "Test"}]
+    state.project_store.get_project.return_value = {"id": "p1", "name": "Test"}
+    state.project_store.list_events.return_value = []
+    state.project_store.list_sources.return_value = []
+    state.project_store.list_tasks.return_value = []
+    fake_app = MagicMock()
+    captured_page_fn = None
+
+    def capture_page(path):
+        def decorator(fn):
+            nonlocal captured_page_fn
+            captured_page_fn = fn
+            return fn
+        return decorator
+
+    with patch("agents.dashboard.ui") as mock_ui:
+        mock_ui.page.side_effect = capture_page
+        from agents.dashboard import setup_dashboard
+        setup_dashboard(fake_app, state, config)
+
+    assert captured_page_fn is not None
+    mock_ui = _make_dashboard_ui_mock()
+
+    # Capture dialog mock so we can inspect what's put inside it
+    dialog_mock = MagicMock()
+    dialog_mock.props.return_value = dialog_mock
+    dialog_mock.classes.return_value = dialog_mock
+    dialog_mock.__enter__ = MagicMock(return_value=dialog_mock)
+    dialog_mock.__exit__ = MagicMock(return_value=False)
+    dialog_mock.clear = MagicMock()
+    dialog_mock.open = MagicMock()
+    mock_ui.dialog.return_value = dialog_mock
+
+    with patch("agents.dashboard.ui", mock_ui), patch("agents.dashboard_theme.ui", mock_ui):
+        mock_client = MagicMock()
+        mock_client.on_disconnect = MagicMock()
+        asyncio.run(captured_page_fn(mock_client))
+
+    # ui.card must NOT be called during page setup — open_hub is lazy
+    # When the page is rendered without any click, card count should be 0
+    assert mock_ui.card.call_count == 0, (
+        "ui.card should not be called at page-render time (open_hub is lazy)"
+    )

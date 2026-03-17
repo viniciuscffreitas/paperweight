@@ -48,7 +48,7 @@ def render_hub_content(
     with ui.element("div").style(
         "display:flex;align-items:center;justify-content:space-between;"
         "padding:0 20px;height:56px;min-height:56px;flex-shrink:0;"
-        "border-bottom:1px solid #1e2130"
+        "width:100%;box-sizing:border-box;border-bottom:1px solid #1e2130"
     ):
         ui.label(project["name"]).classes("text-base font-bold text-white")
         with ui.row().classes("items-center gap-2"):
