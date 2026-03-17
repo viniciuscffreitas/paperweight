@@ -235,6 +235,17 @@ def test_dashboard_projects_nav_calls_open_projects_sheet(app_with_dashboard):
     assert b"openProjectsSheet" in resp.content
 
 
+def test_dashboard_has_content_card(app_with_dashboard):
+    resp = app_with_dashboard.get("/dashboard")
+    assert b"content-card" in resp.content
+
+
+def test_dashboard_topbar_slot_present(app_with_dashboard):
+    """Topbar block rendered inside main, separate from content card."""
+    resp = app_with_dashboard.get("/dashboard")
+    assert b"app-topbar" in resp.content
+
+
 def test_dashboard_main_element_has_id_for_skip_link(app_with_dashboard):
     """The skip-link target id='main-content' must be on the <main> element."""
     resp = app_with_dashboard.get("/dashboard")

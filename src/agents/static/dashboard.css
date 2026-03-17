@@ -85,6 +85,13 @@ html, body { margin: 0; padding: 0; height: 100%; background: #0d0f18; color: #e
   /* Bottom nav */
   #bottom-nav { display: flex !important; }
   main { padding-bottom: 52px; }
+
+  /* No L-chrome on mobile — sidebar is hidden */
+  #content-card {
+    border-radius: 0 !important;
+    border-left: none !important;
+  }
+  #app-topbar { border-bottom: none; }
 }
 
 /* ── Desktop ── */

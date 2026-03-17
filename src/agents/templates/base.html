@@ -96,7 +96,19 @@
             aria-hidden="true">paperweight</span>
     </div>
 
-    {% block content %}{% endblock %}
+    <!-- Topbar slot (part of the chrome L) -->
+    <div id="app-topbar"
+         style="flex-shrink:0;background:#0d0f18;border-bottom:1px solid #1e2130;">
+      {% block topbar %}{% endblock %}
+    </div>
+
+    <!-- Content card — rounded top-left corner closes the L -->
+    <div id="content-card"
+         style="flex:1;overflow:hidden;display:flex;flex-direction:column;
+                border-radius:10px 0 0 0;border-top:1px solid #1e2130;
+                border-left:1px solid #1e2130;margin-top:-1px;">
+      {% block content %}{% endblock %}
+    </div>
   </main>
 
   <!-- Right panel / Bottom sheet -->

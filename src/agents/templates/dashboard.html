@@ -1,14 +1,16 @@
 {% extends "base.html" %}
-{% block content %}
 
-<!-- Dashboard header -->
-<div style="padding:10px 16px;border-bottom:1px solid #1e2130;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+{% block topbar %}
+<div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;">
   <div style="display:flex;align-items:center;gap:8px;">
     <span class="live-pulse status-dot running"></span>
     <span style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#6b7280;">Live</span>
   </div>
-  <span style="font-size:11px;color:#4b5563;">today</span>
+  <span style="font-size:11px;color:#6b7280;">today</span>
 </div>
+{% endblock %}
+
+{% block content %}
 
 <!-- Run history table (overflow-x:auto for horizontal scroll on mobile) -->
 <div style="flex:1;overflow-y:auto;overflow-x:auto;padding:12px;" id="run-history">
