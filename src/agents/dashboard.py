@@ -202,7 +202,10 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
 
         # ── Project hub right panel (lazy — populated on open)
         hub_dialog = ui.dialog().props(
-            "no-backdrop-dismiss position=right"
+            "no-backdrop-dismiss position=right "
+            'content-style="width:calc(100vw - 160px);max-width:calc(100vw - 160px);'
+            'min-width:480px;height:100vh;overflow:hidden;display:flex;flex-direction:column;'
+            'background:#0d0f18;border-left:1px solid #2d3142"'
         ).classes("right-panel")
 
         def open_hub(project_id: str) -> None:
