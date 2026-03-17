@@ -41,7 +41,9 @@ tasks:
 """)
     from agents.main import create_app
 
-    app = create_app(config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data")
+    app = create_app(
+        config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data"
+    )
     return app
 
 
@@ -105,8 +107,8 @@ async def test_github_webhook_no_signature(client):
 async def test_broadcast_event_persists_to_db(test_app):
     """Events emitted via broadcast_event must be persisted to SQLite."""
     state = test_app.state.app_state
-    project = list(state.projects.values())[0]
-    task_name = list(project.tasks.keys())[0]
+    project = next(iter(state.projects.values()))
+    task_name = next(iter(project.tasks.keys()))
 
     run = await state.executor.run_task(project, task_name, trigger_type="manual")
 
@@ -120,8 +122,8 @@ async def test_broadcast_event_persists_to_db(test_app):
 async def test_broadcast_event_persists_dry_run_events(test_app):
     """Dry run events (dry_run + task_completed) are persisted to SQLite."""
     state = test_app.state.app_state
-    project = list(state.projects.values())[0]
-    task_name = list(project.tasks.keys())[0]
+    project = next(iter(state.projects.values()))
+    task_name = next(iter(project.tasks.keys()))
 
     run = await state.executor.run_task(project, task_name, trigger_type="manual")
 
@@ -157,7 +159,9 @@ integrations:
     projects_dir = tmp_path / "projects"
     projects_dir.mkdir()
     from agents.main import create_app
-    app = create_app(config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data")
+    app = create_app(
+        config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data"
+    )
     state = app.state.app_state
     assert state.executor.linear_client is not None
     assert state.executor.discord_notifier is not None
@@ -203,10 +207,15 @@ tasks:
         label: agent
 """)
     from unittest.mock import AsyncMock, patch
+
     from agents.main import create_app
 
-    with patch("agents.discovery.auto_discover_project_ids", new_callable=AsyncMock) as mock_discover:
-        app = create_app(config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data")
+    with patch(
+        "agents.discovery.auto_discover_project_ids", new_callable=AsyncMock
+    ):
+        create_app(
+            config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data"
+        )
 
     # Since lifespan doesn't run in this test context, verify the import works
     from agents.discovery import auto_discover_project_ids
@@ -408,7 +417,6 @@ async def test_list_events(client):
 
 @pytest.mark.asyncio
 async def test_linear_webhook_detects_agent_issue(tmp_path):
-    from unittest.mock import AsyncMock, patch
 
     config_file = tmp_path / "config.yaml"
     config_file.write_text("""
@@ -448,9 +456,12 @@ tasks:
       filter:
         label: agent
 """)
-    from agents.main import create_app
     from httpx import ASGITransport, AsyncClient
-    app = create_app(config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data")
+
+    from agents.main import create_app
+    app = create_app(
+        config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data"
+    )
     state = app.state.app_state
 
     # Patch run_task to track calls and check agent issue path

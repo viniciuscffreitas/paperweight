@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-
+from unittest.mock import MagicMock, patch
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -344,6 +343,7 @@ def test_get_source_returns_none_for_missing_id():
     """ProjectStore.get_source returns None when the source_id does not exist."""
     import tempfile
     from pathlib import Path
+
     from agents.project_store import ProjectStore
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -356,6 +356,7 @@ def test_get_source_returns_dict_for_existing_source():
     """ProjectStore.get_source returns a dict with source data when found."""
     import tempfile
     from pathlib import Path
+
     from agents.project_store import ProjectStore
 
     with tempfile.TemporaryDirectory() as tmpdir:

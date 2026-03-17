@@ -1,5 +1,7 @@
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
+
 from agents.notification_engine import NotificationEngine
 from agents.project_store import ProjectStore
 
@@ -61,7 +63,8 @@ def test_build_digest_includes_source_summary(engine, store):
 def test_check_urgent_alerts(engine, store):
     store.upsert_event(
         project_id="p1", source="linear", event_type="issue_created",
-        title="Critical bug", source_item_id="L1", timestamp="2026-03-16T10:00:00Z", priority="urgent",
+        title="Critical bug", source_item_id="L1",
+        timestamp="2026-03-16T10:00:00Z", priority="urgent",
     )
     alerts = engine.check_urgent_events("p1")
     assert len(alerts) == 1
@@ -144,7 +147,8 @@ async def test_process_new_events(engine, store):
     )
     store.upsert_event(
         project_id="p1", source="linear", event_type="issue_created",
-        title="Urgent bug", source_item_id="L1", timestamp="2026-03-16T10:00:00Z", priority="urgent",
+        title="Urgent bug", source_item_id="L1",
+        timestamp="2026-03-16T10:00:00Z", priority="urgent",
     )
     await engine.process_new_events("p1")
     engine.slack_notifier.send_text.assert_called_once()

@@ -1,5 +1,7 @@
-import pytest
 from pathlib import Path
+
+import pytest
+
 from agents.project_store import ProjectStore
 
 
@@ -38,7 +40,7 @@ def test_delete_project(store: ProjectStore) -> None:
 
 def test_create_source(store: ProjectStore) -> None:
     store.create_project(id="p1", name="P1", repo_path="/repos/p1")
-    source_id = store.create_source(
+    store.create_source(
         project_id="p1", source_type="linear", source_id="LIN-123", source_name="MomEase Linear",
     )
     sources = store.list_sources("p1")
@@ -57,7 +59,7 @@ def test_delete_source(store: ProjectStore) -> None:
 
 def test_create_task(store: ProjectStore) -> None:
     store.create_project(id="p1", name="P1", repo_path="/repos/p1")
-    task_id = store.create_task(
+    store.create_task(
         project_id="p1", name="Fix bugs", intent="Fix all open bugs",
         trigger_type="manual", model="sonnet", max_budget=5.0, autonomy="pr-only",
     )

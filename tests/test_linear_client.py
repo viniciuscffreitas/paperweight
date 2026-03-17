@@ -21,7 +21,9 @@ async def test_fetch_issue_returns_parsed_dict(linear_client):
                 "title": "Fix login bug",
                 "description": "Users cannot log in",
                 "state": {"name": "In Progress"},
-                "labels": {"nodes": [{"name": "bug", "id": "lbl-1"}, {"name": "urgent", "id": "lbl-2"}]},
+                "labels": {"nodes": [
+                    {"name": "bug", "id": "lbl-1"}, {"name": "urgent", "id": "lbl-2"},
+                ]},
             }
         }
     }

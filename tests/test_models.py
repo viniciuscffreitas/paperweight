@@ -2,6 +2,14 @@ from datetime import datetime
 
 import pytest
 
+from agents.models import (
+    AggregatedEvent,
+    NotificationRule,
+    ProjectRecord,
+    ProjectSource,
+    TaskRecord,
+)
+
 
 def test_trigger_config_creation():
     from agents.models import TriggerConfig
@@ -160,15 +168,6 @@ def test_project_config_with_linear_and_discord():
     )
     assert project.linear_team_id == "TEAM-123"
     assert project.discord_channel_id == "123456789"
-
-
-from agents.models import (
-    AggregatedEvent,
-    NotificationRule,
-    ProjectRecord,
-    ProjectSource,
-    TaskRecord,
-)
 
 
 def test_project_record_creation() -> None:

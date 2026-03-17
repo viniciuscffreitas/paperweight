@@ -1,5 +1,4 @@
 """Tests for aggregator normalizers and AggregatorService."""
-import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -12,7 +11,6 @@ from agents.aggregator import (
     normalize_slack_message,
 )
 from agents.project_store import ProjectStore
-
 
 # ---------------------------------------------------------------------------
 # Normalizer tests
@@ -179,7 +177,7 @@ class TestNormalizeSlackMessage:
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture()
+@pytest.fixture
 def store(tmp_path: Path) -> ProjectStore:
     s = ProjectStore(tmp_path / "test.db")
     s.create_project("proj-1", "Test Project", "/tmp/repo")

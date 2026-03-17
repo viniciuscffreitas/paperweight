@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -214,7 +213,9 @@ def test_discover_sources_linear_match():
 
     state = _make_mock_state()
     state.linear_client = MagicMock()
-    state.linear_client.fetch_teams = AsyncMock(return_value={"myproject": "team-id-1", "other": "team-id-2"})
+    state.linear_client.fetch_teams = AsyncMock(
+        return_value={"myproject": "team-id-1", "other": "team-id-2"}
+    )
 
     result = asyncio.run(_discover_sources("myproject", state))
 

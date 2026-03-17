@@ -170,15 +170,26 @@ def test_list_events_ordered_by_timestamp(history_db):
     for i, evt_type in enumerate(["task_started", "dry_run", "task_completed"]):
         history_db.insert_event(
             "run-ord",
-            {"run_id": "run-ord", "type": evt_type, "content": "", "tool_name": "", "timestamp": float(i)},
+            {
+                "run_id": "run-ord", "type": evt_type, "content": "",
+                "tool_name": "", "timestamp": float(i),
+            },
         )
     events = history_db.list_events("run-ord")
     assert [e["type"] for e in events] == ["task_started", "dry_run", "task_completed"]
 
 
 def test_list_events_isolated_per_run(history_db):
-    history_db.insert_event("run-A", {"run_id": "run-A", "type": "task_started", "content": "A", "tool_name": "", "timestamp": 1.0})
-    history_db.insert_event("run-B", {"run_id": "run-B", "type": "task_started", "content": "B", "tool_name": "", "timestamp": 1.0})
+    history_db.insert_event(
+        "run-A",
+        {"run_id": "run-A", "type": "task_started", "content": "A",
+         "tool_name": "", "timestamp": 1.0},
+    )
+    history_db.insert_event(
+        "run-B",
+        {"run_id": "run-B", "type": "task_started", "content": "B",
+         "tool_name": "", "timestamp": 1.0},
+    )
     assert len(history_db.list_events("run-A")) == 1
     assert history_db.list_events("run-A")[0]["content"] == "A"
 
@@ -187,7 +198,10 @@ def test_insert_event_cap_at_500(history_db):
     for i in range(510):
         history_db.insert_event(
             "run-cap",
-            {"run_id": "run-cap", "type": "assistant", "content": f"msg-{i}", "tool_name": "", "timestamp": float(i)},
+            {
+                "run_id": "run-cap", "type": "assistant",
+                "content": f"msg-{i}", "tool_name": "", "timestamp": float(i),
+            },
         )
     events = history_db.list_events("run-cap")
     assert len(events) == 500
@@ -225,10 +239,21 @@ def test_mark_running_as_cancelled(history_db):
 
 
 def test_find_run_by_issue_id_returns_latest(history_db):
-    from agents.models import RunRecord, RunStatus, TriggerType
     from datetime import UTC, datetime
-    history_db.insert_run(RunRecord(id="proj-issue-resolver-issue-abc-20260316-001", project="proj", task="issue-resolver", trigger_type=TriggerType.LINEAR, started_at=datetime(2026,3,16,10,0,0,tzinfo=UTC), status=RunStatus.FAILURE, model="sonnet"))
-    history_db.insert_run(RunRecord(id="proj-issue-resolver-issue-abc-20260316-002", project="proj", task="issue-resolver", trigger_type=TriggerType.LINEAR, started_at=datetime(2026,3,16,11,0,0,tzinfo=UTC), status=RunStatus.SUCCESS, model="sonnet"))
+
+    from agents.models import RunRecord, RunStatus, TriggerType
+    history_db.insert_run(RunRecord(
+        id="proj-issue-resolver-issue-abc-20260316-001",
+        project="proj", task="issue-resolver", trigger_type=TriggerType.LINEAR,
+        started_at=datetime(2026, 3, 16, 10, 0, 0, tzinfo=UTC),
+        status=RunStatus.FAILURE, model="sonnet",
+    ))
+    history_db.insert_run(RunRecord(
+        id="proj-issue-resolver-issue-abc-20260316-002",
+        project="proj", task="issue-resolver", trigger_type=TriggerType.LINEAR,
+        started_at=datetime(2026, 3, 16, 11, 0, 0, tzinfo=UTC),
+        status=RunStatus.SUCCESS, model="sonnet",
+    ))
     result = history_db.find_run_by_issue_id("issue-abc")
     assert result is not None
     assert result.status == RunStatus.SUCCESS

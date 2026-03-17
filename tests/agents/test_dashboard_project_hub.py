@@ -177,8 +177,14 @@ def test_project_page_renders_events():
     import asyncio
 
     events = [
-        {"source": "linear", "title": "Fix bug", "timestamp": "2024-01-01T10:00:00", "priority": "high", "author": "alice"},
-        {"source": "github", "title": "Open PR", "timestamp": "2024-01-01T11:00:00", "priority": "none", "author": ""},
+        {
+            "source": "linear", "title": "Fix bug",
+            "timestamp": "2024-01-01T10:00:00", "priority": "high", "author": "alice",
+        },
+        {
+            "source": "github", "title": "Open PR",
+            "timestamp": "2024-01-01T11:00:00", "priority": "none", "author": "",
+        },
     ]
     state = _make_mock_state(events=events)
     fake_app = MagicMock()

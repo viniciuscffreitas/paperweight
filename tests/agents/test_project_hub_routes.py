@@ -1,15 +1,12 @@
 """Tests for project_hub_routes — including /api/discover."""
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from agents.project_hub_routes import register_project_hub_routes
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -86,8 +83,14 @@ def test_discover_endpoint_returns_sources_from_discover_sources():
     app = _make_test_app(state)
 
     expected = [
-        {"source_type": "linear", "source_id": "team-1", "source_name": "myproject", "confidence": "high"},
-        {"source_type": "github", "source_id": "org/myproject", "source_name": "myproject", "confidence": "high"},
+        {
+            "source_type": "linear", "source_id": "team-1",
+            "source_name": "myproject", "confidence": "high",
+        },
+        {
+            "source_type": "github", "source_id": "org/myproject",
+            "source_name": "myproject", "confidence": "high",
+        },
     ]
     mock_discover = AsyncMock(return_value=expected)
     with patch("agents.dashboard_setup_wizard._discover_sources", mock_discover):

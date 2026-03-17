@@ -1,8 +1,9 @@
+
 import pytest
-from pathlib import Path
+
+from agents.config import load_project_configs
 from agents.migration import migrate_yaml_projects
 from agents.project_store import ProjectStore
-from agents.config import load_project_configs
 
 
 @pytest.fixture
