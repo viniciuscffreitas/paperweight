@@ -179,170 +179,205 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
 
         runs = state.history.list_runs_today()
         a_count = sum(1 for r in runs if r.status == "running")
-        f_count = sum(1 for r in runs if r.status in ("failure", "timeout"))
+        f_count = sum(
+            1 for r in runs if r.status in ("failure", "timeout")
+        )
 
-        # ── Header ──────────────────────────────────────────────────
-        with ui.row().classes("header-row w-full items-center justify-between px-4 py-2"):
-            with ui.row().classes("items-center gap-3"):
-                ui.label("Agent Runner").classes("text-base font-bold text-white")
-                if config.execution.dry_run:
-                    ui.badge("DRY RUN").props("color=orange").classes("text-xs font-mono")
-
-                ui.html('<div class="header-divider"></div>')
-
-                # Inline stats
-                with ui.row().classes("items-center gap-3"):
-                    ui.html(
-                        f'<span class="status-dot active{" live-pulse" if a_count > 0 else ""}"'
-                        f' style="{("" if a_count > 0 else "opacity:0.4")}"></span>'
-                    )
-                    stat_active = ui.label(f"{a_count} active").classes(
-                        f"text-xs font-mono {'text-gray-400' if a_count > 0 else 'text-gray-600'}"
-                    )
-                    ui.html(
-                        f'<span class="status-dot failed"'
-                        f' style="{("" if f_count > 0 else "opacity:0.4")}"></span>'
-                    )
-                    stat_failed = ui.label(f"{f_count} failed").classes(
-                        f"text-xs font-mono {'text-red-300' if f_count > 0 else 'text-gray-600'}"
-                    )
-
-            with ui.row().classes("items-center gap-3"):
-                budget = state.budget.get_status()
-                budget_label = ui.label(
-                    f"${budget.spent_today_usd:.2f} / ${budget.daily_limit_usd:.2f}"
-                ).classes("text-xs text-gray-400 font-mono")
-                ratio = (
-                    budget.spent_today_usd / budget.daily_limit_usd
-                    if budget.daily_limit_usd > 0
-                    else 0.0
-                )
-                bar_color = "red" if ratio >= 1.0 else "orange" if ratio >= 0.8 else "blue"
-                budget_bar = ui.linear_progress(
-                    value=min(ratio, 1.0), show_value=False
-                ).classes("w-24").props(f"color={bar_color} size=4px")
-
-                # Trigger button + popover
-                trigger_btn = ui.button("Run", icon="play_arrow").props(
-                    "flat dense size=sm color=grey"
-                )
-                with trigger_btn:  # noqa: SIM117
-                    with ui.element("q-menu").classes("trigger-menu"):
-                        with ui.card().classes("p-3").style(
-                            "background:#1a1d27;min-width:220px"
-                        ):
-                            project_names = sorted(state.projects.keys())
-                            project_sel = ui.select(
-                                project_names,
-                                label="Project",
-                                value=project_names[0] if project_names else None,
-                            ).classes("w-full")
-                            task_sel = ui.select([], label="Task").classes("w-full mt-1")
-                            trigger_status = ui.label("").classes(
-                                "text-xs text-gray-500 mt-1 font-mono"
-                            )
-
-                            def _init_tasks(proj_name: str | None) -> None:
-                                project = state.projects.get(proj_name or "")
-                                if project:
-                                    names = list(project.tasks.keys())
-                                    task_sel.options = names
-                                    task_sel.value = names[0] if names else None
-                                    task_sel.update()
-
-                            project_sel.on_value_change(lambda e: _init_tasks(e.value))
-                            _init_tasks(project_names[0] if project_names else None)
-
-                            async def trigger_run() -> None:
-                                if not project_sel.value or not task_sel.value:
-                                    return
-                                import httpx
-
-                                trigger_status.set_text("triggering…")
-                                try:
-                                    async with httpx.AsyncClient() as http:
-                                        resp = await http.post(
-                                            f"http://localhost:{config.server.port}"
-                                            f"/tasks/{project_sel.value}"
-                                            f"/{task_sel.value}/run"
-                                        )
-                                    if resp.status_code == 202:
-                                        trigger_status.set_text(
-                                            f"ok {project_sel.value}/{task_sel.value}"
-                                        )
-                                    else:
-                                        trigger_status.set_text(f"error {resp.status_code}")
-                                except Exception as exc:
-                                    trigger_status.set_text(f"error: {exc}")
-
-                            ui.button("Run Task", on_click=trigger_run).props(
-                                "color=primary dense size=sm"
-                            ).classes("w-full mt-2")
-
-        # ── Two Panels ──────────────────────────────────────────────────────
-        with ui.row().classes("w-full flex-1").style(
-            "height: calc(100vh - 48px); overflow: hidden"
+        # ── L-shaped shell: sidebar + header + content ────
+        with ui.row().classes("w-full").style(
+            "height:100vh;overflow:hidden"
         ):
-            # Sidebar: Project List
-            with ui.column().classes("h-full px-3 py-2").style(
-                "width:180px;flex-shrink:0;background:#0d0f18;"
+            # ── Sidebar (left column of the L) ────────────
+            with ui.column().classes("h-full py-3 px-3").style(
+                "width:200px;flex-shrink:0;background:#0a0c14;"
                 "border-right:1px solid #1e2130;overflow-y:auto"
             ):
+                ui.label("paperweight").classes(
+                    "text-sm font-bold text-white mb-4 px-1"
+                )
+                if config.execution.dry_run:
+                    ui.badge("DRY RUN").props(
+                        "color=orange"
+                    ).classes("text-xs font-mono mb-2")
+
+                ui.label("Projects").classes(
+                    "text-xs text-gray-500 uppercase "
+                    "tracking-wide mb-1 px-1"
+                )
+                projects = (
+                    state.project_store.list_projects()
+                    if state.project_store
+                    else []
+                )
+                for p in projects:
+                    ui.link(
+                        p["name"],
+                        f"/dashboard/project/{p['id']}",
+                    ).classes(
+                        "text-sm text-gray-300 hover:text-white "
+                        "block py-1 px-2 rounded "
+                        "hover:bg-gray-800 transition-colors"
+                    )
+
+                ui.space()
                 ui.button(
                     "+ New Project",
-                    on_click=lambda: ui.navigate.to("/dashboard/project/new"),
-                ).props("color=blue dense flat").classes("w-full mb-2")
-                projects = state.project_store.list_projects() if state.project_store else []
-                if projects:
-                    ui.label("Projects").classes(
-                        "text-xs text-gray-500 uppercase tracking-wide mb-1"
-                    )
-                    for p in projects:
-                        ui.link(p["name"], f"/dashboard/project/{p['id']}").classes(
-                            "text-sm text-blue-400 hover:text-blue-300 block py-0.5"
-                        )
-                    ui.separator().classes("my-2")
+                    on_click=lambda: ui.navigate.to(
+                        "/dashboard/project/new"
+                    ),
+                ).props(
+                    "flat dense color=blue"
+                ).classes("w-full mt-2")
 
-            ui.html('<div class="panel-divider"></div>')
-
-            # Live Stream
-            with ui.column().classes("flex-1 h-full").style("flex: 1.2"):
-                ui.label("Live Stream").classes("section-label")
-                with ui.scroll_area().classes("flex-1 px-3 pb-2").style(
-                    "background: #0f1117"
-                ) as stream_scroll:
-                    stream_col = ui.column().classes("w-full gap-0")
-                with stream_col:
-                    ui.html(
-                        "<div style='color:#4b5563;font-size:11px;font-family:monospace'>"
-                        "— waiting for agent activity —</div>"
-                    )
-
-            ui.html('<div class="panel-divider"></div>')
-
-            # Run History
-            with ui.column().classes("flex-1 h-full"):
+            # ── Right side (header + content) ─────────────
+            with ui.column().classes("flex-1 h-full").style(
+                "background:#0a0c14"
+            ):
+                # ── Top bar ───────────────────────────────
                 with ui.row().classes(
-                    "items-center justify-between"
-                ).style("padding:8px 12px;border-bottom:1px solid #1e2130"):
-                    ui.label("Run History").classes(
-                        "text-xs text-gray-500 uppercase tracking-widest"
+                    "w-full items-center justify-between "
+                    "px-5 py-2"
+                ).style(
+                    "height:48px;flex-shrink:0"
+                ):
+                    with ui.row().classes("items-center gap-4"):
+                        ui.html(
+                            '<span class="status-dot active'
+                            f'{"  live-pulse" if a_count else ""}"'
+                            f' style="'
+                            f'{"" if a_count else "opacity:0.4"}'
+                            '"></span>'
+                        )
+                        stat_active = ui.label(
+                            f"{a_count} active"
+                        ).classes(
+                            "text-xs font-mono "
+                            + (
+                                "text-gray-400"
+                                if a_count
+                                else "text-gray-600"
+                            )
+                        )
+                        ui.html(
+                            '<span class="status-dot failed"'
+                            f' style="'
+                            f'{"" if f_count else "opacity:0.4"}'
+                            '"></span>'
+                        )
+                        stat_failed = ui.label(
+                            f"{f_count} failed"
+                        ).classes(
+                            "text-xs font-mono "
+                            + (
+                                "text-red-300"
+                                if f_count
+                                else "text-gray-600"
+                            )
+                        )
+
+                    with ui.row().classes("items-center gap-3"):
+                        budget = state.budget.get_status()
+                        budget_label = ui.label(
+                            f"${budget.spent_today_usd:.2f}"
+                            f" / ${budget.daily_limit_usd:.2f}"
+                        ).classes(
+                            "text-xs text-gray-400 font-mono"
+                        )
+                        ratio = (
+                            budget.spent_today_usd
+                            / budget.daily_limit_usd
+                            if budget.daily_limit_usd > 0
+                            else 0.0
+                        )
+                        bar_color = (
+                            "red"
+                            if ratio >= 1.0
+                            else "orange"
+                            if ratio >= 0.8
+                            else "blue"
+                        )
+                        budget_bar = ui.linear_progress(
+                            value=min(ratio, 1.0),
+                            show_value=False,
+                        ).classes("w-24").props(
+                            f"color={bar_color} size=4px"
+                        )
+
+                # ── Main content (rounded inner panel) ────
+                with ui.row().classes("flex-1 w-full px-3 pb-3").style(
+                    "overflow:hidden"
+                ), ui.row().classes("w-full h-full").style(
+                    "background:#0f1117;"
+                    "border-radius:12px;"
+                    "border:1px solid #1e2130;"
+                    "overflow:hidden"
+                ):
+                    # Live Stream
+                    with ui.column().classes(
+                        "flex-1 h-full"
+                    ).style("flex:1.2"):
+                        ui.label("Live Stream").classes(
+                            "section-label"
+                        )
+                        with ui.scroll_area().classes(
+                            "flex-1 px-3 pb-2"
+                        ).style(
+                            "background:transparent"
+                        ) as stream_scroll:
+                            stream_col = ui.column().classes(
+                                "w-full gap-0"
+                            )
+                        with stream_col:
+                            ui.html(
+                                "<div style='color:#4b5563;"
+                                "font-size:11px;"
+                                "font-family:monospace'>"
+                                "— waiting for agent "
+                                "activity —</div>"
+                            )
+
+                    ui.html(
+                        '<div class="panel-divider"></div>'
                     )
-                    ui.label("click a row to inspect").classes("text-xs text-gray-700")
-                history_table = ui.table(
-                    columns=_HISTORY_COLS,
-                    rows=build_history_rows(runs),
-                    row_key="id",
-                ).classes("w-full text-xs flex-1")
-                # Render status column as colored dot
-                _pulse = "animation:live-pulse 1.4s infinite"
-                _slot = (
-                    "<q-td :props=\"props\" style=\"text-align:center\">"
-                    "<span :class=\"'status-dot ' + props.row.raw_status\""
-                    f" :style=\"props.row.raw_status === 'running' ? '{_pulse}' : ''\">"
-                    "</span></q-td>"
-                )
-                history_table.add_slot("body-cell-status", _slot)
+
+                    # Run History
+                    with ui.column().classes("flex-1 h-full"):
+                        with ui.row().classes(
+                            "items-center justify-between"
+                        ).style(
+                            "padding:8px 12px;"
+                            "border-bottom:"
+                            "1px solid #1e2130"
+                        ):
+                            ui.label("Run History").classes(
+                                "text-xs text-gray-500 "
+                                "uppercase tracking-widest"
+                            )
+                            ui.label(
+                                "click a row to inspect"
+                            ).classes("text-xs text-gray-700")
+                        history_table = ui.table(
+                            columns=_HISTORY_COLS,
+                            rows=build_history_rows(runs),
+                            row_key="id",
+                        ).classes("w-full text-xs flex-1")
+                        _pulse = (
+                            "animation:live-pulse 1.4s infinite"
+                        )
+                        _slot = (
+                            '<q-td :props="props" '
+                            'style="text-align:center">'
+                            "<span :class=\"'status-dot '"
+                            " + props.row.raw_status\""
+                            " :style=\""
+                            "props.row.raw_status === "
+                            f"'running' ? '{_pulse}' "
+                            ': \'\'">'
+                            "</span></q-td>"
+                        )
+                        history_table.add_slot(
+                            "body-cell-status", _slot
+                        )
 
         # ── Run detail drawer ──────────────────────────────────────────
         detail_dialog = ui.dialog().props("no-backdrop-dismiss").classes("run-drawer")
