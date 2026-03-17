@@ -95,14 +95,6 @@ def render_hub_content(
                 for event in events:
                     _render_event_card(event)
 
-                sources = state.project_store.list_sources(project_id)
-                source_types = {s["source_type"] for s in sources}
-                if source_types:
-                    ui.separator().classes("my-3")
-                    for st in ["linear", "github", "slack"]:
-                        if st in source_types:
-                            _render_source_section(st.capitalize(), st, project_id, state)
-
         # ── Tasks tab ─────────────────────────────────────
         with ui.tab_panel("tasks").style("padding:0;height:100%;overflow:hidden"):
             _render_tasks_tab(project_id, state)
