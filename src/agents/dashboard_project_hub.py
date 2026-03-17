@@ -76,6 +76,34 @@ def setup_project_hub(app: FastAPI, state: AppState) -> None:
                         f"/dashboard/project/{project_id}/tasks"
                     ),
                 ).props("color=purple dense")
+                ui.button(
+                    icon="delete",
+                    on_click=lambda: delete_dialog.open(),
+                ).props("flat dense color=red")
+
+        # ── Delete confirmation dialog ────────────────────
+        delete_dialog = ui.dialog()
+        with delete_dialog, ui.card().classes("w-96"):
+            ui.label("Remove Project").classes(
+                "text-lg font-bold text-white"
+            )
+            ui.label(
+                f'Remove "{project["name"]}" from the dashboard? '
+                "This does not delete the repository."
+            ).classes("text-sm text-gray-300 mt-2")
+            with ui.row().classes("gap-2 mt-4 justify-end w-full"):
+                ui.button(
+                    "Cancel", on_click=delete_dialog.close
+                ).props("flat")
+
+                async def confirm_delete() -> None:
+                    state.project_store.delete_project(project_id)
+                    ui.notify("Project removed", type="positive")
+                    ui.navigate.to("/dashboard")
+
+                ui.button(
+                    "Remove", on_click=confirm_delete
+                ).props("color=red")
 
         # ── Content with padding ──────────────────────────
         with ui.column().classes("w-full max-w-5xl mx-auto px-8 py-6 gap-4"):
