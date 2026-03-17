@@ -188,8 +188,8 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
             "height:100vh;overflow:hidden"
         ):
             # ── Sidebar (left column of the L) ────────────
-            with ui.column().classes("h-full py-3 px-3").style(
-                "width:200px;flex-shrink:0;background:#0a0c14;"
+            with ui.column().classes("h-full py-3 px-2").style(
+                "width:160px;flex-shrink:0;background:#0a0c14;"
                 "border-right:1px solid #1e2130;overflow-y:auto"
             ):
                 ui.label("paperweight").classes(
@@ -231,14 +231,16 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
 
             # ── Right side (header + content) ─────────────
             with ui.column().classes("flex-1 h-full").style(
-                "background:#0a0c14"
+                "background:#0a0c14;min-height:0"
             ):
                 # ── Top bar ───────────────────────────────
                 with ui.row().classes(
                     "w-full items-center justify-between "
-                    "px-5 py-2"
+                    "px-5"
                 ).style(
-                    "height:48px;flex-shrink:0"
+                    "height:48px;min-height:48px;"
+                    "flex-shrink:0;"
+                    "border-bottom:1px solid #1e2130"
                 ):
                     with ui.row().classes("items-center gap-4"):
                         ui.html(
