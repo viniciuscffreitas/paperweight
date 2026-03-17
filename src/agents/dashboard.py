@@ -14,6 +14,7 @@ from agents.dashboard_formatters import (
     format_stream_html,
 )
 from agents.dashboard_project_hub import setup_project_hub
+from agents.dashboard_setup_wizard import setup_wizard_page
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -190,6 +191,7 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
     """Mount NiceGUI dashboard. State accessed via closure (not app.state)."""
 
     setup_project_hub(app, state)
+    setup_wizard_page(app, state)
 
     @ui.page("/dashboard")
     async def dashboard_page(client: Client) -> None:
