@@ -13,8 +13,8 @@ from agents.dashboard_formatters import (
     format_event_html,
     format_stream_html,
 )
-from agents.dashboard_project_hub import setup_project_hub
-from agents.dashboard_setup_wizard import setup_wizard_page
+from agents.dashboard_project_hub import render_hub_content, setup_project_hub
+from agents.dashboard_setup_wizard import render_wizard_content, setup_wizard_page
 from agents.dashboard_task_manager import setup_task_manager
 from agents.dashboard_theme import apply_dark_theme
 
@@ -183,14 +183,45 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
             1 for r in runs if r.status in ("failure", "timeout")
         )
 
+        # ── Wizard bottom sheet (lazy — populated on open) ─
+        wizard_dialog = ui.dialog().props("no-backdrop-dismiss")
+        wizard_dialog.classes("bottom-sheet")
+
+        def open_wizard() -> None:
+            wizard_dialog.clear()
+            with wizard_dialog, ui.card().style(
+                "background:transparent;box-shadow:none;"
+                "width:100%;height:100%;padding:0;margin:0"
+            ):
+                render_wizard_content(
+                    state,
+                    on_close=lambda: (wizard_dialog.close(), ui.navigate.reload()),
+                )
+            wizard_dialog.open()
+
+        # ── Project hub right panel (lazy — populated on open)
+        hub_dialog = ui.dialog().props("no-backdrop-dismiss")
+        hub_dialog.classes("right-panel")
+
+        def open_hub(project_id: str) -> None:
+            hub_dialog.clear()
+            with hub_dialog, ui.card().style(
+                "background:transparent;box-shadow:none;"
+                "width:100%;height:100%;padding:0;margin:0"
+            ):
+                render_hub_content(project_id, state, hub_dialog.close)
+            hub_dialog.open()
+
         # ── L-shaped shell: sidebar + header + content ────
-        with ui.row().classes("w-full").style(
-            "height:100vh;overflow:hidden"
+        with ui.element("div").style(
+            "display:flex;flex-direction:row;"
+            "width:100%;height:100vh;overflow:hidden"
         ):
             # ── Sidebar (left column of the L) ────────────
-            with ui.column().classes("h-full py-3 px-2").style(
+            with ui.element("div").style(
                 "width:160px;flex-shrink:0;background:#0a0c14;"
-                "border-right:1px solid #1e2130;overflow-y:auto"
+                "overflow-y:auto;display:flex;flex-direction:column;"
+                "padding:12px 8px"
             ):
                 ui.label("paperweight").classes(
                     "text-sm font-bold text-white mb-4 px-1"
@@ -210,37 +241,36 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
                     else []
                 )
                 for p in projects:
-                    ui.link(
+                    pid = p["id"]
+                    ui.button(
                         p["name"],
-                        f"/dashboard/project/{p['id']}",
+                        on_click=lambda _pid=pid: open_hub(_pid),
+                    ).props(
+                        "flat dense align=left"
                     ).classes(
                         "text-sm text-gray-300 hover:text-white "
-                        "block py-1 px-2 rounded "
+                        "w-full py-1 px-2 rounded "
                         "hover:bg-gray-800 transition-colors"
                     )
 
                 ui.space()
                 ui.button(
                     "+ New Project",
-                    on_click=lambda: ui.navigate.to(
-                        "/dashboard/project/new"
-                    ),
+                    on_click=open_wizard,
                 ).props(
                     "flat dense color=blue"
                 ).classes("w-full mt-2")
 
             # ── Right side (header + content) ─────────────
-            with ui.column().classes("flex-1 h-full").style(
-                "background:#0a0c14;min-height:0"
+            with ui.element("div").style(
+                "flex:1;display:flex;flex-direction:column;"
+                "background:#0a0c14;min-height:0;overflow:hidden"
             ):
                 # ── Top bar ───────────────────────────────
-                with ui.row().classes(
-                    "w-full items-center justify-between "
-                    "px-5"
-                ).style(
-                    "height:48px;min-height:48px;"
-                    "flex-shrink:0;"
-                    "border-bottom:1px solid #1e2130"
+                with ui.element("div").style(
+                    "width:100%;height:48px;min-height:48px;flex-shrink:0;"
+                    "background:#0a0c14;display:flex;align-items:center;"
+                    "justify-content:space-between;padding:0 20px;box-sizing:border-box"
                 ):
                     with ui.row().classes("items-center gap-4"):
                         ui.html(
@@ -306,7 +336,7 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
                         )
 
                 # ── Main content (rounded inner panel) ────
-                with ui.row().classes("flex-1 w-full px-3 pb-3").style(
+                with ui.row().classes("flex-1 w-full p-3").style(
                     "overflow:hidden"
                 ), ui.row().classes("w-full h-full").style(
                     "background:#0f1117;"

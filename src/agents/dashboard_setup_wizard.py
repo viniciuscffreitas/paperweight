@@ -1,7 +1,7 @@
 """Project setup wizard — create and configure projects via dashboard."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from nicegui import ui
 
@@ -12,138 +12,172 @@ if TYPE_CHECKING:
 
     from agents.app_state import AppState
 
+_STEP_TRACK_HTML = """
+<div class="step-track">
+  <div class="step-item active" id="step-ind-1">
+    <span class="step-num">1</span>Basics
+  </div>
+  <div class="step-connector"></div>
+  <div class="step-item" id="step-ind-2">
+    <span class="step-num">2</span>Sources
+  </div>
+  <div class="step-connector"></div>
+  <div class="step-item" id="step-ind-3">
+    <span class="step-num">3</span>Notify
+  </div>
+</div>
+"""
+
+
+def render_wizard_content(state: AppState, on_close: Callable) -> None:
+    """Render wizard content inline — usable inside a bottom sheet or a standalone page."""
+    # Drag handle + step track
+    ui.html('<div class="sheet-handle"></div>')
+    ui.html(_STEP_TRACK_HTML)
+
+    with ui.column().classes("flex-1 w-full").style(
+        "padding:0 32px 0;overflow:hidden"
+    ), ui.stepper().classes("w-full").style("flex:1") as stepper:
+
+        # Step 1: Basics
+        with ui.step("Basics"):
+            name_input = ui.input(
+                "Project Name", placeholder="MomEase"
+            ).classes("w-full")
+            repo_input = ui.input(
+                "Repository Path", placeholder="/Users/you/repos/momease"
+            ).classes("w-full")
+            branch_input = ui.input(
+                "Default Branch", value="main"
+            ).classes("w-full")
+            with ui.stepper_navigation():
+                ui.button("Next", on_click=stepper.next).props("color=blue")
+
+        # Step 2: Discover Sources
+        with ui.step("Discover Sources"):
+            discovery_container = ui.column().classes("w-full")
+            discovered_sources: list[dict] = []
+
+            async def run_discovery() -> None:
+                discovery_container.clear()
+                project_name = name_input.value
+                if not project_name:
+                    with discovery_container:
+                        ui.label("Enter a project name first").classes("text-red-400")
+                    return
+                with discovery_container:
+                    ui.label("Searching...").classes("text-gray-400 italic")
+
+                results = await _discover_sources(project_name, state)
+                discovered_sources.clear()
+                discovered_sources.extend(results)
+
+                discovery_container.clear()
+                with discovery_container:
+                    if not results:
+                        ui.label(
+                            "No sources found. You can add them manually later."
+                        ).classes("text-gray-400")
+                    for r in results:
+                        cb = ui.checkbox(
+                            f"{r['source_type'].upper()}: {r['source_name']}",
+                            value=r.get("confidence", "low") != "low",
+                        )
+                        r["checkbox"] = cb
+
+            ui.button("Search", icon="search", on_click=run_discovery).props(
+                "color=blue"
+            )
+            with ui.stepper_navigation():
+                ui.button("Back", on_click=stepper.previous).props("flat")
+                ui.button("Next", on_click=stepper.next).props("color=blue")
+
+        # Step 3: Notifications
+        with ui.step("Notifications"):
+            notify_channel = ui.select(
+                options=["slack", "discord", "both"],
+                value="slack",
+                label="Notification Channel",
+            ).classes("w-full")
+            digest_time = ui.input("Digest Time", value="09:00").classes("w-full")
+            alerts_enabled = ui.checkbox("Enable urgent alerts", value=True)
+
+            with ui.stepper_navigation():
+                ui.button("Back", on_click=stepper.previous).props("flat")
+
+                async def create_project() -> None:
+                    project_id = name_input.value.lower().replace(" ", "-")
+                    state.project_store.create_project(
+                        id=project_id,
+                        name=name_input.value,
+                        repo_path=repo_input.value,
+                        default_branch=branch_input.value,
+                    )
+                    for r in discovered_sources:
+                        if hasattr(r.get("checkbox"), "value") and r["checkbox"].value:
+                            state.project_store.create_source(
+                                project_id=project_id,
+                                source_type=r["source_type"],
+                                source_id=r["source_id"],
+                                source_name=r["source_name"],
+                            )
+                    channels = (
+                        ["slack", "discord"]
+                        if notify_channel.value == "both"
+                        else [notify_channel.value]
+                    )
+                    for ch in channels:
+                        state.project_store.create_notification_rule(
+                            project_id=project_id,
+                            rule_type="digest",
+                            channel=ch,
+                            channel_target="dm",
+                            config={"schedule": digest_time.value},
+                        )
+                        if alerts_enabled.value:
+                            state.project_store.create_notification_rule(
+                                project_id=project_id,
+                                rule_type="alert",
+                                channel=ch,
+                                channel_target="dm",
+                                config={
+                                    "events": [
+                                        "urgent_issue",
+                                        "ci_failure",
+                                        "mention",
+                                        "run_failure",
+                                    ]
+                                },
+                            )
+                    ui.notify("Project created!", type="positive")
+                    on_close()
+
+                ui.button("Create Project", on_click=create_project).props(
+                    "color=green"
+                )
+
 
 def setup_wizard_page(app: FastAPI, state: AppState) -> None:
     @ui.page("/dashboard/project/new")
     async def new_project_page() -> None:
         apply_dark_theme()
 
-        # ── Header bar ────────────────────────────────
-        with ui.row().classes(
-            "header-row w-full items-center gap-3 px-6 py-2"
+        with ui.element("div").style(
+            "display:flex;flex-direction:column;height:100vh;overflow:hidden;"
+            "background:#0d0f18"
         ):
-            ui.button(
-                icon="arrow_back",
-                on_click=lambda: ui.navigate.to("/dashboard"),
-            ).props("flat dense color=grey")
-            ui.label("New Project").classes(
-                "text-base font-bold text-white"
-            )
+            # Header bar for standalone page access
+            with ui.element("div").style(
+                "display:flex;align-items:center;gap:12px;padding:12px 16px;"
+                "border-bottom:1px solid #2d3142;flex-shrink:0"
+            ):
+                ui.button(
+                    icon="arrow_back",
+                    on_click=lambda: ui.navigate.to("/dashboard"),
+                ).props("flat dense color=grey")
+                ui.label("New Project").classes("text-base font-bold text-white")
 
-        # ── Content ───────────────────────────────────
-        with ui.column().classes(
-            "w-full max-w-3xl mx-auto px-8 py-6"
-        ), ui.stepper().classes("w-full") as stepper:
-            # Step 1: Basics
-            with ui.step("Basics"):
-                name_input = ui.input(
-                    "Project Name", placeholder="MomEase"
-                ).classes("w-full")
-                repo_input = ui.input(
-                    "Repository Path", placeholder="/Users/you/repos/momease"
-                ).classes("w-full")
-                branch_input = ui.input("Default Branch", value="main").classes("w-full")
-                with ui.stepper_navigation():
-                    ui.button("Next", on_click=stepper.next).props("color=blue")
-
-            # Step 2: Discover Sources
-            with ui.step("Discover Sources"):
-                discovery_container = ui.column().classes("w-full")
-                discovered_sources: list[dict] = []
-
-                async def run_discovery() -> None:
-                    discovery_container.clear()
-                    project_name = name_input.value
-                    if not project_name:
-                        with discovery_container:
-                            ui.label("Enter a project name first").classes("text-red-400")
-                        return
-                    with discovery_container:
-                        ui.label("Searching...").classes("text-gray-400 italic")
-
-                    results = await _discover_sources(project_name, state)
-                    discovered_sources.clear()
-                    discovered_sources.extend(results)
-
-                    discovery_container.clear()
-                    with discovery_container:
-                        if not results:
-                            ui.label(
-                                "No sources found. You can add them manually later."
-                            ).classes("text-gray-400")
-                        for r in results:
-                            cb = ui.checkbox(
-                                f"{r['source_type'].upper()}: {r['source_name']}",
-                                value=r.get("confidence", "low") != "low",
-                            )
-                            r["checkbox"] = cb
-
-                ui.button("Search", icon="search", on_click=run_discovery).props("color=blue")
-                with ui.stepper_navigation():
-                    ui.button("Back", on_click=stepper.previous).props("flat")
-                    ui.button("Next", on_click=stepper.next).props("color=blue")
-
-            # Step 3: Notifications
-            with ui.step("Notifications"):
-                notify_channel = ui.select(
-                    options=["slack", "discord", "both"],
-                    value="slack",
-                    label="Notification Channel",
-                ).classes("w-full")
-                digest_time = ui.input("Digest Time", value="09:00").classes("w-full")
-                alerts_enabled = ui.checkbox("Enable urgent alerts", value=True)
-
-                with ui.stepper_navigation():
-                    ui.button("Back", on_click=stepper.previous).props("flat")
-
-                    async def create_project() -> None:
-                        project_id = name_input.value.lower().replace(" ", "-")
-                        state.project_store.create_project(
-                            id=project_id,
-                            name=name_input.value,
-                            repo_path=repo_input.value,
-                            default_branch=branch_input.value,
-                        )
-                        for r in discovered_sources:
-                            if hasattr(r.get("checkbox"), "value") and r["checkbox"].value:
-                                state.project_store.create_source(
-                                    project_id=project_id,
-                                    source_type=r["source_type"],
-                                    source_id=r["source_id"],
-                                    source_name=r["source_name"],
-                                )
-                        channels = (
-                            ["slack", "discord"]
-                            if notify_channel.value == "both"
-                            else [notify_channel.value]
-                        )
-                        for ch in channels:
-                            state.project_store.create_notification_rule(
-                                project_id=project_id,
-                                rule_type="digest",
-                                channel=ch,
-                                channel_target="dm",
-                                config={"schedule": digest_time.value},
-                            )
-                            if alerts_enabled.value:
-                                state.project_store.create_notification_rule(
-                                    project_id=project_id,
-                                    rule_type="alert",
-                                    channel=ch,
-                                    channel_target="dm",
-                                    config={
-                                        "events": [
-                                            "urgent_issue",
-                                            "ci_failure",
-                                            "mention",
-                                            "run_failure",
-                                        ]
-                                    },
-                                )
-                        ui.notify("Project created!", type="positive")
-                        ui.navigate.to(f"/dashboard/project/{project_id}")
-
-                    ui.button("Create Project", on_click=create_project).props("color=green")
+            render_wizard_content(state, lambda: ui.navigate.to("/dashboard"))
 
 
 async def _discover_sources(name: str, state: AppState) -> list[dict]:

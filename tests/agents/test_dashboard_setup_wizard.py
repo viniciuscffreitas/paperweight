@@ -328,3 +328,76 @@ def test_discover_sources_limits_slack_to_five():
 
     result = asyncio.run(_discover_sources("myproject", state))
     assert len(result) == 5
+
+
+# ---------------------------------------------------------------------------
+# render_wizard_content — embeddable function for bottom sheet
+# ---------------------------------------------------------------------------
+
+
+def test_render_wizard_content_is_exported():
+    """render_wizard_content is importable from dashboard_setup_wizard."""
+    from agents.dashboard_setup_wizard import render_wizard_content
+    assert callable(render_wizard_content)
+
+
+def test_render_wizard_content_renders_stepper():
+    """render_wizard_content creates a stepper with three steps."""
+    from agents.dashboard_setup_wizard import render_wizard_content
+
+    state = _make_mock_state()
+    on_close = MagicMock()
+
+    mock_ui = _make_ui_mock()
+    mock_ui.html.return_value = MagicMock()
+    with (
+        patch("agents.dashboard_setup_wizard.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
+        render_wizard_content(state, on_close)
+
+    mock_ui.stepper.assert_called_once()
+    step_calls = [c.args[0] for c in mock_ui.step.call_args_list]
+    assert "Basics" in step_calls
+    assert "Discover Sources" in step_calls
+    assert "Notifications" in step_calls
+
+
+def test_render_wizard_content_renders_inputs():
+    """render_wizard_content renders Project Name, Repo Path, Default Branch inputs."""
+    from agents.dashboard_setup_wizard import render_wizard_content
+
+    state = _make_mock_state()
+    on_close = MagicMock()
+
+    mock_ui = _make_ui_mock()
+    mock_ui.html.return_value = MagicMock()
+    with (
+        patch("agents.dashboard_setup_wizard.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
+        render_wizard_content(state, on_close)
+
+    input_labels = [c.args[0] for c in mock_ui.input.call_args_list]
+    assert "Project Name" in input_labels
+    assert "Repository Path" in input_labels
+    assert "Default Branch" in input_labels
+
+
+def test_render_wizard_content_renders_step_track():
+    """render_wizard_content renders the step track HTML."""
+    from agents.dashboard_setup_wizard import render_wizard_content
+
+    state = _make_mock_state()
+    on_close = MagicMock()
+
+    mock_ui = _make_ui_mock()
+    mock_ui.html.return_value = MagicMock()
+    with (
+        patch("agents.dashboard_setup_wizard.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
+        render_wizard_content(state, on_close)
+
+    html_calls = [str(c) for c in mock_ui.html.call_args_list]
+    assert any("step-track" in c for c in html_calls)

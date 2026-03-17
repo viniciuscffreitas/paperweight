@@ -244,3 +244,83 @@ def test_priority_colors_defined():
 
     for level in ("urgent", "high", "medium", "low", "none"):
         assert level in PRIORITY_COLORS
+
+
+# ---------------------------------------------------------------------------
+# render_hub_content — embeddable function for right panel
+# ---------------------------------------------------------------------------
+
+
+def test_render_hub_content_is_exported():
+    """render_hub_content is importable from dashboard_project_hub."""
+    from agents.dashboard_project_hub import render_hub_content
+    assert callable(render_hub_content)
+
+
+def test_render_hub_content_renders_project_name():
+    """render_hub_content renders the project name in the panel header."""
+    state = _make_mock_state(projects=[{"id": "p1", "name": "My Project"}])
+    on_close = MagicMock()
+
+    mock_ui = _make_ui_mock()
+    mock_ui.tabs.return_value = _make_ui_ctx_mock()
+    mock_ui.tab.return_value = _make_ui_ctx_mock()
+    mock_ui.tab_panels.return_value = _make_ui_ctx_mock()
+    mock_ui.tab_panel.return_value = _make_ui_ctx_mock()
+    mock_ui.html.return_value = MagicMock()
+
+    with (
+        patch("agents.dashboard_project_hub.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
+        from agents.dashboard_project_hub import render_hub_content
+        render_hub_content("p1", state, on_close)
+
+    label_calls = [str(c) for c in mock_ui.label.call_args_list]
+    assert any("My Project" in c for c in label_calls)
+
+
+def test_render_hub_content_renders_three_tabs():
+    """render_hub_content creates Activity, Tasks, and Runs tabs."""
+    state = _make_mock_state()
+    on_close = MagicMock()
+
+    mock_ui = _make_ui_mock()
+    tab_ctx = _make_ui_ctx_mock()
+    mock_ui.tabs.return_value = tab_ctx
+    mock_ui.tab.return_value = _make_ui_ctx_mock()
+    mock_ui.tab_panels.return_value = _make_ui_ctx_mock()
+    mock_ui.tab_panel.return_value = _make_ui_ctx_mock()
+    mock_ui.html.return_value = MagicMock()
+
+    with (
+        patch("agents.dashboard_project_hub.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
+        from agents.dashboard_project_hub import render_hub_content
+        render_hub_content("p1", state, on_close)
+
+    tab_names = [str(c) for c in mock_ui.tab.call_args_list]
+    assert any("activity" in c.lower() for c in tab_names)
+    assert any("tasks" in c.lower() for c in tab_names)
+    assert any("runs" in c.lower() for c in tab_names)
+
+
+def test_render_hub_content_project_not_found_renders_error():
+    """render_hub_content renders an error when project is not found."""
+    state = _make_mock_state()
+    state.project_store.get_project.return_value = None
+    on_close = MagicMock()
+
+    mock_ui = _make_ui_mock()
+    mock_ui.html.return_value = MagicMock()
+
+    with (
+        patch("agents.dashboard_project_hub.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
+        from agents.dashboard_project_hub import render_hub_content
+        render_hub_content("missing", state, on_close)
+
+    label_calls = [str(c) for c in mock_ui.label.call_args_list]
+    assert any("not found" in c.lower() for c in label_calls)
