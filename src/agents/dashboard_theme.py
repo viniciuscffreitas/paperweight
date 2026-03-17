@@ -163,6 +163,24 @@ body { background: #0a0c14 !important; font-family: 'JetBrains Mono', monospace;
     backdrop-filter: blur(2px) !important;
 }
 </style>
+<script>
+(function () {
+  // Quasar does not reliably forward content-style to the inner wrapper.
+  // Force right-panel width via MutationObserver so it always fills
+  // the content area (full viewport minus 160px sidebar).
+  function applyPanelWidth() {
+    var inner = document.querySelector('.q-dialog.right-panel .q-dialog__inner');
+    if (!inner) return;
+    inner.style.setProperty('width', 'calc(100vw - 160px)', 'important');
+    inner.style.setProperty('max-width', 'calc(100vw - 160px)', 'important');
+    inner.style.setProperty('align-items', 'stretch', 'important');
+  }
+  var obs = new MutationObserver(applyPanelWidth);
+  document.addEventListener('DOMContentLoaded', function () {
+    obs.observe(document.body, { childList: true, subtree: true });
+  });
+})();
+</script>
 """
 
 
