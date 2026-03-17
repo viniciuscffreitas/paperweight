@@ -374,6 +374,39 @@ async def test_list_sources(client):
 
 
 @pytest.mark.asyncio
+async def test_launch_run_accepted(client):
+    await client.post("/api/projects", json={"id": "p-run-1", "name": "Run P", "repo_path": "/r"})
+    resp = await client.post("/api/projects/p-run-1/run", json={"adhoc": True})
+    assert resp.status_code == 202
+    data = resp.json()
+    assert data["project_id"] == "p-run-1"
+    assert data["status"] == "accepted"
+    assert data["mode"] == "adhoc"
+
+
+@pytest.mark.asyncio
+async def test_launch_run_task_mode(client):
+    await client.post("/api/projects", json={"id": "p-run-2", "name": "Run P2", "repo_path": "/r"})
+    resp = await client.post("/api/projects/p-run-2/run", json={})
+    assert resp.status_code == 202
+    assert resp.json()["mode"] == "task"
+
+
+@pytest.mark.asyncio
+async def test_launch_run_project_not_found(client):
+    resp = await client.post("/api/projects/nonexistent/run", json={})
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_list_events(client):
+    await client.post("/api/projects", json={"id": "p-evt-1", "name": "Evt P", "repo_path": "/r"})
+    resp = await client.get("/api/projects/p-evt-1/events")
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+@pytest.mark.asyncio
 async def test_linear_webhook_detects_agent_issue(tmp_path):
     from unittest.mock import AsyncMock, patch
 

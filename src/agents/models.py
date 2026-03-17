@@ -41,9 +41,7 @@ class TaskConfig(BaseModel):
         if self.schedule and self.trigger:
             msg = "schedule and trigger are mutually exclusive"
             raise ValueError(msg)
-        if not self.schedule and not self.trigger:
-            msg = "Either schedule or trigger must be set"
-            raise ValueError(msg)
+        # Allow manual tasks (neither schedule nor trigger)
         return self
 
     @model_validator(mode="after")

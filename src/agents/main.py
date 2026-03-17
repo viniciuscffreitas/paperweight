@@ -57,6 +57,9 @@ def create_app(
 
     from agents.discord_notifier import DiscordRunNotifier
     from agents.linear_client import LinearClient
+    from agents.github_client import GitHubClient
+    from agents.slack_client import SlackBotClient
+    from agents.aggregator import AggregatorService
 
     linear_client = None
     discord_notifier_client = None
@@ -64,6 +67,21 @@ def create_app(
         linear_client = LinearClient(api_key=config.integrations.linear_api_key)
     if config.integrations.discord_bot_token:
         discord_notifier_client = DiscordRunNotifier(bot_token=config.integrations.discord_bot_token)
+
+    github_client = None
+    if config.integrations.github_token:
+        github_client = GitHubClient(config.integrations.github_token)
+
+    slack_bot_client = None
+    if config.integrations.slack_bot_token:
+        slack_bot_client = SlackBotClient(config.integrations.slack_bot_token)
+
+    aggregator = AggregatorService(
+        store=project_store,
+        linear_client=linear_client,
+        github_client=github_client,
+        slack_client=slack_bot_client,
+    )
 
     async def broadcast_event(run_id: str, event: StreamEvent) -> None:
         msg = event.model_dump_json()
@@ -122,6 +140,9 @@ def create_app(
         github_secret=config.webhooks.github_secret,
         linear_secret=config.webhooks.linear_secret,
         project_store=project_store,
+        github_client=github_client,
+        slack_bot_client=slack_bot_client,
+        aggregator=aggregator,
     )
 
     @asynccontextmanager
@@ -155,7 +176,10 @@ def create_app(
         register_jobs(scheduler, state.projects, scheduled_run)
         scheduler.start()
         logger.info("Scheduler started with %d jobs", len(scheduler.get_jobs()))
+        aggregator_task = asyncio.create_task(aggregator.start(poll_interval_seconds=300))
         yield
+        aggregator.stop()
+        aggregator_task.cancel()
         scheduler.shutdown(wait=False)
         await state.executor.shutdown()
         logger.info("Shutdown complete")

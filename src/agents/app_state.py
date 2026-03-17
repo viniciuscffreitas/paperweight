@@ -1,5 +1,6 @@
 """Shared application state container."""
 import asyncio
+from typing import TYPE_CHECKING
 
 from fastapi import WebSocket
 
@@ -9,6 +10,11 @@ from agents.history import HistoryDB
 from agents.models import ProjectConfig
 from agents.notifier import Notifier
 from agents.project_store import ProjectStore
+
+if TYPE_CHECKING:
+    from agents.aggregator import AggregatorService
+    from agents.github_client import GitHubClient
+    from agents.slack_client import SlackBotClient
 
 
 class AppState:
@@ -22,6 +28,9 @@ class AppState:
         github_secret: str,
         linear_secret: str,
         project_store: ProjectStore | None = None,
+        github_client: "GitHubClient | None" = None,
+        slack_bot_client: "SlackBotClient | None" = None,
+        aggregator: "AggregatorService | None" = None,
     ) -> None:
         self.projects = projects
         self.executor = executor
@@ -31,6 +40,9 @@ class AppState:
         self.github_secret = github_secret
         self.linear_secret = linear_secret
         self.project_store = project_store
+        self.github_client = github_client
+        self.slack_bot_client = slack_bot_client
+        self.aggregator = aggregator
         self._semaphore: asyncio.Semaphore | None = None
         self._repo_semaphores: dict[str, asyncio.Semaphore] = {}
         self.ws_clients: dict[str, set[WebSocket]] = {}

@@ -74,3 +74,25 @@ def register_project_hub_routes(app: FastAPI, state: AppState) -> None:
     @app.delete("/api/sources/{source_id}", status_code=204)
     async def delete_source_api(source_id: str) -> None:
         state.project_store.delete_source(source_id)
+
+    # --- Run Launcher ---
+
+    @app.post("/api/projects/{project_id}/run", status_code=202)
+    async def launch_run(project_id: str, data: dict) -> dict:
+        project = state.project_store.get_project(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        # For now, return a placeholder — full executor integration will come later
+        return {
+            "project_id": project_id,
+            "status": "accepted",
+            "mode": "adhoc" if data.get("adhoc") else "task",
+        }
+
+    # --- Events Feed ---
+
+    @app.get("/api/projects/{project_id}/events")
+    async def list_events_api(
+        project_id: str, source: str | None = None, limit: int = 100
+    ) -> list[dict]:
+        return state.project_store.list_events(project_id, source=source, limit=limit)

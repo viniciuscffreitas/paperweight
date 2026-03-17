@@ -38,11 +38,13 @@ def test_task_config_schedule_and_trigger_mutually_exclusive():
         )
 
 
-def test_task_config_requires_schedule_or_trigger():
+def test_task_config_allows_manual_no_schedule_no_trigger() -> None:
+    """Manual tasks have neither schedule nor trigger — this is now valid."""
     from agents.models import TaskConfig
 
-    with pytest.raises(ValueError, match=r"schedule.*trigger"):
-        TaskConfig(description="test", prompt="do something")
+    task = TaskConfig(description="Manual task", intent="Do something")
+    assert task.schedule is None
+    assert task.trigger is None
 
 
 def test_project_config_creation():
