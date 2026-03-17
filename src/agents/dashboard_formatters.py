@@ -160,6 +160,53 @@ def format_event_html(data: dict) -> str:
     )
 
 
+STREAM_COLORS: dict[str, str] = {
+    "task_started": "#22d3ee",
+    "task_completed": "#4ade80",
+    "task_failed": "#f87171",
+    "dry_run": "#fbbf24",
+    "tool_use": "#d4d4d8",
+    "tool_result": "#6b7280",
+    "assistant": "#a1a1aa",
+    "result": "#4ade80",
+    "system": "#22d3ee",
+    "unknown": "#6b7280",
+}
+
+
+def format_stream_html(data: dict) -> str:
+    """Colored HTML line for the live stream panel. No emoji, no timestamp column."""
+    short = short_run_id(data.get("run_id", "?"))
+    event_type = data.get("type", "")
+    content = str(data.get("content") or "")
+    tool_name = data.get("tool_name") or ""
+    color = STREAM_COLORS.get(event_type, "#6b7280")
+
+    if event_type == "tool_use":
+        label = _format_tool_use(tool_name, content)
+    elif event_type == "tool_result":
+        label = _format_tool_result(content)
+    elif event_type == "assistant":
+        label = _shorten_path(content)
+        if len(label) > 120:
+            label = label[:120] + "\u2026"
+    elif event_type in ("task_started", "task_completed", "task_failed", "dry_run"):
+        label = content
+    elif event_type == "system":
+        label = "session started"
+    elif event_type == "result":
+        label = "done"
+    else:
+        label = f"{event_type}: {_shorten_path(content)[:80]}"
+
+    return (
+        "<div style='display:flex;gap:6px;padding:1px 0;font-size:12px;font-family:monospace'>"
+        f"<span style='color:#6b7280;flex-shrink:0'>[{short}]</span>"
+        f"<span style='color:{color};word-break:break-all'>{label}</span>"
+        "</div>"
+    )
+
+
 def build_history_rows(runs: list) -> list[dict]:
     from datetime import UTC, datetime
 
