@@ -101,10 +101,10 @@ class AggregatorService:
     def __init__(
         self,
         *,
-        store: Any,
-        linear_client: Any = None,
-        github_client: Any = None,
-        slack_client: Any = None,
+        store: Any,  # noqa: ANN401
+        linear_client: Any = None,  # noqa: ANN401
+        github_client: Any = None,  # noqa: ANN401
+        slack_client: Any = None,  # noqa: ANN401
     ) -> None:
         self.store = store
         self.linear_client = linear_client

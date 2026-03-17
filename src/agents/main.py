@@ -55,18 +55,20 @@ def create_app(
     notifier = Notifier(webhook_url=config.notifications.slack_webhook_url)
     project_store = ProjectStore(data_dir / "project_hub.db")
 
-    from agents.discord_notifier import DiscordRunNotifier
-    from agents.linear_client import LinearClient
-    from agents.github_client import GitHubClient
-    from agents.slack_client import SlackBotClient
     from agents.aggregator import AggregatorService
+    from agents.discord_notifier import DiscordRunNotifier
+    from agents.github_client import GitHubClient
+    from agents.linear_client import LinearClient
+    from agents.slack_client import SlackBotClient
 
     linear_client = None
     discord_notifier_client = None
     if config.integrations.linear_api_key:
         linear_client = LinearClient(api_key=config.integrations.linear_api_key)
     if config.integrations.discord_bot_token:
-        discord_notifier_client = DiscordRunNotifier(bot_token=config.integrations.discord_bot_token)
+        discord_notifier_client = DiscordRunNotifier(
+            bot_token=config.integrations.discord_bot_token
+        )
 
     github_client = None
     if config.integrations.github_token:
@@ -295,7 +297,9 @@ def create_app(
     ) -> Response | dict[str, str]:
         body = await request.body()
         signature = request.headers.get("Linear-Signature", "")
-        if state.linear_secret and not verify_linear_signature(body, signature, state.linear_secret):
+        if state.linear_secret and not verify_linear_signature(
+            body, signature, state.linear_secret
+        ):
             return Response(status_code=401, content="Invalid signature")
         payload = await request.json()
         event_type = payload.get("type", "")
@@ -318,8 +322,9 @@ def create_app(
 
                     background_tasks.add_task(_run)
 
-        from agents.webhooks.linear import match_agent_issue, extract_agent_issue_variables
         import time as _time
+
+        from agents.webhooks.linear import extract_agent_issue_variables, match_agent_issue
 
         if match_agent_issue(payload):
             variables = extract_agent_issue_variables(payload)
@@ -328,11 +333,19 @@ def create_app(
             now = _time.time()
             last_seen = state._agent_issue_seen.get(issue_id, 0)
             if now - last_seen < 120:
-                logger.info("Cooldown: skipping agent issue %s (seen %.0fs ago)", issue_id, now - last_seen)
+                logger.info(
+                    "Cooldown: skipping agent issue %s (seen %.0fs ago)",
+                    issue_id,
+                    now - last_seen,
+                )
             else:
                 existing = state.history.find_run_by_issue_id(issue_id)
                 if existing and existing.status in ("running", "success"):
-                    logger.info("Dedup: skipping agent issue %s — already %s", issue_id, existing.status)
+                    logger.info(
+                        "Dedup: skipping agent issue %s — already %s",
+                        issue_id,
+                        existing.status,
+                    )
                 else:
                     for project in state.projects.values():
                         if project.linear_team_id == team_id and "issue-resolver" in project.tasks:
@@ -346,7 +359,9 @@ def create_app(
                                     state.get_semaphore(config.execution.max_concurrent),
                                     state.get_repo_semaphore(p.repo),
                                 ):
-                                    await state.executor.run_task(p, "issue-resolver", trigger_type="linear", variables=v)
+                                    await state.executor.run_task(
+                                        p, "issue-resolver", trigger_type="linear", variables=v
+                                    )
 
                             background_tasks.add_task(_run_agent)
                             break

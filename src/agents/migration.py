@@ -7,7 +7,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-def migrate_yaml_projects(projects: Any, store: Any) -> int:
+def migrate_yaml_projects(projects: Any, store: Any) -> int:  # noqa: ANN401
     migrated = 0
     for project_id, config in projects.items():
         if store.get_project(project_id):

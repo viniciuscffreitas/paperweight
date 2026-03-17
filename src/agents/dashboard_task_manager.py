@@ -2,12 +2,17 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING
 
 from nicegui import ui
 
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
-def setup_task_manager(app: Any, state: Any) -> None:
+    from agents.app_state import AppState
+
+
+def setup_task_manager(app: FastAPI, state: AppState) -> None:
     @ui.page("/dashboard/project/{project_id}/tasks")
     async def tasks_page(project_id: str) -> None:
         project = state.project_store.get_project(project_id)
@@ -51,7 +56,7 @@ def setup_task_manager(app: Any, state: Any) -> None:
 
 
 def _render_task_row(
-    task: dict, project_id: str, state: Any, refresh_fn: Callable[[], None]
+    task: dict, project_id: str, state: AppState, refresh_fn: Callable[[], None]
 ) -> None:
     enabled = bool(task.get("enabled", 1))
     bg = "bg-gray-800" if enabled else "bg-gray-900 opacity-50"
@@ -81,7 +86,7 @@ def _render_task_row(
 
 def _build_task_edit_dialog(
     project_id: str,
-    state: Any,
+    state: AppState,
     refresh_fn: Callable[[], None],
     task: dict | None = None,
 ) -> ui.dialog:

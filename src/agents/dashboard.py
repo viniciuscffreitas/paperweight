@@ -201,17 +201,22 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         ui.add_head_html(_DASHBOARD_CSS)
 
         # Migration prompt: offer to import YAML projects not yet in the store
-        if hasattr(state, 'projects') and state.projects and hasattr(state, 'project_store') and state.project_store:
+        if (
+            hasattr(state, 'projects') and state.projects
+            and hasattr(state, 'project_store') and state.project_store
+        ):
             stored_ids = {p["id"] for p in state.project_store.list_projects()}
             unmigrated = [name for name in state.projects if name not in stored_ids]
             if unmigrated:
                 with ui.dialog() as migration_dialog, ui.card().classes("w-96"):
                     ui.label("Import Projects").classes("text-lg font-bold")
-                    ui.label(f"Found {len(unmigrated)} project(s) in YAML not yet imported.").classes("text-sm text-gray-300")
+                    ui.label(
+                        f"Found {len(unmigrated)} project(s) in YAML not yet imported."
+                    ).classes("text-sm text-gray-300")
                     for name in unmigrated:
                         ui.label(f"  • {name}").classes("text-sm text-gray-400")
 
-                    async def do_migrate():
+                    async def do_migrate() -> None:
                         from agents.migration import migrate_yaml_projects
                         count = migrate_yaml_projects(state.projects, state.project_store)
                         ui.notify(f"Imported {count} project(s)!", type="positive")
@@ -330,14 +335,22 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         ):
             # Sidebar: Project List
             with ui.column().classes("h-full px-3 py-2").style(
-                "width:180px;flex-shrink:0;background:#0d0f18;border-right:1px solid #1e2130;overflow-y:auto"
+                "width:180px;flex-shrink:0;background:#0d0f18;"
+                "border-right:1px solid #1e2130;overflow-y:auto"
             ):
-                ui.button("+ New Project", on_click=lambda: ui.navigate.to("/dashboard/project/new")).props("color=blue dense flat").classes("w-full mb-2")
+                ui.button(
+                    "+ New Project",
+                    on_click=lambda: ui.navigate.to("/dashboard/project/new"),
+                ).props("color=blue dense flat").classes("w-full mb-2")
                 projects = state.project_store.list_projects() if state.project_store else []
                 if projects:
-                    ui.label("Projects").classes("text-xs text-gray-500 uppercase tracking-wide mb-1")
+                    ui.label("Projects").classes(
+                        "text-xs text-gray-500 uppercase tracking-wide mb-1"
+                    )
                     for p in projects:
-                        ui.link(p["name"], f"/dashboard/project/{p['id']}").classes("text-sm text-blue-400 hover:text-blue-300 block py-0.5")
+                        ui.link(p["name"], f"/dashboard/project/{p['id']}").classes(
+                            "text-sm text-blue-400 hover:text-blue-300 block py-0.5"
+                        )
                     ui.separator().classes("my-2")
 
             ui.html('<div class="panel-divider"></div>')

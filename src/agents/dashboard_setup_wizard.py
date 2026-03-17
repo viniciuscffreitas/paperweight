@@ -1,12 +1,17 @@
 """Project setup wizard — create and configure projects via dashboard."""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 from nicegui import ui
 
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
-def setup_wizard_page(app: Any, state: Any) -> None:
+    from agents.app_state import AppState
+
+
+def setup_wizard_page(app: FastAPI, state: AppState) -> None:
     @ui.page("/dashboard/project/new")
     async def new_project_page() -> None:
         ui.label("New Project").classes("text-2xl font-bold text-white mb-4")
@@ -125,7 +130,7 @@ def setup_wizard_page(app: Any, state: Any) -> None:
                     ui.button("Create Project", on_click=create_project).props("color=green")
 
 
-async def _discover_sources(name: str, state: Any) -> list[dict]:
+async def _discover_sources(name: str, state: AppState) -> list[dict]:
     """Run auto-discovery across all configured integrations."""
     results: list[dict] = []
     query = name.lower().replace(" ", "").replace("-", "")

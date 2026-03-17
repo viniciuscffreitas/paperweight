@@ -42,9 +42,7 @@ def match_agent_issue(payload: dict) -> bool:
         return False
     data = payload.get("data", {})
     labels = data.get("labels", [])
-    if any(label.get("name") == "agent" for label in labels if isinstance(label, dict)):
-        return True
-    return False
+    return any(label.get("name") == "agent" for label in labels if isinstance(label, dict))
 
 
 def extract_agent_issue_variables(payload: dict) -> dict[str, str]:

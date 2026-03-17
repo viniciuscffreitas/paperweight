@@ -1,9 +1,14 @@
 """Project Hub dashboard page — aggregated project view."""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 from nicegui import ui
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
+
+    from agents.app_state import AppState
 
 SOURCE_ICONS = {
     "linear": "task_alt",
@@ -26,7 +31,7 @@ PRIORITY_COLORS = {
 }
 
 
-def setup_project_hub(app: Any, state: Any) -> None:
+def setup_project_hub(app: FastAPI, state: AppState) -> None:
     @ui.page("/dashboard/project/{project_id}")
     async def project_page(project_id: str) -> None:
         project = state.project_store.get_project(project_id)
@@ -98,7 +103,7 @@ def _render_event_card(event: dict) -> None:
 
 
 def _render_source_section(
-    label: str, source: str, project_id: str, state: Any
+    label: str, source: str, project_id: str, state: AppState
 ) -> None:
     with ui.expansion(label, icon=SOURCE_ICONS.get(source, "info")).classes(
         "w-full bg-gray-900 rounded"
@@ -111,7 +116,7 @@ def _render_source_section(
                 _render_event_card(event)
 
 
-def _render_runs_section(project_id: str, state: Any) -> None:
+def _render_runs_section(project_id: str, state: AppState) -> None:
     with ui.expansion("Runs", icon="smart_toy").classes("w-full bg-gray-900 rounded"):
         try:
             runs = [r for r in state.history.list_runs_today() if r.project == project_id]
@@ -135,7 +140,7 @@ def _render_runs_section(project_id: str, state: Any) -> None:
                         ui.link("PR", run.pr_url).classes("text-xs")
 
 
-def _build_run_dialog(project_id: str, state: Any) -> ui.dialog:
+def _build_run_dialog(project_id: str, state: AppState) -> ui.dialog:
     dialog = ui.dialog()
     with dialog, ui.card().classes("w-96"):
         ui.label("Launch Run").classes("text-lg font-bold")
@@ -157,7 +162,7 @@ def _build_run_dialog(project_id: str, state: Any) -> ui.dialog:
     return dialog
 
 
-def _build_task_dialog(project_id: str, state: Any) -> ui.dialog:
+def _build_task_dialog(project_id: str, state: AppState) -> ui.dialog:
     dialog = ui.dialog()
     with dialog, ui.card().classes("w-96"):
         ui.label("Create Task").classes("text-lg font-bold")

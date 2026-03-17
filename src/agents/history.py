@@ -154,7 +154,8 @@ class HistoryDB:
     def list_events(self, run_id: str) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
-                "SELECT run_id, type, content, tool_name, timestamp FROM run_events WHERE run_id = ? ORDER BY timestamp ASC, id ASC",
+                "SELECT run_id, type, content, tool_name, timestamp"
+                " FROM run_events WHERE run_id = ? ORDER BY timestamp ASC, id ASC",
                 (run_id,),
             ).fetchall()
         return [
@@ -171,7 +172,8 @@ class HistoryDB:
     def find_run_by_issue_id(self, issue_id: str) -> RunRecord | None:
         with self._conn() as conn:
             row = conn.execute(
-                "SELECT * FROM runs WHERE task = 'issue-resolver' AND id LIKE ? ORDER BY started_at DESC LIMIT 1",
+                "SELECT * FROM runs WHERE task = 'issue-resolver'"
+                " AND id LIKE ? ORDER BY started_at DESC LIMIT 1",
                 (f"%{issue_id}%",),
             ).fetchone()
         if row is None:

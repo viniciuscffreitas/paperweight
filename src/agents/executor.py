@@ -54,7 +54,11 @@ def parse_claude_output(raw: str) -> ClaudeOutput:
 
 
 def write_progress_log(
-    progress_dir: Path, issue_id: str, attempt: int, issue_title: str = "", issue_description: str = ""
+    progress_dir: Path,
+    issue_id: str,
+    attempt: int,
+    issue_title: str = "",
+    issue_description: str = "",
 ) -> Path:
     progress_dir.mkdir(parents=True, exist_ok=True)
     path = progress_dir / f"{issue_id}.txt"
@@ -145,7 +149,9 @@ class Executor:
             title = variables.get("issue_title", "")
             try:
                 await self.linear_client.update_status(issue_id, team_id, "In Progress")
-                await self.linear_client.post_comment(issue_id, "\U0001f916 Agente iniciou execução")
+                await self.linear_client.post_comment(
+                    issue_id, "\U0001f916 Agente iniciou execução"
+                )
             except Exception:
                 logger.warning("Failed to update Linear for %s", issue_id)
             if self.discord_notifier and project.discord_channel_id:
@@ -299,13 +305,23 @@ class Executor:
             await self.notifier.send_budget_warning(status)
         return run
 
-    async def _finalize_agent_success(self, project, variables, discord_msg_id, run):
+    async def _finalize_agent_success(
+        self,
+        project: ProjectConfig,
+        variables: dict[str, str],
+        discord_msg_id: str,
+        run: RunRecord,
+    ) -> None:
         issue_id = variables.get("issue_id", "")
         team_id = variables.get("team_id", "")
         identifier = variables.get("issue_identifier", "")
         title = variables.get("issue_title", "")
         try:
-            comment = f"\u2705 PR criado: {run.pr_url}" if run.pr_url else "\u2705 Concluído (sem alterações)"
+            comment = (
+                f"\u2705 PR criado: {run.pr_url}"
+                if run.pr_url
+                else "\u2705 Concluído (sem alterações)"
+            )
             await self.linear_client.post_comment(issue_id, comment)
             if run.pr_url:
                 await self.linear_client.update_status(issue_id, team_id, "In Review")
@@ -314,7 +330,9 @@ class Executor:
             logger.warning("Failed to finalize Linear for %s", issue_id)
         if self.discord_notifier and discord_msg_id and project.discord_channel_id:
             try:
-                duration_s = (run.finished_at - run.started_at).total_seconds() if run.finished_at else 0
+                duration_s = (
+                    (run.finished_at - run.started_at).total_seconds() if run.finished_at else 0
+                )
                 await self.discord_notifier.finalize_run_message(
                     project.discord_channel_id, discord_msg_id, identifier, title, [],
                     pr_url=run.pr_url, cost=run.cost_usd or 0.0, duration_s=duration_s,
@@ -322,21 +340,33 @@ class Executor:
             except Exception:
                 logger.warning("Failed to finalize Discord for %s", issue_id)
 
-    async def _fail_agent_run(self, project, variables, discord_msg_id, run, attempt, max_attempts):
+    async def _fail_agent_run(
+        self,
+        project: ProjectConfig,
+        variables: dict[str, str],
+        discord_msg_id: str,
+        run: RunRecord,
+        attempt: int,
+        max_attempts: int,
+    ) -> None:
         issue_id = variables.get("issue_id", "")
         team_id = variables.get("team_id", "")
         identifier = variables.get("issue_identifier", "")
         title = variables.get("issue_title", "")
         try:
             await self.linear_client.post_comment(
-                issue_id, f"\u274c Falha após {max_attempts} tentativas:\n{run.error_message or 'Unknown error'}"
+                issue_id,
+                f"\u274c Falha após {max_attempts} tentativas:\n"
+                f"{run.error_message or 'Unknown error'}",
             )
             await self.linear_client.update_status(issue_id, team_id, "Todo")
         except Exception:
             logger.warning("Failed to report failure to Linear for %s", issue_id)
         if self.discord_notifier and discord_msg_id and project.discord_channel_id:
             try:
-                duration_s = (run.finished_at - run.started_at).total_seconds() if run.finished_at else 0
+                duration_s = (
+                    (run.finished_at - run.started_at).total_seconds() if run.finished_at else 0
+                )
                 await self.discord_notifier.fail_run_message(
                     project.discord_channel_id, discord_msg_id, identifier, title, [],
                     error=run.error_message or "", attempt=attempt, max_attempts=max_attempts,

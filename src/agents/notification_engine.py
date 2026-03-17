@@ -12,9 +12,9 @@ class NotificationEngine:
     def __init__(
         self,
         *,
-        store: Any,
-        slack_notifier: Any = None,
-        discord_notifier: Any = None,
+        store: Any,  # noqa: ANN401
+        slack_notifier: Any = None,  # noqa: ANN401
+        discord_notifier: Any = None,  # noqa: ANN401
     ) -> None:
         self.store = store
         self.slack_notifier = slack_notifier

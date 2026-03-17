@@ -144,7 +144,7 @@ class ProjectStore:
         now = datetime.now(UTC).isoformat()
         updates["updated_at"] = now
         set_clause = ", ".join(f"{k} = ?" for k in updates)
-        values = list(updates.values()) + [project_id]
+        values = [*list(updates.values()), project_id]
         with self._conn() as conn:
             conn.execute(
                 f"UPDATE projects SET {set_clause} WHERE id = ?", values
@@ -282,7 +282,7 @@ class ProjectStore:
         now = datetime.now(UTC).isoformat()
         updates["updated_at"] = now
         set_clause = ", ".join(f"{k} = ?" for k in updates)
-        values = list(updates.values()) + [task_id]
+        values = [*list(updates.values()), task_id]
         with self._conn() as conn:
             conn.execute(
                 f"UPDATE tasks SET {set_clause} WHERE id = ?", values
