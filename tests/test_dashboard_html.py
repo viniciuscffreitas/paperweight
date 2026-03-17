@@ -204,6 +204,33 @@ def test_dashboard_table_has_overflow_scroll(app_with_dashboard):
     assert b"overflow-x" in resp.content
 
 
+def test_dashboard_has_skip_link(app_with_dashboard):
+    resp = app_with_dashboard.get("/dashboard")
+    assert b"main-content" in resp.content
+
+
+def test_dashboard_has_bottom_nav(app_with_dashboard):
+    resp = app_with_dashboard.get("/dashboard")
+    assert b"bottom-nav" in resp.content
+
+
+def test_dashboard_hamburger_has_aria_label(app_with_dashboard):
+    resp = app_with_dashboard.get("/dashboard")
+    assert b"Abrir menu" in resp.content
+
+
+def test_dashboard_has_drag_handle(app_with_dashboard):
+    # sheet-handle lives in base.html (panel shell), not in the hub fragment
+    resp = app_with_dashboard.get("/dashboard")
+    assert b"sheet-handle" in resp.content
+
+
+def test_dashboard_main_element_has_id_for_skip_link(app_with_dashboard):
+    """The skip-link target id='main-content' must be on the <main> element."""
+    resp = app_with_dashboard.get("/dashboard")
+    assert b'id="main-content"' in resp.content
+
+
 def test_main_imports_dashboard_html_not_nicegui():
     """main.py must import from dashboard_html, not from dashboard (NiceGUI)."""
     import inspect

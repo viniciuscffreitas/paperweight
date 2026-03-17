@@ -43,7 +43,8 @@
           onmouseover="this.style.background='#1e2130'"
           onmouseout="this.style.background='transparent'">
         <td style="padding:8px 8px;">
-          <span class="status-dot {{ r.raw_status }}"></span>
+          <span class="status-dot {{ r.raw_status }}" aria-hidden="true"></span>
+          <span class="sr-only">{{ r.status }}</span>
         </td>
         <td style="padding:8px 8px;color:#9ca3af;">{{ r.project }}</td>
         <td style="padding:8px 8px;color:#e5e7eb;">{{ r.task }}</td>
@@ -60,14 +61,14 @@
     </tbody>
   </table>
   {% else %}
-  <div style="padding:32px;text-align:center;color:#4b5563;font-size:13px;font-style:italic;">
+  <div style="padding:32px;text-align:center;color:#6b7280;font-size:13px;font-style:italic;">
     No runs today
   </div>
   {% endif %}
 </div>
 
 <!-- Live stream panel -->
-<div class="live-stream-panel" style="flex-shrink:0;border-top:1px solid #1e2130;display:flex;flex-direction:column;">
+<div class="live-stream-panel" style="height:180px;flex-shrink:0;border-top:1px solid #1e2130;display:flex;flex-direction:column;">
   <div style="padding:6px 16px;font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid #1e2130;flex-shrink:0;">
     Live Stream
   </div>

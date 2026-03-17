@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,6 +22,8 @@
   <style>
     * { font-family: "Ubuntu Mono", monospace; }
     html, body { margin: 0; padding: 0; height: 100%; background: #0d0f18; color: #e5e7eb; }
+
+    /* ── Status dots ── */
     .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; flex-shrink:0; }
     .status-dot.running  { background: #3b82f6; }
     .status-dot.success  { background: #4ade80; }
@@ -29,8 +31,22 @@
     .status-dot.failed   { background: #f87171; }
     .status-dot.timeout  { background: #fb923c; }
     .status-dot.cancelled{ background: #6b7280; }
+
+    /* ── Animations ── */
     @keyframes live-pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
     .live-pulse { animation: live-pulse 1.4s ease-in-out infinite; }
+
+    /* ── Accessibility ── */
+    .sr-only {
+      position: absolute; width: 1px; height: 1px;
+      padding: 0; margin: -1px; overflow: hidden;
+      clip: rect(0,0,0,0); white-space: nowrap; border-width: 0;
+    }
+    :focus-visible {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+      border-radius: 3px;
+    }
 
     /* ── Mobile: sidebar off-canvas drawer ── */
     @media (max-width: 767px) {
@@ -40,52 +56,106 @@
         height: 100%;
         z-index: 100;
         transform: translateX(-160px);
-        transition: transform 0.2s ease;
-        box-shadow: none;
+        transition: transform 0.22s ease;
       }
       #sidebar.sidebar-open {
         transform: translateX(0);
-        box-shadow: 4px 0 24px rgba(0,0,0,0.6);
+        box-shadow: 4px 0 24px rgba(0,0,0,0.65);
       }
       #sidebar-backdrop {
         display: none;
-        position: fixed;
-        inset: 0;
+        position: fixed; inset: 0;
         background: rgba(0,0,0,0.45);
         z-index: 99;
         cursor: pointer;
       }
       #sidebar-backdrop.sidebar-open { display: block; }
       #hamburger-btn { display: flex !important; }
-      #right-panel { left: 0 !important; }
+
+      /* ── Bottom sheet: right panel slides up from bottom ── */
+      /* display is controlled by JS; these override inline position/size */
+      #right-panel {
+        top: auto !important;
+        bottom: 52px !important; /* above bottom nav */
+        left: 0 !important;
+        right: 0 !important;
+        height: 85vh !important;
+        border-left: none !important;
+        border-top: 1px solid #2d3142 !important;
+        border-radius: 12px 12px 0 0 !important;
+        transform: translateY(110%);
+        transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+      }
+      #right-panel.sheet-open {
+        transform: translateY(0);
+      }
+      #panel-backdrop {
+        display: none;
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.45);
+        z-index: 48;
+      }
+      #panel-backdrop.panel-open { display: block; }
+      #sheet-handle { display: flex !important; }
+
+      /* ── Bottom nav ── */
+      #bottom-nav { display: flex !important; }
+      main { padding-bottom: 52px; }
     }
 
-    /* ── Desktop: sidebar always visible ── */
+    /* ── Desktop: sidebar always visible, side panel ── */
     @media (min-width: 768px) {
       #sidebar { transform: none !important; }
       #sidebar-backdrop { display: none !important; }
       #hamburger-btn { display: none !important; }
+      #sheet-handle { display: none !important; }
+      #bottom-nav { display: none !important; }
+      #panel-backdrop { display: none !important; }
     }
   </style>
 </head>
 <body class="flex h-screen overflow-hidden">
 
-  <!-- Sidebar backdrop (mobile only, closes drawer on tap) -->
-  <div id="sidebar-backdrop" onclick="closeSidebar()"></div>
+  <!-- Skip to main content (WCAG 2.4.1) -->
+  <a href="#main-content"
+     class="sr-only"
+     style="position:absolute;top:8px;left:8px;z-index:200;padding:6px 12px;
+            background:#3b82f6;color:#fff;border-radius:4px;font-size:12px;
+            text-decoration:none;"
+     onfocus="this.classList.remove('sr-only')"
+     onblur="this.classList.add('sr-only')">
+    Pular para o conteúdo
+  </a>
+
+  <!-- Sidebar backdrop (mobile) -->
+  <div id="sidebar-backdrop" onclick="closeSidebar()" aria-hidden="true"></div>
+
+  <!-- Panel backdrop (mobile bottom sheet) -->
+  <div id="panel-backdrop" onclick="closePanel()" aria-hidden="true"></div>
 
   <!-- Sidebar -->
-  <nav id="sidebar" style="width:160px;min-width:160px;background:#0d0f18;border-right:1px solid #1e2130;display:flex;flex-direction:column;flex-shrink:0;">
+  <nav id="sidebar"
+       role="navigation"
+       aria-label="Menu principal"
+       style="width:160px;min-width:160px;background:#0d0f18;border-right:1px solid #1e2130;
+              display:flex;flex-direction:column;flex-shrink:0;">
     <div style="padding:16px 12px;border-bottom:1px solid #1e2130;">
       <span style="font-size:11px;font-weight:700;letter-spacing:2px;color:#6b7280;text-transform:uppercase;">paperweight</span>
     </div>
     <div style="padding:8px 0;flex:1;overflow-y:auto;">
-      <div style="padding:4px 12px;font-size:9px;color:#4b5563;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">Projects</div>
+      <div style="padding:4px 12px;font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;"
+           aria-hidden="true">Projects</div>
       {% for p in projects %}
       <div hx-get="/hub/{{ p.id }}"
            hx-target="#panel-content"
            hx-on::after-request="openPanel()"
            onclick="closeSidebar()"
-           style="padding:8px 12px;font-size:12px;color:#9ca3af;cursor:pointer;border-radius:4px;margin:1px 6px;transition:background .15s;"
+           role="button"
+           tabindex="0"
+           aria-label="Abrir projeto {{ p.name }}"
+           onkeydown="if(event.key==='Enter'||event.key===' '){this.click()}"
+           style="padding:8px 12px;font-size:12px;color:#9ca3af;cursor:pointer;border-radius:4px;
+                  margin:1px 6px;transition:background .15s;"
            onmouseover="this.style.background='#1e2130';this.style.color='#e5e7eb'"
            onmouseout="this.style.background='transparent';this.style.color='#9ca3af'">
         {{ p.name }}
@@ -93,56 +163,192 @@
       {% endfor %}
     </div>
     <div style="padding:8px 12px;border-top:1px solid #1e2130;">
-      <a href="/dashboard" style="font-size:11px;color:#4b5563;text-decoration:none;letter-spacing:.5px;">Dashboard</a>
+      <a href="/dashboard"
+         style="font-size:11px;color:#9ca3af;text-decoration:none;letter-spacing:.5px;"
+         aria-label="Ir para o Dashboard">Dashboard</a>
     </div>
   </nav>
 
   <!-- Main content -->
-  <main style="flex:1;overflow:hidden;display:flex;flex-direction:column;min-width:0;">
+  <main id="main-content"
+        role="main"
+        style="flex:1;overflow:hidden;display:flex;flex-direction:column;min-width:0;">
 
     <!-- Hamburger bar (mobile only) -->
     <div id="hamburger-btn"
          style="display:none;align-items:center;gap:10px;padding:10px 14px;
                 border-bottom:1px solid #1e2130;flex-shrink:0;background:#0d0f18;">
-      <button onclick="toggleSidebar()"
-              style="background:transparent;border:none;color:#9ca3af;cursor:pointer;
-                     font-size:16px;padding:2px 4px;line-height:1;font-family:inherit;
+      <button id="hamburger-toggle"
+              onclick="toggleSidebar()"
+              aria-label="Abrir menu"
+              aria-expanded="false"
+              aria-controls="sidebar"
+              style="background:transparent;border:1px solid transparent;color:#9ca3af;cursor:pointer;
+                     font-size:16px;padding:4px 6px;line-height:1;font-family:inherit;
                      border-radius:3px;transition:color .15s;"
               onmouseover="this.style.color='#e5e7eb'"
-              onmouseout="this.style.color='#9ca3af'"
-              aria-label="Toggle menu">☰</button>
-      <span style="font-size:10px;letter-spacing:2px;color:#4b5563;text-transform:uppercase;">paperweight</span>
+              onmouseout="this.style.color='#9ca3af'">☰</button>
+      <span style="font-size:10px;letter-spacing:2px;color:#6b7280;text-transform:uppercase;"
+            aria-hidden="true">paperweight</span>
     </div>
 
     {% block content %}{% endblock %}
   </main>
 
-  <!-- Right panel (position:fixed, full viewport height) -->
-  <!-- Note: display:none via inline style only — no Tailwind 'hidden' class so JS style toggle works -->
+  <!-- Right panel / Bottom sheet -->
   <div id="right-panel"
+       role="dialog"
+       aria-label="Detalhes do projeto"
+       aria-modal="true"
        style="display:none;position:fixed;top:0;bottom:0;right:0;left:160px;
               background:#0d0f18;border-left:1px solid #2d3142;
               z-index:50;flex-direction:column;">
-    <div id="panel-content" style="display:flex;flex-direction:column;height:100%;"></div>
+
+    <!-- Drag handle (mobile only) -->
+    <div id="sheet-handle"
+         style="display:none;justify-content:center;align-items:center;
+                padding:10px 0 6px;flex-shrink:0;cursor:grab;"
+         aria-hidden="true">
+      <div style="width:36px;height:4px;border-radius:2px;background:#2d3142;"></div>
+    </div>
+
+    <div id="panel-content" style="display:flex;flex-direction:column;height:100%;overflow:hidden;"></div>
   </div>
 
+  <!-- Bottom navigation (mobile only) -->
+  <nav id="bottom-nav"
+       role="navigation"
+       aria-label="Navegação inferior"
+       style="display:none;position:fixed;bottom:0;left:0;right:0;height:52px;
+              background:#0d0f18;border-top:1px solid #1e2130;
+              z-index:60;align-items:stretch;">
+    {% set current_path = request.url.path %}
+    <a href="/dashboard"
+       aria-label="Dashboard"
+       {% if current_path == '/dashboard' %}aria-current="page"{% endif %}
+       style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+              gap:2px;text-decoration:none;
+              color:{{ '#e5e7eb' if current_path == '/dashboard' else '#6b7280' }};
+              font-size:9px;letter-spacing:.5px;text-transform:uppercase;
+              transition:color .15s;border-top:2px solid {{ '#3b82f6' if current_path == '/dashboard' else 'transparent' }};"
+       onmouseover="this.style.color='#e5e7eb'"
+       onmouseout="this.style.color='{{ '#e5e7eb' if current_path == '/dashboard' else '#6b7280' }}'">
+      <span class="material-icons" aria-hidden="true" style="font-size:18px;">dashboard</span>
+      <span>Dashboard</span>
+    </a>
+    <button onclick="toggleSidebar()"
+            aria-label="Abrir lista de projetos"
+            aria-expanded="false"
+            aria-controls="sidebar"
+            style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+                   gap:2px;background:transparent;border:none;border-top:2px solid transparent;
+                   color:#6b7280;cursor:pointer;font-size:9px;letter-spacing:.5px;text-transform:uppercase;
+                   font-family:inherit;transition:color .15s;"
+            onmouseover="this.style.color='#e5e7eb'"
+            onmouseout="this.style.color='#6b7280'">
+      <span class="material-icons" aria-hidden="true" style="font-size:18px;">folder</span>
+      <span>Projects</span>
+    </button>
+  </nav>
+
   <script>
+    // ── Panel (right panel / bottom sheet) ──
     function openPanel() {
       var p = document.getElementById('right-panel');
-      p.style.display = 'flex';
-      p.style.left = window.innerWidth < 768 ? '0' : '160px';
+      if (window.innerWidth < 768) {
+        // show first, then animate in (double-RAF ensures display:flex paints before transition)
+        p.style.display = 'flex';
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() {
+            p.classList.add('sheet-open');
+            document.getElementById('panel-backdrop').classList.add('panel-open');
+            p.setAttribute('aria-hidden', 'false');
+          });
+        });
+      } else {
+        p.style.display = 'flex';
+        p.style.left = '160px';
+        p.setAttribute('aria-hidden', 'false');
+      }
     }
+
     function closePanel() {
-      document.getElementById('right-panel').style.display = 'none';
+      var p = document.getElementById('right-panel');
+      if (window.innerWidth < 768) {
+        p.classList.remove('sheet-open');
+        p.style.transform = '';
+        document.getElementById('panel-backdrop').classList.remove('panel-open');
+        p.setAttribute('aria-hidden', 'true');
+        // hide from a11y tree only after animation completes
+        p.addEventListener('transitionend', function handler() {
+          p.style.display = 'none';
+          p.removeEventListener('transitionend', handler);
+        });
+      } else {
+        p.style.display = 'none';
+        p.setAttribute('aria-hidden', 'true');
+      }
     }
+
+    // ── Sidebar drawer ──
     function toggleSidebar() {
-      document.getElementById('sidebar').classList.toggle('sidebar-open');
-      document.getElementById('sidebar-backdrop').classList.toggle('sidebar-open');
+      var s = document.getElementById('sidebar');
+      var b = document.getElementById('sidebar-backdrop');
+      var isOpen = s.classList.toggle('sidebar-open');
+      b.classList.toggle('sidebar-open');
+      // sync aria-expanded on all sidebar toggles
+      document.querySelectorAll('[aria-controls="sidebar"]').forEach(function(btn) {
+        btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
     }
+
     function closeSidebar() {
       document.getElementById('sidebar').classList.remove('sidebar-open');
       document.getElementById('sidebar-backdrop').classList.remove('sidebar-open');
+      document.querySelectorAll('[aria-controls="sidebar"]').forEach(function(btn) {
+        btn.setAttribute('aria-expanded', 'false');
+      });
     }
+
+    // ── Swipe-to-close bottom sheet ──
+    (function() {
+      var handle = document.getElementById('sheet-handle');
+      var panel  = document.getElementById('right-panel');
+      var startY = 0, currentY = 0, dragging = false;
+
+      handle.addEventListener('touchstart', function(e) {
+        startY = e.touches[0].clientY;
+        currentY = startY; // reset so a tap-without-move never triggers false dismiss
+        dragging = true;
+        panel.style.transition = 'none';
+      }, { passive: true });
+
+      handle.addEventListener('touchmove', function(e) {
+        if (!dragging) return;
+        currentY = e.touches[0].clientY;
+        var delta = Math.max(0, currentY - startY);
+        panel.style.transform = 'translateY(' + delta + 'px)';
+      }, { passive: true });
+
+      handle.addEventListener('touchend', function() {
+        dragging = false;
+        panel.style.transition = '';
+        if ((currentY - startY) > 80) {
+          closePanel();
+        } else {
+          panel.style.transform = '';
+        }
+        startY = 0; currentY = 0;
+      });
+    })();
+
+    // ── Close panel on Escape ──
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closePanel();
+        closeSidebar();
+      }
+    });
   </script>
 </body>
 </html>
