@@ -184,14 +184,15 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         )
 
         # ── Wizard bottom sheet (lazy — populated on open) ─
-        wizard_dialog = ui.dialog().props("no-backdrop-dismiss")
-        wizard_dialog.classes("bottom-sheet")
+        wizard_dialog = ui.dialog().props(
+            "no-backdrop-dismiss position=bottom"
+        ).classes("bottom-sheet")
 
         def open_wizard() -> None:
             wizard_dialog.clear()
             with wizard_dialog, ui.card().style(
                 "background:transparent;box-shadow:none;"
-                "width:100%;height:100%;padding:0;margin:0"
+                "width:100%;height:100%;padding:0;margin:0;overflow:hidden"
             ):
                 render_wizard_content(
                     state,
@@ -200,8 +201,9 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
             wizard_dialog.open()
 
         # ── Project hub right panel (lazy — populated on open)
-        hub_dialog = ui.dialog().props("no-backdrop-dismiss")
-        hub_dialog.classes("right-panel")
+        hub_dialog = ui.dialog().props(
+            "no-backdrop-dismiss position=right"
+        ).classes("right-panel")
 
         def open_hub(project_id: str) -> None:
             hub_dialog.clear()
@@ -242,16 +244,17 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
                 )
                 for p in projects:
                     pid = p["id"]
-                    ui.button(
-                        p["name"],
-                        on_click=lambda _pid=pid: open_hub(_pid),
-                    ).props(
-                        "flat dense align=left"
+                    with ui.element("div").style(
+                        "padding:5px 8px;border-radius:4px;cursor:pointer;"
+                        "width:100%;box-sizing:border-box;"
                     ).classes(
                         "text-sm text-gray-300 hover:text-white "
-                        "w-full py-1 px-2 rounded "
                         "hover:bg-gray-800 transition-colors"
-                    )
+                    ).on("click", lambda _pid=pid: open_hub(_pid)):
+                        ui.label(p["name"]).style(
+                            "white-space:nowrap;overflow:hidden;"
+                            "text-overflow:ellipsis;pointer-events:none"
+                        )
 
                 ui.space()
                 ui.button(
@@ -412,7 +415,9 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
                         )
 
         # ── Run detail drawer ──────────────────────────────────────────
-        detail_dialog = ui.dialog().props("no-backdrop-dismiss").classes("run-drawer")
+        detail_dialog = ui.dialog().props(
+            "no-backdrop-dismiss position=right"
+        ).classes("run-drawer")
         detail_queue: asyncio.Queue = asyncio.Queue(maxsize=200)
         detail_run_id_ref: list[str] = [""]
 

@@ -434,3 +434,46 @@ def test_dashboard_page_registers_auto_refresh_timer(tmp_path: Path):
         assert any(call.args[0] == 3.0 for call in timer_calls), (
             f"Expected ui.timer(3.0, ...) but got: {timer_calls}"
         )
+
+
+def test_sidebar_project_items_render_name_as_label(tmp_path: Path):
+    """Sidebar project items use ui.element+label (not ui.button) so names are fully visible.
+
+    ui.button() uses QBtn which has built-in overflow:hidden and stacked padding
+    that causes project names to be truncated. Plain div+label gives full control.
+    """
+    import asyncio
+
+    state, config = _make_state_and_config(tmp_path)
+    # Add a project with a long name via project_store mock
+    state.project_store = MagicMock()
+    state.project_store.list_projects.return_value = [
+        {"id": "p1", "name": "Very Long Project Name That Would Truncate"},
+        {"id": "p2", "name": "Another Project"},
+    ]
+    fake_app = MagicMock()
+    captured_page_fn = None
+
+    def capture_page(path):
+        def decorator(fn):
+            nonlocal captured_page_fn
+            captured_page_fn = fn
+            return fn
+        return decorator
+
+    with patch("agents.dashboard.ui") as mock_ui:
+        mock_ui.page.side_effect = capture_page
+        from agents.dashboard import setup_dashboard
+        setup_dashboard(fake_app, state, config)
+
+    assert captured_page_fn is not None
+    mock_ui = _make_dashboard_ui_mock()
+    with patch("agents.dashboard.ui", mock_ui), patch("agents.dashboard_theme.ui", mock_ui):
+        mock_client = MagicMock()
+        mock_client.on_disconnect = MagicMock()
+        asyncio.run(captured_page_fn(mock_client))
+
+    label_calls = [str(c) for c in mock_ui.label.call_args_list]
+    assert any("Very Long Project Name That Would Truncate" in c for c in label_calls), (
+        "Project name should appear in ui.label calls, not hidden inside ui.button"
+    )
