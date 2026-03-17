@@ -30,7 +30,8 @@ Single-row header replacing the current header + 5 stat cards:
 - **Left**: "Agent Runner" label + optional DRY RUN badge
 - **Center-left**: Active count (blue pulsing dot) + Failed count (red dot), separated from title by a subtle vertical divider. These are the only two stats surfaced — they answer "is something running?" and "did something break?"
 - **Right**: Budget label + thin progress bar + compact "▶ Run" trigger button
-- The trigger button opens a **popover/dropdown** with project + task selectors and a run button — not a dedicated section
+- The trigger button opens a **popover** implemented via Quasar's `q-menu` (`ui.element('q-menu')` as child of the button). This gives native popover behavior (anchored to button, closes on outside click). The popover contains project + task selectors and a run button.
+- **DRY RUN badge**: kept as `ui.badge("DRY RUN").props("color=orange")`, positioned right after the "Agent Runner" label
 
 ### Two Panels (Full-Height)
 
@@ -39,7 +40,8 @@ The body is a two-panel split occupying `calc(100vh - header height)`:
 #### Live Stream (flex: 1.2, left)
 
 - Section label: "Live Stream" in uppercase gray, small
-- Plain text log, no emojis anywhere
+- **Implementation**: Replace `ui.log()` with `ui.scroll_area()` + `ui.column()` of `ui.html()` elements (same pattern as the drawer). `ui.log` only supports plain monochrome text — it cannot render per-line colors. The drain logic in `drain_queue()` changes from `log_area.push(text)` to appending `ui.html(format_stream_html(data))` inside the column, with `scroll_area.scroll_to(percent=1.0)` for auto-scroll.
+- No emojis anywhere
 - Color hierarchy by event type:
   - Timestamp: `#4b5563` (dark gray)
   - Run ID `[project/task]`: `#6b7280` (medium gray)
@@ -80,15 +82,18 @@ Keeps existing layout and functionality. Changes:
 
 **`dashboard_formatters.py`:**
 
-- `format_event_line()`: Remove emoji prefixes. Output format becomes: `[project/task] content` (plain text, no icons)
-- `format_event_html()`: Remove emoji icons. Use colored text only, consistent with stream palette
+- `format_event_line()`: Kept as plain-text function (no HTML). Remove emoji prefixes. Output format: `[project/task] content`. Used only if a plain-text consumer is ever needed (logging, etc.).
+- New `format_stream_html()`: Returns HTML for the live stream with color hierarchy. Similar to `format_event_html()` but optimized for the stream layout (no timestamp column, more compact).
+- `format_event_html()`: Remove emoji icons. Use colored text only, consistent with stream palette. Update `EVENT_COLORS['tool_use']` from `#fbbf24` (yellow) to `#d4d4d8` (light gray) for consistency with stream.
 - `build_history_rows()`: Status field changes from emoji (✅/❌/🔄) to `raw_status` string — the dot is rendered via CSS/HTML in the table
 - `_HISTORY_COLS`: Remove `model` and `cost` columns
 
-**Constants that become unused:**
-- `EVENT_ICONS` — no longer referenced (can be removed or kept for potential API use)
+- `_format_tool_use()`: Change return type from `(icon, label)` to just `str` (the label). Both callers (`format_stream_html`, `format_event_html`) no longer need the emoji icon.
+
+**Constants to remove:**
+- `EVENT_ICONS` — no longer referenced
 - `STATUS_ICONS` — no longer referenced
-- `TOOL_ICONS` — no longer referenced (tool names are displayed as plain text)
+- `TOOL_ICONS` — no longer referenced (tool names displayed as plain text)
 
 ### CSS Changes
 
@@ -107,10 +112,22 @@ Keeps existing layout and functionality. Changes:
 
 - Header: single row with inline stats, budget, trigger button
 - Body: single row with two flex children (stream panel, history panel)
-- Trigger popover: NiceGUI `ui.menu` or `ui.dialog` anchored to the trigger button, containing project/task selectors
+- Trigger popover: Quasar `q-menu` via `ui.element('q-menu')` as child of trigger button, containing project/task selectors
 - Remove stat card creation and refresh logic for removed stats (Runs, Success, Cost)
 - `refresh()` function updates: Active count, Failed count, budget, history table
 - Remove `stream_badge` logic
+
+## Edge Cases
+
+### Empty States
+- **0 active, 0 failed**: Show indicators grayed out: `● 0 active  ● 0 failed` in `#4b5563` (dark gray). Always visible — hiding them would cause layout shift when runs start.
+- **No runs today**: History panel shows centered placeholder text: "No runs today" in `#4b5563`
+- **No projects configured**: Trigger button disabled, popover shows "No projects configured"
+
+### Budget Limits
+- **Budget >= 80%**: Progress bar turns `#fb923c` (orange)
+- **Budget >= 100%**: Progress bar turns `#f87171` (red), budget label turns red
+- Logic: `ratio >= 1.0 → red, ratio >= 0.8 → orange, else → blue`
 
 ## Testing
 
