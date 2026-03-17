@@ -40,18 +40,34 @@ def setup_project_hub(app: FastAPI, state: AppState) -> None:
 
         project = state.project_store.get_project(project_id)
         if not project:
-            ui.label("Project not found").classes("text-red-500 text-xl")
+            with ui.column().classes("w-full max-w-5xl mx-auto px-8 py-6"):
+                ui.label("Project not found").classes(
+                    "text-red-500 text-xl"
+                )
             return
 
-        # Header with name and action buttons
-        with ui.row().classes("w-full items-center justify-between mb-4"):
-            ui.label(project["name"]).classes("text-2xl font-bold text-white")
+        # ── Header bar ────────────────────────────────────
+        with ui.row().classes(
+            "header-row w-full items-center justify-between px-6 py-2"
+        ):
+            with ui.row().classes("items-center gap-3"):
+                ui.button(
+                    icon="arrow_back",
+                    on_click=lambda: ui.navigate.to("/dashboard"),
+                ).props("flat dense color=grey")
+                ui.label(project["name"]).classes(
+                    "text-base font-bold text-white"
+                )
             with ui.row().classes("gap-2"):
                 ui.button(
-                    "Run", icon="play_arrow", on_click=lambda: run_dialog.open()
+                    "Run",
+                    icon="play_arrow",
+                    on_click=lambda: run_dialog.open(),
                 ).props("color=green dense")
                 ui.button(
-                    "+ Task", icon="add", on_click=lambda: task_dialog.open()
+                    "+ Task",
+                    icon="add",
+                    on_click=lambda: task_dialog.open(),
                 ).props("color=blue dense")
                 ui.button(
                     "Tasks",
@@ -61,26 +77,39 @@ def setup_project_hub(app: FastAPI, state: AppState) -> None:
                     ),
                 ).props("color=purple dense")
 
-        # Zone 1: Feed
-        ui.label("Activity Feed").classes("text-lg font-semibold text-gray-300 mt-2")
-        events = state.project_store.list_events(project_id, limit=50)
-        with ui.column().classes("w-full gap-1 max-h-96 overflow-y-auto"):
-            if not events:
-                ui.label(
-                    "No events yet. Configure sources to start aggregating."
-                ).classes("text-gray-500 italic")
-            for event in events:
-                _render_event_card(event)
+        # ── Content with padding ──────────────────────────
+        with ui.column().classes("w-full max-w-5xl mx-auto px-8 py-6 gap-4"):
+            # Zone 1: Feed
+            ui.label("Activity Feed").classes(
+                "text-lg font-semibold text-gray-300"
+            )
+            events = state.project_store.list_events(
+                project_id, limit=50
+            )
+            with ui.column().classes(
+                "w-full gap-1 max-h-96 overflow-y-auto"
+            ):
+                if not events:
+                    ui.label(
+                        "No events yet. Configure sources "
+                        "to start aggregating."
+                    ).classes("text-gray-500 italic")
+                for event in events:
+                    _render_event_card(event)
 
-        # Zone 2: Source Sections
-        ui.separator().classes("my-4")
-        ui.label("Sources").classes("text-lg font-semibold text-gray-300")
-        sources = state.project_store.list_sources(project_id)
-        source_types = {s["source_type"] for s in sources}
-        for st in ["linear", "github", "slack"]:
-            if st in source_types:
-                _render_source_section(st.capitalize(), st, project_id, state)
-        _render_runs_section(project_id, state)
+            # Zone 2: Source Sections
+            ui.separator().classes("my-2")
+            ui.label("Sources").classes(
+                "text-lg font-semibold text-gray-300"
+            )
+            sources = state.project_store.list_sources(project_id)
+            source_types = {s["source_type"] for s in sources}
+            for st in ["linear", "github", "slack"]:
+                if st in source_types:
+                    _render_source_section(
+                        st.capitalize(), st, project_id, state
+                    )
+            _render_runs_section(project_id, state)
 
         # Dialogs
         run_dialog = _build_run_dialog(project_id, state)

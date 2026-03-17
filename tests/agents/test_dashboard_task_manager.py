@@ -214,8 +214,8 @@ def test_tasks_page_renders_new_task_button():
     assert any("New Task" in c for c in btn_calls)
 
 
-def test_tasks_page_renders_back_link():
-    """tasks_page renders a back link to the project page."""
+def test_tasks_page_renders_back_button():
+    """tasks_page renders a back button to the project page."""
     from agents.dashboard_task_manager import setup_task_manager
 
     state = _make_mock_state()
@@ -230,8 +230,8 @@ def test_tasks_page_renders_back_link():
     ):
         asyncio.run(fn(project_id="proj-1"))
 
-    link_calls = [str(c) for c in mock_ui.link.call_args_list]
-    assert any("/dashboard/project/proj-1" in c for c in link_calls)
+    btn_calls = [str(c) for c in mock_ui.button.call_args_list]
+    assert any("arrow_back" in c for c in btn_calls)
 
 
 # ---------------------------------------------------------------------------

@@ -18,10 +18,22 @@ def setup_wizard_page(app: FastAPI, state: AppState) -> None:
     async def new_project_page() -> None:
         apply_dark_theme()
 
-        ui.label("New Project").classes("text-2xl font-bold text-white mb-4")
-        stepper = ui.stepper().classes("w-full")
+        # ── Header bar ────────────────────────────────
+        with ui.row().classes(
+            "header-row w-full items-center gap-3 px-6 py-2"
+        ):
+            ui.button(
+                icon="arrow_back",
+                on_click=lambda: ui.navigate.to("/dashboard"),
+            ).props("flat dense color=grey")
+            ui.label("New Project").classes(
+                "text-base font-bold text-white"
+            )
 
-        with stepper:
+        # ── Content ───────────────────────────────────
+        with ui.column().classes(
+            "w-full max-w-3xl mx-auto px-8 py-6"
+        ), ui.stepper().classes("w-full") as stepper:
             # Step 1: Basics
             with ui.step("Basics"):
                 name_input = ui.input(

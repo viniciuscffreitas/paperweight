@@ -21,42 +21,69 @@ def setup_task_manager(app: FastAPI, state: AppState) -> None:
 
         project = state.project_store.get_project(project_id)
         if not project:
-            ui.label("Project not found").classes("text-red-500")
+            with ui.column().classes("w-full max-w-5xl mx-auto px-8 py-6"):
+                ui.label("Project not found").classes("text-red-500")
             return
 
-        ui.label(f"{project['name']} — Tasks").classes("text-2xl font-bold text-white mb-4")
+        # ── Header bar ────────────────────────────────
+        with ui.row().classes(
+            "header-row w-full items-center gap-3 px-6 py-2"
+        ):
+            ui.button(
+                icon="arrow_back",
+                on_click=lambda: ui.navigate.to(
+                    f"/dashboard/project/{project_id}"
+                ),
+            ).props("flat dense color=grey")
+            ui.label(f"{project['name']} — Tasks").classes(
+                "text-base font-bold text-white"
+            )
 
-        task_container = ui.column().classes("w-full gap-2")
+        # ── Content ───────────────────────────────────
+        with ui.column().classes(
+            "w-full max-w-5xl mx-auto px-8 py-6 gap-2"
+        ):
+            task_container = ui.column().classes("w-full gap-2")
 
-        def refresh_tasks() -> None:
-            task_container.clear()
-            tasks_fresh = state.project_store.list_tasks(project_id)
-            with task_container:
-                if not tasks_fresh:
-                    ui.label("No tasks yet.").classes("text-gray-500 italic")
-                    return
-                with ui.row().classes("w-full px-3 py-1 text-xs text-gray-500 uppercase"):
-                    ui.label("Name").classes("w-1/5")
-                    ui.label("Trigger").classes("w-1/6")
-                    ui.label("Model").classes("w-1/6")
-                    ui.label("Budget").classes("w-1/6")
-                    ui.label("Status").classes("w-1/6")
-                    ui.label("Actions").classes("w-1/6")
-                for t in tasks_fresh:
-                    _render_task_row(t, project_id, state, refresh_tasks)
+            def refresh_tasks() -> None:
+                task_container.clear()
+                tasks_fresh = state.project_store.list_tasks(
+                    project_id
+                )
+                with task_container:
+                    if not tasks_fresh:
+                        ui.label("No tasks yet.").classes(
+                            "text-gray-500 italic"
+                        )
+                        return
+                    with ui.row().classes(
+                        "w-full px-3 py-1 text-xs "
+                        "text-gray-500 uppercase"
+                    ):
+                        ui.label("Name").classes("w-1/5")
+                        ui.label("Trigger").classes("w-1/6")
+                        ui.label("Model").classes("w-1/6")
+                        ui.label("Budget").classes("w-1/6")
+                        ui.label("Status").classes("w-1/6")
+                        ui.label("Actions").classes("w-1/6")
+                    for t in tasks_fresh:
+                        _render_task_row(
+                            t, project_id, state, refresh_tasks
+                        )
 
-        refresh_tasks()
+            refresh_tasks()
 
-        ui.separator().classes("my-4")
+            ui.separator().classes("my-2")
 
-        def open_create() -> None:
-            d = _build_task_edit_dialog(project_id, state, refresh_tasks, task=None)
-            d.open()
+            def open_create() -> None:
+                d = _build_task_edit_dialog(
+                    project_id, state, refresh_tasks, task=None
+                )
+                d.open()
 
-        ui.button("+ New Task", icon="add", on_click=open_create).props("color=blue")
-        ui.link(
-            "← Back to project", f"/dashboard/project/{project_id}"
-        ).classes("text-sm text-blue-400 mt-4")
+            ui.button(
+                "+ New Task", icon="add", on_click=open_create
+            ).props("color=blue")
 
 
 def _render_task_row(
