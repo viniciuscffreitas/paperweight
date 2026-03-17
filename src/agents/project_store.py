@@ -193,6 +193,11 @@ class ProjectStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def get_source(self, source_id: str) -> dict | None:
+        with self._conn() as conn:
+            row = conn.execute("SELECT * FROM project_sources WHERE id = ?", (source_id,)).fetchone()
+        return dict(row) if row else None
+
     def delete_source(self, source_id: str) -> None:
         with self._conn() as conn:
             conn.execute("DELETE FROM project_sources WHERE id = ?", (source_id,))

@@ -15,6 +15,7 @@ from agents.dashboard_formatters import (
 )
 from agents.dashboard_project_hub import setup_project_hub
 from agents.dashboard_setup_wizard import setup_wizard_page
+from agents.dashboard_task_manager import setup_task_manager
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -192,11 +193,34 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
 
     setup_project_hub(app, state)
     setup_wizard_page(app, state)
+    setup_task_manager(app, state)
 
     @ui.page("/dashboard")
     async def dashboard_page(client: Client) -> None:
         ui.dark_mode(True)
         ui.add_head_html(_DASHBOARD_CSS)
+
+        # Migration prompt: offer to import YAML projects not yet in the store
+        if hasattr(state, 'projects') and state.projects and hasattr(state, 'project_store') and state.project_store:
+            stored_ids = {p["id"] for p in state.project_store.list_projects()}
+            unmigrated = [name for name in state.projects if name not in stored_ids]
+            if unmigrated:
+                with ui.dialog() as migration_dialog, ui.card().classes("w-96"):
+                    ui.label("Import Projects").classes("text-lg font-bold")
+                    ui.label(f"Found {len(unmigrated)} project(s) in YAML not yet imported.").classes("text-sm text-gray-300")
+                    for name in unmigrated:
+                        ui.label(f"  • {name}").classes("text-sm text-gray-400")
+
+                    async def do_migrate():
+                        from agents.migration import migrate_yaml_projects
+                        count = migrate_yaml_projects(state.projects, state.project_store)
+                        ui.notify(f"Imported {count} project(s)!", type="positive")
+                        migration_dialog.close()
+
+                    with ui.row().classes("gap-2 mt-4"):
+                        ui.button("Import All", on_click=do_migrate).props("color=green")
+                        ui.button("Skip", on_click=migration_dialog.close).props("flat")
+                migration_dialog.open()
 
         runs = state.history.list_runs_today()
         a_count = sum(1 for r in runs if r.status == "running")
