@@ -362,6 +362,84 @@ def test_render_hub_header_has_full_width():
     )
 
 
+# ---------------------------------------------------------------------------
+# Width-propagation tests (contract: activity/runs scroll_areas fill full width)
+# ---------------------------------------------------------------------------
+
+
+def test_event_card_row_uses_w_full():
+    """_render_event_card's row container must use w-full to fill panel width.
+
+    MUST NOT CHANGE: removing w-full would cause cards to collapse to content width.
+    """
+    from agents.dashboard_project_hub import _render_event_card
+
+    event = {
+        "source": "linear",
+        "title": "Fix event",
+        "timestamp": "2024-01-01T10:00:00",
+        "priority": "high",
+        "author": "alice",
+    }
+    row_ctx = _make_ui_ctx_mock()
+    mock_ui = _make_ui_mock()
+    mock_ui.row.return_value = row_ctx
+
+    with patch("agents.dashboard_project_hub.ui", mock_ui):
+        _render_event_card(event)
+
+    assert mock_ui.row.called, "Expected ui.row() to be called for event card"
+    classes_calls = [str(c) for c in row_ctx.classes.call_args_list]
+    assert any("w-full" in c for c in classes_calls), (
+        f"Event card row must have w-full class. Got: {classes_calls}"
+    )
+
+
+def test_all_hub_scroll_areas_propagate_width_to_content():
+    """Every scroll_area in render_hub_content must pass width:100% to the inner
+    content container via content-style prop.
+
+    QScrollArea's q-scrollarea__content is absolute-positioned; without explicit
+    width:100% on that inner element, child rows collapse to their natural width,
+    leaving the right side of the panel black.
+
+    CHANGES: Activity and Runs scroll_areas must use
+    .props('content-style="...;width:100%..."') instead of .style("padding:...").
+    """
+    state = _make_mock_state(projects=[{"id": "p1", "name": "Test"}])
+    on_close = MagicMock()
+
+    scroll_ctxs: list = []
+
+    def make_scroll_ctx():
+        ctx = _make_ui_ctx_mock()
+        scroll_ctxs.append(ctx)
+        return ctx
+
+    mock_ui = _make_ui_mock()
+    mock_ui.scroll_area.side_effect = make_scroll_ctx
+    mock_ui.tabs.return_value = _make_ui_ctx_mock()
+    mock_ui.tab.return_value = _make_ui_ctx_mock()
+    mock_ui.tab_panels.return_value = _make_ui_ctx_mock()
+    mock_ui.tab_panel.return_value = _make_ui_ctx_mock()
+
+    with patch("agents.dashboard_project_hub.ui", mock_ui):
+        from agents.dashboard_project_hub import render_hub_content
+
+        render_hub_content("p1", state, on_close)
+
+    assert scroll_ctxs, "Expected at least one scroll_area to be created"
+
+    for i, ctx in enumerate(scroll_ctxs):
+        props_for_this = [
+            str(a) for call in ctx.props.call_args_list for a in call.args
+        ]
+        assert any("width:100%" in p for p in props_for_this), (
+            f"scroll_area #{i} must use content-style with width:100% so inner "
+            f"content fills the full panel width. Actual props: {props_for_this}"
+        )
+
+
 def test_open_hub_uses_div_not_card(tmp_path):
     """open_hub wraps render_hub_content in ui.element(div), not ui.card.
 

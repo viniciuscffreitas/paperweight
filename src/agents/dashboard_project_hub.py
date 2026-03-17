@@ -86,7 +86,9 @@ def render_hub_content(
     ):
         # ── Activity tab ──────────────────────────────────
         with ui.tab_panel("activity").style("padding:0;height:100%;overflow:hidden"):
-            with ui.scroll_area().classes("w-full h-full").style("padding:16px"):
+            with ui.scroll_area().classes("w-full h-full").props(
+                'content-style="padding:16px;width:100%;box-sizing:border-box"'
+            ):
                 events = state.project_store.list_events(project_id, limit=50)
                 if not events:
                     ui.label(
@@ -101,7 +103,9 @@ def render_hub_content(
 
         # ── Runs tab ──────────────────────────────────────
         with ui.tab_panel("runs").style("padding:0;height:100%;overflow:hidden"):
-            with ui.scroll_area().classes("w-full h-full").style("padding:16px"):
+            with ui.scroll_area().classes("w-full h-full").props(
+                'content-style="padding:16px;width:100%;box-sizing:border-box"'
+            ):
                 _render_runs_content(project_id, state)
 
 
