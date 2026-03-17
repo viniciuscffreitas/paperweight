@@ -7,3 +7,6 @@ data/
 dist/
 .env
 firebase-debug.log
+.superpowers/
+projects/*.yaml
+!projects/example.yaml
