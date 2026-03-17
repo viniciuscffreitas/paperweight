@@ -440,6 +440,56 @@ def test_all_hub_scroll_areas_propagate_width_to_content():
         )
 
 
+def test_open_hub_wrapper_does_not_use_card():
+    """open_hub must NOT use ui.card() as the hub content wrapper.
+
+    Quasar teleports dialog content to <body>, potentially losing the
+    'right-panel' class used by CSS selectors. The .right-panel .q-card rule
+    then fails silently and QCard's default content-width sizing takes over,
+    leaving the hub narrow (~540px) instead of filling calc(100vw - 160px).
+
+    CHANGES: open_hub must use ui.element('div') instead of ui.card().
+    """
+    from agents import dashboard
+    import inspect
+
+    source = inspect.getsource(dashboard)
+    assert "hub_dialog, ui.card()" not in source, (
+        "open_hub must not use ui.card() as hub wrapper — "
+        "QCard width:100% fails inside a teleported Quasar dialog. "
+        "Use ui.element('div') with explicit width:calc(100vw - 160px) instead."
+    )
+
+
+def test_open_hub_wrapper_has_explicit_viewport_width():
+    """open_hub's wrapper div must set width:calc(100vw - 160px) explicitly.
+
+    The dialog background fills the full panel (content-style works), but
+    its children don't inherit that width via CSS cascade when the class
+    selector is lost. Setting the width directly on the wrapper div forces
+    the correct geometry from the inside out.
+
+    CHANGES: open_hub body must include width:calc(100vw - 160px).
+    """
+    from agents import dashboard
+    import inspect
+
+    source = inspect.getsource(dashboard)
+
+    # Scope to the open_hub body: between hub_dialog.clear() and hub_dialog.open()
+    clear_idx = source.find("hub_dialog.clear()")
+    open_idx = source.find("hub_dialog.open()", clear_idx)
+    assert clear_idx >= 0 and open_idx > clear_idx, (
+        "Could not locate open_hub body in dashboard source"
+    )
+    open_hub_body = source[clear_idx : open_idx + len("hub_dialog.open()")]
+
+    assert "calc(100vw - 160px)" in open_hub_body, (
+        "open_hub wrapper must include width:calc(100vw - 160px). "
+        f"open_hub body found:\n{open_hub_body}"
+    )
+
+
 def test_open_hub_uses_div_not_card(tmp_path):
     """open_hub wraps render_hub_content in ui.element(div), not ui.card.
 

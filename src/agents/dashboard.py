@@ -210,9 +210,9 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
 
         def open_hub(project_id: str) -> None:
             hub_dialog.clear()
-            with hub_dialog, ui.card().style(
-                "background:transparent;box-shadow:none;"
-                "width:100%;height:100%;padding:0;margin:0"
+            with hub_dialog, ui.element("div").style(
+                "background:#0d0f18;width:calc(100vw - 160px);height:100%;"
+                "display:flex;flex-direction:column;overflow:hidden;padding:0;margin:0"
             ):
                 render_hub_content(project_id, state, hub_dialog.close)
             hub_dialog.open()
