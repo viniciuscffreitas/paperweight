@@ -13,6 +13,7 @@ from agents.dashboard_formatters import (
     format_event_html,
     format_stream_html,
 )
+from agents.dashboard_project_hub import setup_project_hub
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -188,6 +189,8 @@ def _build_run_drawer(
 def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None:
     """Mount NiceGUI dashboard. State accessed via closure (not app.state)."""
 
+    setup_project_hub(app, state)
+
     @ui.page("/dashboard")
     async def dashboard_page(client: Client) -> None:
         ui.dark_mode(True)
@@ -299,6 +302,20 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         with ui.row().classes("w-full flex-1").style(
             "height: calc(100vh - 48px); overflow: hidden"
         ):
+            # Sidebar: Project List
+            with ui.column().classes("h-full px-3 py-2").style(
+                "width:180px;flex-shrink:0;background:#0d0f18;border-right:1px solid #1e2130;overflow-y:auto"
+            ):
+                ui.button("+ New Project", on_click=lambda: ui.navigate.to("/dashboard/project/new")).props("color=blue dense flat").classes("w-full mb-2")
+                projects = state.project_store.list_projects() if state.project_store else []
+                if projects:
+                    ui.label("Projects").classes("text-xs text-gray-500 uppercase tracking-wide mb-1")
+                    for p in projects:
+                        ui.link(p["name"], f"/dashboard/project/{p['id']}").classes("text-sm text-blue-400 hover:text-blue-300 block py-0.5")
+                    ui.separator().classes("my-2")
+
+            ui.html('<div class="panel-divider"></div>')
+
             # Live Stream
             with ui.column().classes("flex-1 h-full").style("flex: 1.2"):
                 ui.label("Live Stream").classes("section-label")
