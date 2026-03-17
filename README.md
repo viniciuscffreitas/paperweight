@@ -139,14 +139,25 @@ Two agents working on the same repo simultaneously. No conflicts. Worktrees are 
 
 ---
 
-## Quickstart
+## Requirements
 
-**Requirements:** Python 3.13+, [uv](https://github.com/astral-sh/uv), [Claude Code](https://claude.ai/code) authenticated.
+| Dependency | Why | Required? |
+|---|---|---|
+| [Python 3.13+](https://python.org) | Runtime | Yes |
+| [uv](https://github.com/astral-sh/uv) | Package manager | Yes |
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | The `claude` CLI must be installed and authenticated (`claude /login`) | Yes |
+| [GitHub CLI](https://cli.github.com/) (`gh`) | Used to create PRs after each run | Yes, for `pr-only` / `auto-merge` |
+| [git](https://git-scm.com/) 2.5+ | Worktree support for run isolation | Yes |
+| Public URL or [ngrok](https://ngrok.com/) | Webhooks need to reach your server | Only for Linear/GitHub triggers |
+
+> **Note:** `claude` and `gh` must be in your `$PATH` and authenticated before starting paperweight. The executor calls them directly as subprocesses.
+
+## Quickstart
 
 ```bash
 git clone https://github.com/viniciuscffreitas/paperweight
 cd paperweight
-cp .env.example .env
+cp .env.example .env         # add your keys (see comments inside)
 uv run agents
 ```
 
@@ -282,41 +293,55 @@ paperweight exposes a REST API for manual triggering and monitoring:
 
 ```bash
 # Trigger a task manually
-POST /run
-{
-  "project": "myapp",
-  "task": "issue-resolver",
-  "variables": { "issue_id": "abc123", "issue_title": "Add pagination" }
-}
+POST /tasks/{project_name}/{task_name}/run
 
 # Cancel a running task
-DELETE /run/{run_id}
+POST /runs/{run_id}/cancel
+
+# Full status (budget + today's runs + projects)
+GET /status
 
 # Budget status
-GET /budget
+GET /status/budget
 
-# Run history
-GET /history?project=myapp&limit=20
+# Health check
+GET /health
 
-# WebSocket stream (real-time events)
-WS /ws/{run_id}
+# WebSocket — stream events for a specific run
+WS /ws/runs/{run_id}
+
+# WebSocket — stream all events (global feed)
+WS /ws/runs
 ```
 
 ---
 
 ## Webhooks
 
+Webhooks require your server to be reachable from the internet. For local development, use a tunnel:
+
+```bash
+# ngrok (free tier works)
+ngrok http 8080
+# → https://abc123.ngrok.io  ← use this as your webhook URL
+```
+
 ### Linear
 
 1. In Linear Settings → API → Webhooks → create webhook pointing to `https://your-host/webhooks/linear`
 2. Select events: `Issue` (create, update)
 3. Label issues with `agent` to trigger runs
+4. paperweight auto-deduplicates: same issue won't trigger twice within 120s
 
 ### GitHub
 
 1. In repo Settings → Webhooks → add `https://your-host/webhooks/github`
 2. Select: `push`, `pull_request`
 3. Set secret in `.env` as `GITHUB_WEBHOOK_SECRET`
+
+### No webhooks? No problem
+
+Scheduled tasks (`schedule: "0 6 * * *"`) and manual triggers (`POST /tasks/{project}/{task}/run`) work without any external connectivity. Webhooks are optional.
 
 ---
 
