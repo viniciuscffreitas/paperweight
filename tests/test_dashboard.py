@@ -232,7 +232,7 @@ def test_dashboard_page_renders_header_with_stats(tmp_path: Path):
     import asyncio
 
     mock_ui = _make_dashboard_ui_mock()
-    with patch("agents.dashboard.ui", mock_ui):
+    with patch("agents.dashboard.ui", mock_ui), patch("agents.dashboard_theme.ui", mock_ui):
         mock_client = MagicMock()
         mock_client.on_disconnect = MagicMock()
         asyncio.run(captured_page_fn(mock_client))
@@ -266,7 +266,10 @@ def test_dashboard_page_uses_dark_mode(tmp_path: Path):
     import asyncio
 
     mock_ui = _make_dashboard_ui_mock()
-    with patch("agents.dashboard.ui", mock_ui):
+    with (
+        patch("agents.dashboard.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         mock_client = MagicMock()
         mock_client.on_disconnect = MagicMock()
         asyncio.run(captured_page_fn(mock_client))
@@ -316,6 +319,7 @@ def test_on_row_click_falls_back_to_sqlite_when_not_in_memory(tmp_path: Path):
 
     with (
         patch("agents.dashboard.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
         patch("agents.dashboard._build_run_drawer", side_effect=fake_build_run_drawer),
     ):
         mock_client = MagicMock()
@@ -380,6 +384,7 @@ def test_on_row_click_prefers_memory_events_over_sqlite(tmp_path: Path):
 
     with (
         patch("agents.dashboard.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
         patch("agents.dashboard._build_run_drawer", side_effect=fake_build_run_drawer),
     ):
         mock_client = MagicMock()
@@ -419,7 +424,7 @@ def test_dashboard_page_registers_auto_refresh_timer(tmp_path: Path):
     import asyncio
 
     mock_ui = _make_dashboard_ui_mock()
-    with patch("agents.dashboard.ui", mock_ui):
+    with patch("agents.dashboard.ui", mock_ui), patch("agents.dashboard_theme.ui", mock_ui):
         mock_client = MagicMock()
         mock_client.on_disconnect = MagicMock()
         asyncio.run(captured_page_fn(mock_client))

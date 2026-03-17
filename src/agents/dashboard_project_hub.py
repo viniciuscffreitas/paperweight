@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 
 from nicegui import ui
 
+from agents.dashboard_theme import apply_dark_theme
+
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
@@ -34,6 +36,8 @@ PRIORITY_COLORS = {
 def setup_project_hub(app: FastAPI, state: AppState) -> None:
     @ui.page("/dashboard/project/{project_id}")
     async def project_page(project_id: str) -> None:
+        apply_dark_theme()
+
         project = state.project_store.get_project(project_id)
         if not project:
             ui.label("Project not found").classes("text-red-500 text-xl")

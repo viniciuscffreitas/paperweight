@@ -139,7 +139,10 @@ def test_tasks_page_shows_error_when_project_not_found():
     fn, _ = _capture_page_fn(setup_task_manager, fake_app, state)
 
     mock_ui = _make_ui_mock()
-    with patch("agents.dashboard_task_manager.ui", mock_ui):
+    with (
+        patch("agents.dashboard_task_manager.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         asyncio.run(fn(project_id="missing"))
 
     label_calls = [str(c) for c in mock_ui.label.call_args_list]
@@ -161,7 +164,10 @@ def test_tasks_page_renders_heading():
     fn, _ = _capture_page_fn(setup_task_manager, fake_app, state)
 
     mock_ui = _make_ui_mock()
-    with patch("agents.dashboard_task_manager.ui", mock_ui):
+    with (
+        patch("agents.dashboard_task_manager.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         asyncio.run(fn(project_id="proj-1"))
 
     label_calls = [str(c) for c in mock_ui.label.call_args_list]
@@ -178,7 +184,10 @@ def test_tasks_page_renders_empty_state():
     fn, _ = _capture_page_fn(setup_task_manager, fake_app, state)
 
     mock_ui = _make_ui_mock()
-    with patch("agents.dashboard_task_manager.ui", mock_ui):
+    with (
+        patch("agents.dashboard_task_manager.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         asyncio.run(fn(project_id="proj-1"))
 
     label_calls = [str(c) for c in mock_ui.label.call_args_list]
@@ -195,7 +204,10 @@ def test_tasks_page_renders_new_task_button():
     fn, _ = _capture_page_fn(setup_task_manager, fake_app, state)
 
     mock_ui = _make_ui_mock()
-    with patch("agents.dashboard_task_manager.ui", mock_ui):
+    with (
+        patch("agents.dashboard_task_manager.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         asyncio.run(fn(project_id="proj-1"))
 
     btn_calls = [str(c) for c in mock_ui.button.call_args_list]
@@ -212,7 +224,10 @@ def test_tasks_page_renders_back_link():
     fn, _ = _capture_page_fn(setup_task_manager, fake_app, state)
 
     mock_ui = _make_ui_mock()
-    with patch("agents.dashboard_task_manager.ui", mock_ui):
+    with (
+        patch("agents.dashboard_task_manager.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         asyncio.run(fn(project_id="proj-1"))
 
     link_calls = [str(c) for c in mock_ui.link.call_args_list]
@@ -235,7 +250,10 @@ def test_tasks_page_renders_task_names():
     fn, _ = _capture_page_fn(setup_task_manager, fake_app, state)
 
     mock_ui = _make_ui_mock()
-    with patch("agents.dashboard_task_manager.ui", mock_ui):
+    with (
+        patch("agents.dashboard_task_manager.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         asyncio.run(fn(project_id="proj-1"))
 
     label_calls = [str(c) for c in mock_ui.label.call_args_list]
@@ -280,7 +298,10 @@ def test_build_task_edit_dialog_create_calls_create_task():
     mock_ui.number.return_value = budget_mock
 
     # Keep patch active so the save closure uses mock_ui.notify (not real NiceGUI)
-    with patch("agents.dashboard_task_manager.ui", mock_ui):
+    with (
+        patch("agents.dashboard_task_manager.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         _build_task_edit_dialog("proj-1", state, refresh_fn, task=None)
 
         btn_calls = mock_ui.button.call_args_list
@@ -319,7 +340,10 @@ def test_build_task_edit_dialog_edit_calls_update_task():
     mock_ui.number.return_value = budget_mock
 
     # Keep patch active so the save closure uses mock_ui.notify (not real NiceGUI)
-    with patch("agents.dashboard_task_manager.ui", mock_ui):
+    with (
+        patch("agents.dashboard_task_manager.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         _build_task_edit_dialog("proj-1", state, refresh_fn, task=task)
 
         btn_calls = mock_ui.button.call_args_list

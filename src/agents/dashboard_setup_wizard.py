@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 
 from nicegui import ui
 
+from agents.dashboard_theme import apply_dark_theme
+
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
@@ -14,6 +16,8 @@ if TYPE_CHECKING:
 def setup_wizard_page(app: FastAPI, state: AppState) -> None:
     @ui.page("/dashboard/project/new")
     async def new_project_page() -> None:
+        apply_dark_theme()
+
         ui.label("New Project").classes("text-2xl font-bold text-white mb-4")
         stepper = ui.stepper().classes("w-full")
 

@@ -104,7 +104,10 @@ def test_project_not_found_renders_error():
 
     assert captured_fn is not None
     mock_ui = _make_ui_mock()
-    with patch("agents.dashboard_project_hub.ui", mock_ui):
+    with (
+        patch("agents.dashboard_project_hub.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         asyncio.run(captured_fn("missing-id"))
         # Should render an error label
         label_calls = [str(c) for c in mock_ui.label.call_args_list]
@@ -135,7 +138,10 @@ def test_project_page_renders_project_name():
 
     assert captured_fn is not None
     mock_ui = _make_ui_mock()
-    with patch("agents.dashboard_project_hub.ui", mock_ui):
+    with (
+        patch("agents.dashboard_project_hub.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         asyncio.run(captured_fn("p1"))
         label_calls = [str(c) for c in mock_ui.label.call_args_list]
         assert any("My Project" in c for c in label_calls)
@@ -164,7 +170,10 @@ def test_project_page_renders_empty_feed_message():
         setup_project_hub(fake_app, state)
 
     mock_ui = _make_ui_mock()
-    with patch("agents.dashboard_project_hub.ui", mock_ui):
+    with (
+        patch("agents.dashboard_project_hub.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         import asyncio
 
         asyncio.run(captured_fn("p1"))
@@ -205,7 +214,10 @@ def test_project_page_renders_events():
         setup_project_hub(fake_app, state)
 
     mock_ui = _make_ui_mock()
-    with patch("agents.dashboard_project_hub.ui", mock_ui):
+    with (
+        patch("agents.dashboard_project_hub.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         asyncio.run(captured_fn("p1"))
         label_calls = [str(c) for c in mock_ui.label.call_args_list]
         assert any("Fix bug" in c for c in label_calls)

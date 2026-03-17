@@ -126,7 +126,10 @@ def test_wizard_page_renders_heading():
     )
 
     mock_ui = _make_ui_mock()
-    with patch("agents.dashboard_setup_wizard.ui", mock_ui):
+    with (
+        patch("agents.dashboard_setup_wizard.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         asyncio.run(fn())
 
     label_calls = [str(c) for c in mock_ui.label.call_args_list]
@@ -144,7 +147,10 @@ def test_wizard_page_creates_stepper():
     )
 
     mock_ui = _make_ui_mock()
-    with patch("agents.dashboard_setup_wizard.ui", mock_ui):
+    with (
+        patch("agents.dashboard_setup_wizard.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         asyncio.run(fn())
 
     mock_ui.stepper.assert_called_once()
@@ -166,7 +172,10 @@ def test_wizard_page_renders_input_fields():
     )
 
     mock_ui = _make_ui_mock()
-    with patch("agents.dashboard_setup_wizard.ui", mock_ui):
+    with (
+        patch("agents.dashboard_setup_wizard.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         asyncio.run(fn())
 
     input_labels = [c.args[0] for c in mock_ui.input.call_args_list]
@@ -186,7 +195,10 @@ def test_wizard_page_renders_notification_select():
     )
 
     mock_ui = _make_ui_mock()
-    with patch("agents.dashboard_setup_wizard.ui", mock_ui):
+    with (
+        patch("agents.dashboard_setup_wizard.ui", mock_ui),
+        patch("agents.dashboard_theme.ui", mock_ui),
+    ):
         asyncio.run(fn())
 
     select_calls = [str(c) for c in mock_ui.select.call_args_list]
