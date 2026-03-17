@@ -29,9 +29,31 @@ _DASHBOARD_CSS = """
 <style>
 body { background: #0f1117 !important; font-family: 'JetBrains Mono', monospace; }
 .nicegui-content { padding: 0 !important; }
-.header-row { background: #1a1d27 !important; border-bottom: 1px solid #2d3142; }
-.stat-card { background: #1a1d27 !important; border: 1px solid #2d3142 !important; }
-.panel-card { background: #1a1d27 !important; border: 1px solid #2d3142 !important; }
+.header-row {
+    background: #1a1d27 !important;
+    border-bottom: 1px solid #2d3142;
+    min-height: 48px;
+}
+.header-divider {
+    width: 1px; height: 20px; background: #2d3142;
+}
+.status-dot {
+    display: inline-block; width: 6px; height: 6px;
+    border-radius: 50%; flex-shrink: 0;
+}
+.status-dot.running, .status-dot.active { background: #3b82f6; }
+.status-dot.success { background: #4ade80; }
+.status-dot.failure, .status-dot.failed { background: #f87171; }
+.status-dot.timeout { background: #fb923c; }
+.status-dot.cancelled { background: #6b7280; }
+.panel-divider {
+    width: 1px; background: #2d3142; flex-shrink: 0;
+}
+.section-label {
+    font-size: 9px; color: #6b7280; text-transform: uppercase;
+    letter-spacing: 1px; padding: 8px 12px;
+    border-bottom: 1px solid #1e2130;
+}
 .q-table { background: transparent !important; }
 .q-table thead tr th {
     background: #0f1117 !important; color: #6b7280 !important;
@@ -54,6 +76,10 @@ body { background: #0f1117 !important; font-family: 'JetBrains Mono', monospace;
 }
 @keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 .live-pulse { animation: live-pulse 1.4s ease-in-out infinite; }
+.trigger-menu .q-card {
+    background: #1a1d27 !important;
+    border: 1px solid #2d3142 !important;
+}
 </style>
 """
 
