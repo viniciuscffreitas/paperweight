@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fastapi import Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -22,6 +22,10 @@ _TEMPLATES = Jinja2Templates(directory=_BASE / "templates")
 def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None:
     """Mount static files and register all HTML routes."""
     app.mount("/static", StaticFiles(directory=_BASE / "static"), name="static")
+
+    @app.get("/")
+    async def root_redirect() -> RedirectResponse:
+        return RedirectResponse("/dashboard", status_code=302)
 
     @app.get("/dashboard", response_class=HTMLResponse)
     async def dashboard_page(request: Request) -> HTMLResponse:

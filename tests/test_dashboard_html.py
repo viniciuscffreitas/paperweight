@@ -188,6 +188,12 @@ def test_hub_runs_returns_200(app_with_project):
     assert resp.status_code == 200
 
 
+def test_root_redirects_to_dashboard(app_with_dashboard):
+    resp = app_with_dashboard.get("/", follow_redirects=False)
+    assert resp.status_code in (301, 302, 307, 308)
+    assert resp.headers["location"] == "/dashboard"
+
+
 def test_main_imports_dashboard_html_not_nicegui():
     """main.py must import from dashboard_html, not from dashboard (NiceGUI)."""
     import inspect
