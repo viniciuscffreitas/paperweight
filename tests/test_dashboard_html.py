@@ -382,3 +382,75 @@ def test_setup_create_returns_hx_redirect(app_with_dashboard):
         "/setup/create", data={"name": "My New Project", "repo_path": "/tmp/my-project"}
     )
     assert resp.headers.get("hx-redirect") == "/dashboard"
+
+
+# ---------------------------------------------------------------------------
+# Hub panel — Behavior Contract: visual bugs
+# ---------------------------------------------------------------------------
+
+
+def test_panel_header_height_44px(app_with_project):
+    """Panel header must be 44px to align with topbar L-chrome (was 52px)."""
+    resp = app_with_project.get("/hub/p1")
+    html = resp.text
+    assert "height:44px" in html
+    assert "height:52px" not in html
+
+
+def test_panel_tab_content_background(app_with_project):
+    """#tab-content must use background:#111520 to match content-card."""
+    resp = app_with_project.get("/hub/p1")
+    assert b"background:#111520" in resp.content
+
+
+def test_activity_tab_default_active(app_with_project):
+    """ACTIVITY tab is initially active: blue border-bottom + white text."""
+    resp = app_with_project.get("/hub/p1")
+    html = resp.text
+    assert "border-bottom:2px solid #3b82f6" in html
+
+
+def test_tasks_runs_tabs_inactive_by_default(app_with_project):
+    """TASKS and RUNS tabs start inactive: at least two transparent border-bottoms."""
+    resp = app_with_project.get("/hub/p1")
+    html = resp.text
+    assert html.count("border-bottom:2px solid transparent") >= 2
+
+
+def test_tabs_no_overflow_x_auto(app_with_project):
+    """Tabs container must not use overflow-x:auto (causes spurious scrollbar)."""
+    resp = app_with_project.get("/hub/p1")
+    assert b"overflow-x:auto" not in resp.content
+
+
+def test_panel_tab_activate_js_onclick(app_with_project):
+    """Each tab button must call activateTab(this) for runtime active-state switching."""
+    resp = app_with_project.get("/hub/p1")
+    html = resp.text
+    assert html.count("activateTab(this)") == 3
+
+
+def test_panel_close_button_present(app_with_project):
+    """Panel must have a close button that calls closePanel()."""
+    resp = app_with_project.get("/hub/p1")
+    assert b"closePanel()" in resp.content
+
+
+def test_htmx_targets_preserved(app_with_project):
+    """All three tab buttons must target #tab-content via hx-target."""
+    resp = app_with_project.get("/hub/p1")
+    html = resp.text
+    assert html.count('hx-target="#tab-content"') == 3
+
+
+def test_activity_tab_has_data_active_initially(app_with_project):
+    """ACTIVITY button must carry data-active initially so onmouseout respects active state."""
+    resp = app_with_project.get("/hub/p1")
+    assert b'data-active="true"' in resp.content
+
+
+def test_inactive_tabs_have_data_active_aware_hover(app_with_project):
+    """TASKS and RUNS onmouseout must check dataset.active before resetting color."""
+    resp = app_with_project.get("/hub/p1")
+    html = resp.text
+    assert html.count("this.dataset.active") >= 4  # onmouseover + onmouseout x 3 buttons

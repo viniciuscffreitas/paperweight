@@ -1,3 +1,16 @@
+// ── Hub panel tabs ──
+function activateTab(btn) {
+  var tabs = btn.closest('div').querySelectorAll('button');
+  tabs.forEach(function(t) {
+    t.style.color = '#4b5563';
+    t.style.borderBottomColor = 'transparent';
+    t.removeAttribute('data-active');
+  });
+  btn.style.color = '#e5e7eb';
+  btn.style.borderBottomColor = '#3b82f6';
+  btn.setAttribute('data-active', 'true');
+}
+
 // ── Hub panel (right panel / bottom sheet) ──
 function openPanel() {
   var p = document.getElementById('right-panel');
