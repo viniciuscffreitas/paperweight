@@ -555,3 +555,45 @@ def test_css_light_theme_overrides_border_and_accent_tokens():
         "--overlay-backdrop", "--overlay-shadow",
     ]:
         assert token in light_block, f"Missing {token} in light theme block"
+
+
+# ---------------------------------------------------------------------------
+# Light Theme — Endpoint POST /set-theme
+# ---------------------------------------------------------------------------
+
+
+def test_set_theme_light_sets_cookie(app_with_dashboard):
+    """POST /set-theme com theme=light seta o cookie theme=light."""
+    resp = app_with_dashboard.post("/set-theme", data={"theme": "light"})
+    assert resp.status_code == 200
+    assert resp.json() == {"ok": True}
+    assert "theme" in resp.cookies
+    assert resp.cookies["theme"] == "light"
+
+
+def test_set_theme_dark_sets_cookie(app_with_dashboard):
+    """POST /set-theme com theme=dark seta o cookie theme=dark."""
+    resp = app_with_dashboard.post("/set-theme", data={"theme": "dark"})
+    assert resp.status_code == 200
+    assert resp.cookies["theme"] == "dark"
+
+
+def test_set_theme_invalid_returns_422(app_with_dashboard):
+    """POST /set-theme com valor inválido retorna 422."""
+    resp = app_with_dashboard.post("/set-theme", data={"theme": "hacker"})
+    assert resp.status_code == 422
+
+
+def test_set_theme_missing_body_returns_422(app_with_dashboard):
+    """POST /set-theme sem body retorna 422."""
+    resp = app_with_dashboard.post("/set-theme", data={})
+    assert resp.status_code == 422
+
+
+def test_set_theme_cookie_attributes(app_with_dashboard):
+    """Cookie deve ter httponly, samesite=lax e max-age corretos."""
+    resp = app_with_dashboard.post("/set-theme", data={"theme": "light"})
+    set_cookie = resp.headers["set-cookie"].lower()
+    assert "httponly" in set_cookie
+    assert "samesite=lax" in set_cookie
+    assert "max-age=31536000" in set_cookie

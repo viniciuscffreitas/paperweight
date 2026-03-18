@@ -6,7 +6,7 @@ import time as _time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from fastapi import Request
+from fastapi import Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -135,3 +135,14 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
             "hub/runs.html",
             {"runs": runs, "id": project_id},
         )
+
+    @app.post("/set-theme")
+    async def set_theme(response: Response, theme: str = Form(...)) -> dict:
+        if theme not in ("light", "dark"):
+            raise HTTPException(status_code=422, detail="Invalid theme value")
+        response.set_cookie(
+            "theme", theme,
+            max_age=31_536_000, path="/",
+            httponly=True, samesite="lax",
+        )
+        return {"ok": True}
