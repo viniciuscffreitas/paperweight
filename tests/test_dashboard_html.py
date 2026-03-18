@@ -597,3 +597,57 @@ def test_set_theme_cookie_attributes(app_with_dashboard):
     assert "httponly" in set_cookie
     assert "samesite=lax" in set_cookie
     assert "max-age=31536000" in set_cookie
+
+
+# ---------------------------------------------------------------------------
+# Light Theme — Template
+# ---------------------------------------------------------------------------
+
+
+def test_html_element_has_data_theme_default_dark(app_with_dashboard):
+    """Sem cookie, <html> deve ter data-theme="dark"."""
+    resp = app_with_dashboard.get("/dashboard")
+    assert b'data-theme="dark"' in resp.content
+
+
+def test_html_element_has_data_theme_light_with_cookie(app_with_dashboard):
+    """Com cookie theme=light, <html> deve ter data-theme="light"."""
+    app_with_dashboard.cookies.set("theme", "light")
+    try:
+        resp = app_with_dashboard.get("/dashboard")
+        assert b'data-theme="light"' in resp.content
+    finally:
+        app_with_dashboard.cookies.clear()
+
+
+def test_html_element_has_data_theme_dark_with_cookie(app_with_dashboard):
+    """Com cookie theme=dark, <html> deve ter data-theme="dark"."""
+    app_with_dashboard.cookies.set("theme", "dark")
+    try:
+        resp = app_with_dashboard.get("/dashboard")
+        assert b'data-theme="dark"' in resp.content
+    finally:
+        app_with_dashboard.cookies.clear()
+
+
+def test_css_sidebar_backdrop_uses_overlay_token():
+    """dashboard.css deve usar var(--overlay-backdrop) no backdrop do sidebar."""
+    css = _read_css()
+    assert "var(--overlay-backdrop)" in css
+    assert css.count("var(--overlay-backdrop)") >= 3  # sidebar-backdrop + panel-backdrop + projects-backdrop
+
+
+def test_css_sidebar_shadow_uses_overlay_shadow_token():
+    """dashboard.css deve usar var(--overlay-shadow) no box-shadow do sidebar mobile."""
+    css = _read_css()
+    assert "var(--overlay-shadow)" in css
+
+
+def test_css_no_hardcoded_backdrop_rgba_after_tokenization():
+    """Os rgba hardcoded não devem mais aparecer nos backdrops do CSS mobile section."""
+    css = _read_css()
+    media_mobile_start = css.find("@media (max-width: 767px)")
+    media_mobile_end = css.find("@media (min-width: 768px)")
+    mobile_section = css[media_mobile_start:media_mobile_end]
+    assert "rgba(0,0,0,0.45)" not in mobile_section
+    assert "rgba(0,0,0,0.65)" not in mobile_section
