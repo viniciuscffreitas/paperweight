@@ -87,3 +87,84 @@
    Horizontal rule using the subtle border token
    ─────────────────────────────────────────────────────────────────────── #}
 {% macro divider() %}<hr style="border:none;border-top:1px solid var(--border-subtle);margin:0;">{% endmacro %}
+
+
+{# ──────────────────────────────────────────────────────────────────────────
+   Composite Macros
+   ────────────────────────────────────────────────────────────────────────── #}
+
+{# ── sidebar_item ─────────────────────────────────────────────────────────
+   Args: name, project_id
+   Renders a project list item with HTMX attrs and hover state
+   ─────────────────────────────────────────────────────────────────────── #}
+{% macro sidebar_item(name, project_id) %}<div hx-get="/hub/{{ project_id }}"
+     hx-target="#panel-content"
+     hx-on::after-request="openPanel()"
+     onclick="closeSidebar()"
+     role="button"
+     tabindex="0"
+     aria-label="Abrir projeto {{ name }}"
+     onkeydown="if(event.key==='Enter'||event.key===' '){this.click()}"
+     style="padding:8px 12px;font-size:12px;color:var(--text-secondary);cursor:pointer;border-radius:4px;
+            margin:1px 6px;transition:background .15s;"
+     onmouseover="this.style.background='var(--bg-elevated)';this.style.color='var(--text-primary)'"
+     onmouseout="this.style.background='transparent';this.style.color='var(--text-secondary)'">{{ name }}</div>{% endmacro %}
+
+
+{# ── panel_header ─────────────────────────────────────────────────────────
+   Args: project_name
+   Renders the 44px panel header with title + close button
+   ─────────────────────────────────────────────────────────────────────── #}
+{% macro panel_header(project_name) %}
+<div style="display:flex;align-items:center;justify-content:space-between;
+            padding:0 16px;height:44px;min-height:44px;flex-shrink:0;
+            border-bottom:1px solid var(--border-subtle);">
+  <span style="font-size:13px;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 48px);">{{ project_name }}</span>
+  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+    <button onclick="closePanel()"
+            aria-label="Fechar painel"
+            style="background:transparent;border:1px solid transparent;color:var(--text-muted);cursor:pointer;
+                   padding:4px 8px;font-size:11px;font-family:inherit;
+                   border-radius:3px;transition:color .15s;"
+            onmouseover="this.style.color='var(--text-primary)'"
+            onmouseout="this.style.color='var(--text-muted)'">✕</button>
+  </div>
+</div>
+{% endmacro %}
+
+
+{# ── tab_bar ──────────────────────────────────────────────────────────────
+   Args: project_id, active_tab='activity'
+   Renders 3 tab buttons: ACTIVITY, TASKS, RUNS
+   Active tab: color=--text-primary, border-bottom=var(--accent), data-active="true"
+   Inactive tab: color=--text-disabled, border-bottom=transparent
+   ─────────────────────────────────────────────────────────────────────── #}
+{% macro tab_bar(project_id, active_tab='activity') %}
+<div style="display:flex;border-bottom:1px solid var(--border-subtle);padding:0 12px;flex-shrink:0;">
+  {%- for t in ['activity', 'tasks', 'runs'] -%}
+  <button hx-get="/hub/{{ project_id }}/{{ t }}"
+          hx-target="#tab-content"
+          onclick="activateTab(this)"
+          {% if t == active_tab %}data-active="true"{% endif %}
+          style="padding:10px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;
+                 color:{% if t == active_tab %}var(--text-primary){% else %}var(--text-disabled){% endif %};cursor:pointer;border:none;background:transparent;
+                 border-bottom:2px solid {% if t == active_tab %}var(--accent){% else %}transparent{% endif %};margin-bottom:-1px;font-family:inherit;
+                 transition:color .15s;white-space:nowrap;flex-shrink:0;"
+          onmouseover="if (!this.dataset.active) this.style.color='var(--text-secondary)'"
+          onmouseout="if (!this.dataset.active) this.style.color='var(--text-disabled)'">
+    {{ t | upper }}
+  </button>
+  {%- endfor -%}
+</div>
+{% endmacro %}
+
+
+{# ── list_row ─────────────────────────────────────────────────────────────
+   Call block macro — wraps content in a row with hover + optional divider
+   Usage: {% call list_row() %}content{% endcall %}
+   Args: border=true
+   ─────────────────────────────────────────────────────────────────────── #}
+{% macro list_row(border=true) %}<div style="display:flex;align-items:center;gap:8px;padding:6px 4px;
+     {% if border %}border-bottom:1px solid var(--border-subtle);{% endif %}"
+     onmouseover="this.style.background='var(--bg-overlay)'"
+     onmouseout="this.style.background='transparent'">{{ caller() }}</div>{% endmacro %}

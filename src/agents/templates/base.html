@@ -1,4 +1,4 @@
-{% from "components/macros.html" import btn, input_field, status_dot, section_label %}
+{% from "components/macros.html" import btn, input_field, status_dot, section_label, sidebar_item %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -50,20 +50,7 @@
     <div style="padding:8px 0;flex:1;overflow-y:auto;">
       {{ section_label('Projects') }}
       {% for p in projects %}
-      <div hx-get="/hub/{{ p.id }}"
-           hx-target="#panel-content"
-           hx-on::after-request="openPanel()"
-           onclick="closeSidebar()"
-           role="button"
-           tabindex="0"
-           aria-label="Abrir projeto {{ p.name }}"
-           onkeydown="if(event.key==='Enter'||event.key===' '){this.click()}"
-           style="padding:8px 12px;font-size:12px;color:var(--text-secondary);cursor:pointer;border-radius:4px;
-                  margin:1px 6px;transition:background .15s;"
-           onmouseover="this.style.background='var(--bg-elevated)';this.style.color='var(--text-primary)'"
-           onmouseout="this.style.background='transparent';this.style.color='var(--text-secondary)'">
-        {{ p.name }}
-      </div>
+      {{ sidebar_item(p.name, p.id) }}
       {% else %}
       <div style="padding:12px 12px 8px;">
         <div style="font-size:10px;color:var(--text-placeholder);font-style:italic;margin-bottom:8px;">no projects yet</div>

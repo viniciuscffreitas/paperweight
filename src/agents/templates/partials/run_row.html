@@ -1,5 +1,5 @@
-{% from "components/macros.html" import status_dot %}
-<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-subtle);">
+{% from "components/macros.html" import status_dot, list_row %}
+{% call list_row() %}
   {{ status_dot(run.status) }}
   <span style="flex:1;font-size:12px;color:var(--text-primary);">{{ run.task }}</span>
   {% if run.cost_usd %}
@@ -8,4 +8,4 @@
   {% if run.pr_url %}
   <a href="{{ run.pr_url }}" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none;">PR ↗</a>
   {% endif %}
-</div>
+{% endcall %}

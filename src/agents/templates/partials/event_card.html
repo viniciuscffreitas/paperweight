@@ -1,10 +1,9 @@
+{% from "components/macros.html" import list_row %}
 {% set source_icons = {"linear": "task_alt", "github": "code", "slack": "chat", "paperweight": "smart_toy"} %}
 {% set source_colors = {"linear": "#5E6AD2", "github": "#238636", "slack": "#4A154B", "paperweight": "#F97316"} %}
 {% set priority_colors = {"urgent": "#EF4444", "high": "#F59E0B", "medium": "#3B82F6", "low": "#6B7280"} %}
 
-<div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-radius:4px;cursor:default;"
-     onmouseover="this.style.background='var(--bg-overlay)'"
-     onmouseout="this.style.background='transparent'">
+{% call list_row(border=false) %}
   <span class="material-icons" style="font-size:16px;color:{{ source_colors.get(event.source, '#666') }};flex-shrink:0;">
     {{ source_icons.get(event.source, 'info') }}
   </span>
@@ -23,4 +22,4 @@
   {% if event.author %}
   <span style="font-size:11px;color:var(--text-muted);flex-shrink:0;">{{ event.author }}</span>
   {% endif %}
-</div>
+{% endcall %}
