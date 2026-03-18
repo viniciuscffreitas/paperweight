@@ -634,7 +634,8 @@ def test_css_sidebar_backdrop_uses_overlay_token():
     """dashboard.css deve usar var(--overlay-backdrop) no backdrop do sidebar."""
     css = _read_css()
     assert "var(--overlay-backdrop)" in css
-    assert css.count("var(--overlay-backdrop)") >= 3  # sidebar-backdrop + panel-backdrop + projects-backdrop
+    # sidebar-backdrop + panel-backdrop + projects-backdrop
+    assert css.count("var(--overlay-backdrop)") >= 3
 
 
 def test_css_sidebar_shadow_uses_overlay_shadow_token():
