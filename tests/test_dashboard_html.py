@@ -282,7 +282,7 @@ def test_dashboard_chrome_label_contrast(app_with_dashboard):
     resp = app_with_dashboard.get("/dashboard")
     html = resp.content
     # #6b7280 on #0d0f18 fails WCAG AA for small text; #9ca3af passes
-    assert b"color:#6b7280;text-transform:uppercase" not in html
+    assert b"color:var(--text-muted);text-transform:uppercase" not in html
 
 
 # ---------------------------------------------------------------------------
@@ -398,16 +398,16 @@ def test_panel_header_height_44px(app_with_project):
 
 
 def test_panel_tab_content_background(app_with_project):
-    """#tab-content must use background:#111520 to match content-card."""
+    """#tab-content must use background:var(--bg-content) to match content-card."""
     resp = app_with_project.get("/hub/p1")
-    assert b"background:#111520" in resp.content
+    assert b"background:var(--bg-content)" in resp.content
 
 
 def test_activity_tab_default_active(app_with_project):
     """ACTIVITY tab is initially active: blue border-bottom + white text."""
     resp = app_with_project.get("/hub/p1")
     html = resp.text
-    assert "border-bottom:2px solid #3b82f6" in html
+    assert "border-bottom:2px solid var(--accent)" in html
 
 
 def test_tasks_runs_tabs_inactive_by_default(app_with_project):
@@ -454,3 +454,37 @@ def test_inactive_tabs_have_data_active_aware_hover(app_with_project):
     resp = app_with_project.get("/hub/p1")
     html = resp.text
     assert html.count("this.dataset.active") >= 4  # onmouseover + onmouseout x 3 buttons
+
+
+# ---------------------------------------------------------------------------
+# Phase 1 — CSS Variables
+# ---------------------------------------------------------------------------
+
+
+def test_css_vars_root_defined():
+    """dashboard.css must define the :root CSS custom properties block."""
+    import os
+    css_path = os.path.join(
+        os.path.dirname(__file__), "../src/agents/static/dashboard.css"
+    )
+    with open(css_path) as f:
+        css = f.read()
+    assert ":root {" in css
+
+
+def test_right_panel_no_border_left_desktop(app_with_dashboard):
+    """#right-panel desktop inline style must not contain border-left."""
+    import re
+    resp = app_with_dashboard.get("/dashboard")
+    html = resp.text
+    match = re.search(r'id="right-panel"[^>]*style="([^"]*)"', html)
+    assert match, "#right-panel not found"
+    assert "border-left" not in match.group(1)
+
+
+def test_templates_use_css_vars(app_with_project):
+    """Rendered templates must use CSS custom properties (var(--)."""
+    resp = app_with_project.get("/dashboard")
+    assert b"var(--" in resp.content
+    resp2 = app_with_project.get("/hub/p1")
+    assert b"var(--" in resp2.content

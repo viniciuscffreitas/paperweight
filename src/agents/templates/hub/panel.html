@@ -4,60 +4,60 @@
   <!-- Panel header -->
   <div style="display:flex;align-items:center;justify-content:space-between;
               padding:0 16px;height:44px;min-height:44px;flex-shrink:0;
-              border-bottom:1px solid #1e2130;">
-    <span style="font-size:13px;font-weight:700;color:#e5e7eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 48px);">{{ project.name }}</span>
+              border-bottom:1px solid var(--border-subtle);">
+    <span style="font-size:13px;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 48px);">{{ project.name }}</span>
     <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
       <button onclick="closePanel()"
               aria-label="Fechar painel"
-              style="background:transparent;border:1px solid transparent;color:#6b7280;cursor:pointer;
+              style="background:transparent;border:1px solid transparent;color:var(--text-muted);cursor:pointer;
                      padding:4px 8px;font-size:11px;font-family:inherit;
                      border-radius:3px;transition:color .15s;"
-              onmouseover="this.style.color='#e5e7eb'"
-              onmouseout="this.style.color='#6b7280'">✕</button>
+              onmouseover="this.style.color='var(--text-primary)'"
+              onmouseout="this.style.color='var(--text-muted)'">✕</button>
     </div>
   </div>
 
   <!-- Tabs -->
-  <div style="display:flex;border-bottom:1px solid #1e2130;padding:0 12px;flex-shrink:0;">
+  <div style="display:flex;border-bottom:1px solid var(--border-subtle);padding:0 12px;flex-shrink:0;">
     <button hx-get="/hub/{{ id }}/activity"
             hx-target="#tab-content"
             onclick="activateTab(this)"
             data-active="true"
             style="padding:10px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;
-                   color:#e5e7eb;cursor:pointer;border:none;background:transparent;
-                   border-bottom:2px solid #3b82f6;margin-bottom:-1px;font-family:inherit;
+                   color:var(--text-primary);cursor:pointer;border:none;background:transparent;
+                   border-bottom:2px solid var(--accent);margin-bottom:-1px;font-family:inherit;
                    transition:color .15s;white-space:nowrap;flex-shrink:0;"
-            onmouseover="if (!this.dataset.active) this.style.color='#9ca3af'"
-            onmouseout="if (!this.dataset.active) this.style.color='#4b5563'">
+            onmouseover="if (!this.dataset.active) this.style.color='var(--text-secondary)'"
+            onmouseout="if (!this.dataset.active) this.style.color='var(--text-disabled)'">
       ACTIVITY
     </button>
     <button hx-get="/hub/{{ id }}/tasks"
             hx-target="#tab-content"
             onclick="activateTab(this)"
             style="padding:10px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;
-                   color:#4b5563;cursor:pointer;border:none;background:transparent;
+                   color:var(--text-disabled);cursor:pointer;border:none;background:transparent;
                    border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;
                    transition:color .15s;white-space:nowrap;flex-shrink:0;"
-            onmouseover="if (!this.dataset.active) this.style.color='#9ca3af'"
-            onmouseout="if (!this.dataset.active) this.style.color='#4b5563'">
+            onmouseover="if (!this.dataset.active) this.style.color='var(--text-secondary)'"
+            onmouseout="if (!this.dataset.active) this.style.color='var(--text-disabled)'">
       TASKS
     </button>
     <button hx-get="/hub/{{ id }}/runs"
             hx-target="#tab-content"
             onclick="activateTab(this)"
             style="padding:10px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;
-                   color:#4b5563;cursor:pointer;border:none;background:transparent;
+                   color:var(--text-disabled);cursor:pointer;border:none;background:transparent;
                    border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;
                    transition:color .15s;white-space:nowrap;flex-shrink:0;"
-            onmouseover="if (!this.dataset.active) this.style.color='#9ca3af'"
-            onmouseout="if (!this.dataset.active) this.style.color='#4b5563'">
+            onmouseover="if (!this.dataset.active) this.style.color='var(--text-secondary)'"
+            onmouseout="if (!this.dataset.active) this.style.color='var(--text-disabled)'">
       RUNS
     </button>
   </div>
 
   <!-- Tab content — loaded via HTMX, defaults to activity -->
   <div id="tab-content"
-       style="flex:1;overflow-y:auto;background:#111520;"
+       style="flex:1;overflow-y:auto;background:var(--bg-content);"
        hx-get="/hub/{{ id }}/activity"
        hx-trigger="load">
   </div>

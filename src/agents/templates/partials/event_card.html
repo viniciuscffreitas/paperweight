@@ -3,24 +3,24 @@
 {% set priority_colors = {"urgent": "#EF4444", "high": "#F59E0B", "medium": "#3B82F6", "low": "#6B7280"} %}
 
 <div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-radius:4px;cursor:default;"
-     onmouseover="this.style.background='#1a1d27'"
+     onmouseover="this.style.background='var(--bg-overlay)'"
      onmouseout="this.style.background='transparent'">
   <span class="material-icons" style="font-size:16px;color:{{ source_colors.get(event.source, '#666') }};flex-shrink:0;">
     {{ source_icons.get(event.source, 'info') }}
   </span>
   {% if event.priority and event.priority != 'none' %}
   <span style="font-size:10px;padding:1px 5px;border-radius:3px;flex-shrink:0;
-               background:{{ priority_colors.get(event.priority, '#374151') }};color:#fff;">
+               background:{{ priority_colors.get(event.priority, 'var(--text-placeholder)') }};color:#fff;">
     {{ event.priority | upper }}
   </span>
   {% endif %}
-  <span style="flex:1;font-size:12px;color:#e5e7eb;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+  <span style="flex:1;font-size:12px;color:var(--text-primary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
     {{ event.title | default('') }}
   </span>
-  <span style="font-size:11px;color:#4b5563;flex-shrink:0;white-space:nowrap;">
+  <span style="font-size:11px;color:var(--text-disabled);flex-shrink:0;white-space:nowrap;">
     {{ (event.timestamp | default(''))[:16] | replace('T', ' ') }}
   </span>
   {% if event.author %}
-  <span style="font-size:11px;color:#6b7280;flex-shrink:0;">{{ event.author }}</span>
+  <span style="font-size:11px;color:var(--text-muted);flex-shrink:0;">{{ event.author }}</span>
   {% endif %}
 </div>

@@ -1,14 +1,14 @@
-{% set bg = "#1a1d27" if task.get("enabled", 1) else "#12151f" %}
+{% set bg = "var(--bg-task-hover)" if task.get("enabled", 1) else "#12151f" %}
 <div style="display:flex;align-items:center;padding:8px 12px;border-radius:6px;background:{{ bg }};gap:8px;">
   <div style="flex:1;min-width:0;">
-    <div style="font-size:13px;color:#e5e7eb;">{{ task.name }}</div>
-    <div style="font-size:11px;color:#6b7280;margin-top:2px;">
+    <div style="font-size:13px;color:var(--text-primary);">{{ task.name }}</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
       {{ task.trigger_type }} · {{ task.model }} · ${{ "%.2f" | format(task.max_budget) }}
     </div>
   </div>
   <span style="font-size:10px;padding:2px 6px;border-radius:3px;
-               background:{{ '#1a3a1a' if task.get('enabled', 1) else '#2a1a1a' }};
-               color:{{ '#4ade80' if task.get('enabled', 1) else '#f87171' }};">
+               background:{{ 'var(--bg-task-success)' if task.get('enabled', 1) else 'var(--bg-task-error)' }};
+               color:{{ 'var(--status-success)' if task.get('enabled', 1) else 'var(--status-error)' }};">
     {{ 'ON' if task.get('enabled', 1) else 'OFF' }}
   </span>
 </div>
