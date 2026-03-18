@@ -39,7 +39,15 @@ Adicionar um light theme warm (tons creme/areia) ao app paperweight, ativável v
 | `--bg-task-error`    | `#2a1a1a`     | `#fee2e2`     |
 | `--bg-task-hover`    | `#1a1d27`     | `#ede8df`     |
 
-Status colors (`--status-*`) permanecem iguais — são semânticos e funcionam em ambos os temas.
+Status colors (`--status-*`) são sobrescritos no light theme com versões mais escuras para garantir WCAG 3:1 de contraste sobre o fundo creme. Os valores do dark theme (`#4ade80`, `#f87171` etc.) falham o threshold de 3:1 sobre `#fdfaf4`.
+
+| Token                | Dark (atual)  | Light (novo)  |
+|----------------------|---------------|---------------|
+| `--status-running`   | `#3b82f6`     | `#1d4ed8`     |
+| `--status-success`   | `#4ade80`     | `#15803d`     |
+| `--status-error`     | `#f87171`     | `#b91c1c`     |
+| `--status-warning`   | `#fb923c`     | `#c2410c`     |
+| `--status-neutral`   | `#6b7280`     | `#57534e`     |
 
 ### Overlays rgba (mobile)
 

@@ -557,6 +557,18 @@ def test_css_light_theme_overrides_border_and_accent_tokens():
         assert token in light_block, f"Missing {token} in light theme block"
 
 
+def test_css_light_theme_overrides_status_tokens():
+    """[data-theme="light"] block must override all --status-* tokens for WCAG 3:1 on cream."""
+    css = _read_css()
+    light_block_start = css.find('[data-theme="light"]')
+    light_block = css[light_block_start:]
+    for token in [
+        "--status-running", "--status-success", "--status-error",
+        "--status-warning", "--status-neutral",
+    ]:
+        assert token in light_block, f"Missing {token} in light theme block (needed for WCAG contrast on cream)"
+
+
 # ---------------------------------------------------------------------------
 # Light Theme — Endpoint POST /set-theme
 # ---------------------------------------------------------------------------
