@@ -506,8 +506,11 @@ def _read_css() -> str:
 def test_css_overlay_tokens_in_root():
     """dashboard.css :root must define --overlay-backdrop and --overlay-shadow tokens."""
     css = _read_css()
-    assert "--overlay-backdrop:" in css
-    assert "--overlay-shadow:" in css
+    root_end = css.find("[data-theme")
+    assert root_end != -1, ":root block not found (no [data-theme] block after it)"
+    root_section = css[:root_end]
+    assert "--overlay-backdrop:" in root_section, "--overlay-backdrop not in :root"
+    assert "--overlay-shadow:" in root_section, "--overlay-shadow not in :root"
 
 
 def test_css_light_theme_block_exists():
@@ -542,6 +545,7 @@ def test_css_light_theme_overrides_all_text_tokens():
 
 
 def test_css_light_theme_overrides_border_and_accent_tokens():
+    """[data-theme="light"] block must override all border, accent, and overlay tokens."""
     css = _read_css()
     light_block_start = css.find('[data-theme="light"]')
     light_block = css[light_block_start:]

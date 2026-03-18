@@ -54,7 +54,7 @@
   /* text */
   --text-primary:     #1a1612;
   --text-secondary:   #5c5248;
-  --text-muted:       #8a8078;
+  --text-muted:       #6e6560;
   --text-disabled:    #b0a89e;
   --text-placeholder: #c0b8ae;
 
@@ -71,6 +71,13 @@
   /* overlay rgba — warm brown for light theme */
   --overlay-backdrop: rgba(80,60,40,0.35);
   --overlay-shadow:   rgba(80,60,40,0.50);
+
+  /* status — darker hues for WCAG 3:1 on cream background */
+  --status-running: #1d4ed8;
+  --status-success: #15803d;
+  --status-error:   #b91c1c;
+  --status-warning: #c2410c;
+  --status-neutral: #57534e;
 }
 
 * { font-family: "Ubuntu Mono", monospace; }
