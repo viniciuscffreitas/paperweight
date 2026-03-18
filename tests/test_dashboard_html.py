@@ -488,3 +488,66 @@ def test_templates_use_css_vars(app_with_project):
     assert b"var(--" in resp.content
     resp2 = app_with_project.get("/hub/p1")
     assert b"var(--" in resp2.content
+
+
+# ---------------------------------------------------------------------------
+# Light Theme — CSS
+# ---------------------------------------------------------------------------
+
+def _read_css() -> str:
+    import os
+    css_path = os.path.join(
+        os.path.dirname(__file__), "../src/agents/static/dashboard.css"
+    )
+    with open(css_path) as f:
+        return f.read()
+
+
+def test_css_overlay_tokens_in_root():
+    """dashboard.css :root must define --overlay-backdrop and --overlay-shadow tokens."""
+    css = _read_css()
+    assert "--overlay-backdrop:" in css
+    assert "--overlay-shadow:" in css
+
+
+def test_css_light_theme_block_exists():
+    """dashboard.css must contain a [data-theme="light"] block."""
+    css = _read_css()
+    assert '[data-theme="light"]' in css
+
+
+def test_css_light_theme_overrides_all_bg_tokens():
+    """[data-theme="light"] block must override all --bg-* tokens."""
+    css = _read_css()
+    light_block_start = css.find('[data-theme="light"]')
+    assert light_block_start != -1
+    light_block = css[light_block_start:]
+    for token in [
+        "--bg-chrome", "--bg-content", "--bg-elevated", "--bg-overlay",
+        "--bg-task-success", "--bg-task-error", "--bg-task-hover",
+    ]:
+        assert token in light_block, f"Missing {token} in light theme block"
+
+
+def test_css_light_theme_overrides_all_text_tokens():
+    """[data-theme="light"] block must override all --text-* tokens."""
+    css = _read_css()
+    light_block_start = css.find('[data-theme="light"]')
+    light_block = css[light_block_start:]
+    for token in [
+        "--text-primary", "--text-secondary", "--text-muted",
+        "--text-disabled", "--text-placeholder",
+    ]:
+        assert token in light_block, f"Missing {token} in light theme block"
+
+
+def test_css_light_theme_overrides_border_and_accent_tokens():
+    css = _read_css()
+    light_block_start = css.find('[data-theme="light"]')
+    light_block = css[light_block_start:]
+    for token in [
+        "--border-subtle", "--border-default", "--border-strong",
+        "--accent", "--accent-bg", "--accent-hover",
+        "--overlay-backdrop", "--overlay-shadow",
+    ]:
+        assert token in light_block, f"Missing {token} in light theme block"

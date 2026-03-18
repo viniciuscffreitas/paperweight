@@ -34,9 +34,43 @@
   --bg-task-error:   #2a1a1a;
   --bg-task-hover:   #1a1d27;
 
-  /* semi-transparent overlays (intentionally NOT vars — rgba cannot be tokenized cleanly) */
-  /* backdrop:    rgba(0,0,0,0.45) — sidebar-backdrop, panel-backdrop, projects-backdrop     */
-  /* box-shadow:  rgba(0,0,0,0.65) — #sidebar.sidebar-open mobile open state                */
+  /* overlay rgba — tokenized for theme support */
+  --overlay-backdrop: rgba(0,0,0,0.45);
+  --overlay-shadow:   rgba(0,0,0,0.65);
+}
+
+[data-theme="light"] {
+  /* backgrounds */
+  --bg-chrome:    #f5f0e8;
+  --bg-content:   #fdfaf4;
+  --bg-elevated:  #ede8df;
+  --bg-overlay:   #e8e2d8;
+
+  /* borders */
+  --border-subtle:  #ddd8ce;
+  --border-default: #c8c2b8;
+  --border-strong:  #a89e92;
+
+  /* text */
+  --text-primary:     #1a1612;
+  --text-secondary:   #5c5248;
+  --text-muted:       #8a8078;
+  --text-disabled:    #b0a89e;
+  --text-placeholder: #c0b8ae;
+
+  /* accent */
+  --accent:       #2563eb;
+  --accent-bg:    #dbeafe;
+  --accent-hover: #1e40af;
+
+  /* task row semantic backgrounds */
+  --bg-task-success: #dcfce7;
+  --bg-task-error:   #fee2e2;
+  --bg-task-hover:   #ede8df;
+
+  /* overlay rgba — warm brown for light theme */
+  --overlay-backdrop: rgba(80,60,40,0.35);
+  --overlay-shadow:   rgba(80,60,40,0.50);
 }
 
 * { font-family: "Ubuntu Mono", monospace; }
