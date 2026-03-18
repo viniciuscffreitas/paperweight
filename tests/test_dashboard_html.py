@@ -652,3 +652,39 @@ def test_css_no_hardcoded_backdrop_rgba_after_tokenization():
     mobile_section = css[media_mobile_start:media_mobile_end]
     assert "rgba(0,0,0,0.45)" not in mobile_section
     assert "rgba(0,0,0,0.65)" not in mobile_section
+
+
+# ---------------------------------------------------------------------------
+# Light Theme — Toggle Button
+# ---------------------------------------------------------------------------
+
+
+def test_theme_toggle_button_present(app_with_dashboard):
+    """Topbar deve conter o botão de toggle de tema."""
+    resp = app_with_dashboard.get("/dashboard")
+    assert b"theme-toggle" in resp.content
+    assert b"toggleTheme" in resp.content
+
+
+def test_theme_toggle_icon_dark_by_default(app_with_dashboard):
+    """Sem cookie, botão deve mostrar ícone de dark (☾)."""
+    resp = app_with_dashboard.get("/dashboard")
+    assert "☾".encode() in resp.content
+
+
+def test_theme_toggle_icon_sun_when_light(app_with_dashboard):
+    """Com cookie theme=light, botão deve mostrar ícone de light (☀)."""
+    app_with_dashboard.cookies.set("theme", "light")
+    try:
+        resp = app_with_dashboard.get("/dashboard")
+        assert "☀".encode() in resp.content
+    finally:
+        app_with_dashboard.cookies.clear()
+
+
+def test_theme_toggle_js_rollback_present(app_with_dashboard):
+    """JS de toggleTheme deve conter lógica de rollback (dataset.theme = current)."""
+    resp = app_with_dashboard.get("/dashboard")
+    html = resp.text
+    assert "toggleTheme" in html
+    assert "html.dataset.theme = current" in html

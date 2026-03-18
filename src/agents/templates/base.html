@@ -90,8 +90,18 @@
 
     <!-- Topbar slot (part of the chrome L) -->
     <div id="app-topbar"
-         style="flex-shrink:0;background:var(--bg-chrome);">
-      {% block topbar %}{% endblock %}
+         style="flex-shrink:0;background:var(--bg-chrome);display:flex;align-items:center;justify-content:space-between;">
+      <div style="flex:1;">{% block topbar %}{% endblock %}</div>
+      <button id="theme-toggle"
+              onclick="toggleTheme()"
+              aria-label="Alternar tema"
+              title="Alternar tema"
+              style="background:transparent;border:none;color:var(--text-secondary);
+                     cursor:pointer;font-size:16px;padding:4px 10px;line-height:1;
+                     font-family:inherit;border-radius:3px;transition:color .15s;
+                     flex-shrink:0;margin-right:8px;"
+              onmouseover="this.style.color='var(--text-primary)'"
+              onmouseout="this.style.color='var(--text-secondary)'">{{ '☀' if request.cookies.get('theme', 'dark') == 'light' else '☾' }}</button>
     </div>
 
     <!-- Content card — rounded top-left corner closes the L -->
@@ -261,6 +271,29 @@
 
     </div><!-- #wizard-card -->
   </div><!-- #wizard-overlay -->
+
+  <script>
+    function toggleTheme() {
+      var html = document.documentElement;
+      var current = html.dataset.theme || 'dark';
+      var next = current === 'light' ? 'dark' : 'light';
+      html.dataset.theme = next;
+      document.getElementById('theme-toggle').textContent = next === 'light' ? '☀' : '☾';
+      fetch('/set-theme', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'theme=' + next
+      }).then(function(r) {
+        if (!r.ok) {
+          html.dataset.theme = current;
+          document.getElementById('theme-toggle').textContent = current === 'light' ? '☀' : '☾';
+        }
+      }).catch(function() {
+        html.dataset.theme = current;
+        document.getElementById('theme-toggle').textContent = current === 'light' ? '☀' : '☾';
+      });
+    }
+  </script>
 
   <script>
     var _wizardStep1Html = '';
