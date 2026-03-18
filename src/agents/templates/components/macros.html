@@ -1,0 +1,89 @@
+{# ──────────────────────────────────────────────────────────────────────────
+   UI Primitives — import via:
+   {% from "components/macros.html" import btn, input_field, status_dot, section_label, divider %}
+   ────────────────────────────────────────────────────────────────────────── #}
+
+{# ── btn ──────────────────────────────────────────────────────────────────
+   Variants: primary | ghost | danger | dashed
+   Args: label, variant='primary', onclick='', type='button', aria_label=''
+   ─────────────────────────────────────────────────────────────────────── #}
+{% macro btn(label, variant='primary', onclick='', type='button', aria_label='') %}
+{%- if variant == 'primary' -%}
+<button type="{{ type }}"
+        {% if onclick %}onclick="{{ onclick }}"{% endif %}
+        {% if aria_label %}aria-label="{{ aria_label }}"{% endif %}
+        style="padding:7px 18px;font-size:11px;color:var(--text-primary);background:var(--accent-bg);
+               border:1px solid var(--accent);border-radius:4px;cursor:pointer;font-family:inherit;
+               letter-spacing:.3px;transition:all .15s;"
+        onmouseover="this.style.background='var(--accent-hover)'"
+        onmouseout="this.style.background='var(--accent-bg)'">{{ label }}</button>
+{%- elif variant == 'ghost' -%}
+<button type="{{ type }}"
+        {% if onclick %}onclick="{{ onclick }}"{% endif %}
+        {% if aria_label %}aria-label="{{ aria_label }}"{% endif %}
+        style="padding:7px 14px;font-size:11px;color:var(--text-muted);background:transparent;
+               border:1px solid var(--border-subtle);border-radius:4px;cursor:pointer;font-family:inherit;
+               letter-spacing:.3px;transition:all .15s;"
+        onmouseover="this.style.borderColor='var(--border-default)';this.style.color='var(--text-secondary)'"
+        onmouseout="this.style.borderColor='var(--border-subtle)';this.style.color='var(--text-muted)'">{{ label }}</button>
+{%- elif variant == 'danger' -%}
+<button type="{{ type }}"
+        {% if onclick %}onclick="{{ onclick }}"{% endif %}
+        {% if aria_label %}aria-label="{{ aria_label }}"{% endif %}
+        style="padding:7px 14px;font-size:11px;color:var(--status-error);background:transparent;
+               border:1px solid var(--status-error);border-radius:4px;cursor:pointer;font-family:inherit;
+               letter-spacing:.3px;transition:all .15s;"
+        onmouseover="this.style.background='var(--bg-task-error)'"
+        onmouseout="this.style.background='transparent'">{{ label }}</button>
+{%- elif variant == 'dashed' -%}
+<button type="{{ type }}"
+        {% if onclick %}onclick="{{ onclick }}"{% endif %}
+        {% if aria_label %}aria-label="{{ aria_label }}"{% endif %}
+        style="padding:7px 14px;font-size:11px;color:var(--text-muted);background:transparent;
+               border:1px dashed var(--border-default);border-radius:4px;cursor:pointer;font-family:inherit;
+               letter-spacing:.5px;transition:all .15s;"
+        onmouseover="this.style.color='var(--text-secondary)';this.style.borderColor='var(--border-strong)'"
+        onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border-default)'">{{ label }}</button>
+{%- endif -%}
+{% endmacro %}
+
+
+{# ── input_field ──────────────────────────────────────────────────────────
+   Args: name, placeholder='', required=false, label=''
+   ─────────────────────────────────────────────────────────────────────── #}
+{% macro input_field(name, placeholder='', required=false, label='') %}
+<div style="margin-bottom:14px;">
+  {%- if label %}
+  <label style="display:block;font-size:9px;color:var(--text-secondary);text-transform:uppercase;
+                letter-spacing:1.5px;margin-bottom:6px;">{{ label }}</label>
+  {%- endif %}
+  <input name="{{ name }}"
+         {% if required %}required{% endif %}
+         {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+         autocomplete="off"
+         style="width:100%;background:var(--bg-chrome);border:1px solid var(--border-default);border-radius:4px;
+                padding:8px 12px;font-size:13px;color:var(--text-primary);font-family:inherit;
+                outline:none;box-sizing:border-box;transition:border-color .15s;"
+         onfocus="this.style.borderColor='var(--accent)'"
+         onblur="this.style.borderColor='var(--border-default)'">
+</div>
+{% endmacro %}
+
+
+{# ── status_dot ───────────────────────────────────────────────────────────
+   Args: status — 'running' | 'success' | 'failure' | 'timeout' | 'cancelled'
+   CSS class drives color via dashboard.css .status-dot.<status> rules
+   ─────────────────────────────────────────────────────────────────────── #}
+{% macro status_dot(status) %}<span class="status-dot {{ status }}" aria-hidden="true"></span>{% endmacro %}
+
+
+{# ── section_label ────────────────────────────────────────────────────────
+   Args: text
+   ─────────────────────────────────────────────────────────────────────── #}
+{% macro section_label(text) %}<div style="padding:4px 12px;font-size:9px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;" aria-hidden="true">{{ text }}</div>{% endmacro %}
+
+
+{# ── divider ──────────────────────────────────────────────────────────────
+   Horizontal rule using the subtle border token
+   ─────────────────────────────────────────────────────────────────────── #}
+{% macro divider() %}<hr style="border:none;border-top:1px solid var(--border-subtle);margin:0;">{% endmacro %}
