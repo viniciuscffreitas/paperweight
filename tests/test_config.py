@@ -196,3 +196,52 @@ integrations:
 """)
     config = load_global_config(config_file)
     assert config.integrations.discord_guild_id == "guild-12345"
+
+
+def test_render_prompt_replaces_variables():
+    from agents.config import render_prompt
+
+    result = render_prompt("Fix {{issue_id}} in {{project}}", {"issue_id": "ENG-42", "project": "myapp"})
+    assert result == "Fix ENG-42 in myapp"
+
+
+def test_render_prompt_no_variables():
+    from agents.config import render_prompt
+
+    result = render_prompt("Simple prompt", {})
+    assert result == "Simple prompt"
+
+
+def test_render_prompt_missing_variable_preserved():
+    from agents.config import render_prompt
+
+    result = render_prompt("Fix {{issue_id}} now", {})
+    assert result == "Fix {{issue_id}} now"
+
+
+def test_build_prompt_with_context_hints():
+    from agents.config import build_prompt
+    from agents.models import TaskConfig
+
+    task = TaskConfig(
+        description="fix bug",
+        intent="Fix the pagination bug",
+        context_hints=["Read src/api/users.py first", "Check test_users.py for existing tests"],
+    )
+    prompt = build_prompt(task, {"issue_id": "ENG-99"})
+    assert "Fix the pagination bug" in prompt
+    assert "Read src/api/users.py first" in prompt
+    assert "Check test_users.py" in prompt
+    assert "issue_id: ENG-99" in prompt
+
+
+def test_build_prompt_with_variables_in_intent():
+    from agents.config import build_prompt
+    from agents.models import TaskConfig
+
+    task = TaskConfig(
+        description="resolver",
+        intent="Implement {{issue_identifier}}: {{issue_title}}",
+    )
+    prompt = build_prompt(task, {"issue_identifier": "ENG-42", "issue_title": "Add pagination"})
+    assert "Implement ENG-42: Add pagination" in prompt

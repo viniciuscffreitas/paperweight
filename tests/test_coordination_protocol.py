@@ -98,3 +98,68 @@ def test_read_inbox_empty(worktree):
     msgs, pos = read_inbox(worktree, from_position=0)
     assert msgs == []
     assert pos == 0
+
+
+def test_read_inbox_skips_malformed_json(worktree):
+    """Malformed JSONL lines are skipped, valid ones still parsed."""
+    from agents.coordination.protocol import init_coordination_dir, read_inbox
+
+    init_coordination_dir(worktree)
+    inbox_path = worktree / ".paperweight" / "inbox.jsonl"
+    inbox_path.write_text(
+        '{"type":"heartbeat"}\n'
+        'THIS IS NOT JSON\n'
+        '{"type":"edit_complete","file":"x.py"}\n'
+        '{invalid json too}\n'
+    )
+
+    msgs, pos = read_inbox(worktree, from_position=0)
+    assert len(msgs) == 2  # only the 2 valid lines
+    assert msgs[0]["type"] == "heartbeat"
+    assert msgs[1]["type"] == "edit_complete"
+    assert pos > 0
+
+
+def test_read_inbox_all_malformed(worktree):
+    """All malformed lines results in empty list but advanced position."""
+    from agents.coordination.protocol import init_coordination_dir, read_inbox
+
+    init_coordination_dir(worktree)
+    inbox_path = worktree / ".paperweight" / "inbox.jsonl"
+    inbox_path.write_text("not json\nalso not json\n")
+
+    msgs, pos = read_inbox(worktree, from_position=0)
+    assert msgs == []
+    assert pos > 0  # position advanced past the bad lines
+
+
+def test_write_state_does_not_mutate_input(worktree):
+    """write_state should not modify the caller's dict."""
+    from agents.coordination.protocol import init_coordination_dir, write_state
+
+    init_coordination_dir(worktree)
+    state = {"protocol_version": 1, "claims": {}}
+    original_keys = set(state.keys())
+    write_state(worktree, state)
+    # Caller's dict should not have "updated_at" added
+    assert set(state.keys()) == original_keys
+
+
+def test_append_outbox_does_not_mutate_input(worktree):
+    """append_outbox should not modify the caller's dict."""
+    from agents.coordination.protocol import init_coordination_dir, append_outbox
+
+    init_coordination_dir(worktree)
+    msg = {"type": "file_released", "file": "x.py"}
+    original_keys = set(msg.keys())
+    append_outbox(worktree, msg)
+    assert set(msg.keys()) == original_keys
+
+
+def test_read_inbox_nonexistent_file(tmp_path):
+    """Reading inbox from a path with no .paperweight dir returns empty."""
+    from agents.coordination.protocol import read_inbox
+
+    msgs, pos = read_inbox(tmp_path / "nonexistent", from_position=0)
+    assert msgs == []
+    assert pos == 0
