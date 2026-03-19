@@ -5,6 +5,7 @@ import asyncio
 import contextlib
 import logging
 import os
+import time as _time
 from pathlib import Path
 
 from agents.coordination.claims import ClaimRegistry
@@ -32,6 +33,47 @@ class CoordinationBroker:
         self._poll_task: asyncio.Task | None = None
         self._pending_mediations: dict[str, list[str]] = {}
         self._lock = asyncio.Lock()
+        self._timeline: list[dict] = []  # recent coordination events (capped at 100)
+
+    def _record_timeline(self, run_id: str, event_type: str, detail: str) -> None:
+        entry = {
+            "run_id": run_id,
+            "type": event_type,
+            "detail": detail,
+            "timestamp": _time.time(),
+        }
+        self._timeline.insert(0, entry)
+        if len(self._timeline) > 100:
+            self._timeline.pop()
+
+    def get_coordination_snapshot(self) -> dict:
+        """Return current coordination state for dashboard display."""
+        claims = []
+        contested = 0
+        mediating = 0
+        for fp, claim in self.claims._claims.items():
+            claims.append({
+                "file": fp,
+                "owner": claim.run_id,
+                "status": claim.status.value,
+                "type": claim.claim_type.value,
+                "since": claim.claimed_at,
+            })
+            if claim.status.value == "contested":
+                contested += 1
+            elif claim.status.value == "mediating":
+                mediating += 1
+
+        mediations: list[dict] = []
+
+        return {
+            "claims": claims,
+            "mediations": mediations,
+            "active_runs": len(self.active_worktrees),
+            "contested_count": contested,
+            "mediating_count": mediating,
+            "timeline": self._timeline[:50],
+        }
 
     async def start(self) -> None:
         if self.config.enabled:
@@ -50,10 +92,12 @@ class CoordinationBroker:
         self.active_worktrees[run_id] = worktree
         self._inbox_positions[run_id] = 0
         self.claims.set_intent(run_id, intent)
+        self._record_timeline(run_id, "registered", intent)
         await self._update_all_state_files()
 
     async def deregister_run(self, run_id: str) -> None:
         self.claims.release_all(run_id)
+        self._record_timeline(run_id, "deregistered", "")
         self.active_worktrees.pop(run_id, None)
         self._inbox_positions.pop(run_id, None)
         await self._update_all_state_files()
@@ -83,8 +127,10 @@ class CoordinationBroker:
             conflict: Claim | None = None
             if tool_name in _WRITE_TOOLS:
                 conflict = self.claims.hard_claim(run_id, rel_path)
+                self._record_timeline(run_id, "claim", f"hard {rel_path}")
             elif tool_name in _READ_TOOLS:
                 self.claims.soft_claim(run_id, rel_path)
+                self._record_timeline(run_id, "claim", f"soft {rel_path}")
 
         await self._update_all_state_files()
         return conflict
@@ -106,9 +152,11 @@ class CoordinationBroker:
 
         if msg_type == "need_file":
             self.claims.add_need(run_id, file_path)
+            self._record_timeline(run_id, "need_file", file_path)
             claim = self.claims.get_claim_for_file(file_path)
             if claim and claim.run_id != run_id:
                 self.claims.mark_contested(file_path)
+                self._record_timeline(run_id, "contested", f"{file_path} (owner: {claim.run_id})")
                 logger.info(
                     "Conflict detected: %s needs %s (claimed by %s)",
                     run_id, file_path, claim.run_id,
@@ -117,7 +165,9 @@ class CoordinationBroker:
             logger.info("Run %s completed edit on %s", run_id, file_path)
         elif msg_type == "heartbeat":
             self.claims.update_activity(run_id)
+            self._record_timeline(run_id, "heartbeat", "")
         elif msg_type == "escalation":
+            self._record_timeline(run_id, "escalation", msg.get("message", ""))
             logger.warning("Run %s escalated: %s", run_id, msg.get("message", ""))
 
     async def _update_all_state_files(self) -> None:
