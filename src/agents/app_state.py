@@ -13,6 +13,7 @@ from agents.project_store import ProjectStore
 
 if TYPE_CHECKING:
     from agents.aggregator import AggregatorService
+    from agents.coordination.broker import CoordinationBroker
     from agents.github_client import GitHubClient
     from agents.slack_client import SlackBotClient
 
@@ -31,6 +32,7 @@ class AppState:
         github_client: "GitHubClient | None" = None,
         slack_bot_client: "SlackBotClient | None" = None,
         aggregator: "AggregatorService | None" = None,
+        broker: "CoordinationBroker | None" = None,
     ) -> None:
         self.projects = projects
         self.executor = executor
@@ -43,6 +45,7 @@ class AppState:
         self.github_client = github_client
         self.slack_bot_client = slack_bot_client
         self.aggregator = aggregator
+        self.broker = broker
         self._semaphore: asyncio.Semaphore | None = None
         self._repo_semaphores: dict[str, asyncio.Semaphore] = {}
         self.ws_clients: dict[str, set[WebSocket]] = {}
