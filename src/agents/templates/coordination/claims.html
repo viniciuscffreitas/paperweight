@@ -1,0 +1,10 @@
+{% from "components/macros.html" import claim_row %}
+{% if claims %}
+  {% for c in claims %}
+    {{ claim_row(c.file, c.owner, c.status, c.type) }}
+  {% endfor %}
+{% else %}
+  <div style="padding:24px 16px;text-align:center;color:var(--text-placeholder);font-size:12px;">
+    No active claims
+  </div>
+{% endif %}

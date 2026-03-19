@@ -136,6 +136,66 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
             {"runs": runs, "id": project_id},
         )
 
+    # --- Coordination routes ---
+
+    @app.get("/coordination", response_class=HTMLResponse)
+    async def coordination_page(request: Request) -> HTMLResponse:
+        if state.broker:
+            snapshot = state.broker.get_coordination_snapshot()
+        else:
+            snapshot = {"claims": [], "mediations": [], "active_runs": 0,
+                        "contested_count": 0, "mediating_count": 0, "timeline": []}
+        projects = state.project_store.list_projects() if state.project_store else []
+        return _TEMPLATES.TemplateResponse(
+            request,
+            "coordination.html",
+            {
+                "projects": projects,
+                "snapshot": snapshot,
+                "current_path": "/coordination",
+            },
+        )
+
+    @app.get("/coordination/claims", response_class=HTMLResponse)
+    async def coordination_claims(request: Request) -> HTMLResponse:
+        claims = []
+        if state.broker:
+            snapshot = state.broker.get_coordination_snapshot()
+            claims = snapshot["claims"]
+        return _TEMPLATES.TemplateResponse(
+            request,
+            "coordination/claims.html",
+            {"claims": claims},
+        )
+
+    @app.get("/coordination/mediations", response_class=HTMLResponse)
+    async def coordination_mediations(request: Request) -> HTMLResponse:
+        mediations = []
+        if state.broker:
+            snapshot = state.broker.get_coordination_snapshot()
+            mediations = snapshot["mediations"]
+        return _TEMPLATES.TemplateResponse(
+            request,
+            "coordination/mediations.html",
+            {"mediations": mediations},
+        )
+
+    @app.get("/coordination/timeline", response_class=HTMLResponse)
+    async def coordination_timeline(request: Request) -> HTMLResponse:
+        timeline = []
+        if state.broker:
+            snapshot = state.broker.get_coordination_snapshot()
+            timeline = snapshot["timeline"]
+            from datetime import UTC, datetime
+            for e in timeline:
+                dt = datetime.fromtimestamp(e["timestamp"], tz=UTC)
+                e["time_str"] = dt.strftime("%H:%M:%S")
+        return _TEMPLATES.TemplateResponse(
+            request,
+            "coordination/timeline.html",
+            {"timeline": timeline},
+        )
+
     @app.post("/set-theme")
     async def set_theme(response: Response, theme: str = Form(...)) -> dict:
         if theme not in ("light", "dark"):

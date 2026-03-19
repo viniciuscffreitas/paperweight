@@ -4,9 +4,19 @@ from __future__ import annotations
 import json
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
+from agents.app_state import AppState
+from agents.budget import BudgetManager
+from agents.config import BudgetConfig, ExecutionConfig, GlobalConfig
 from agents.coordination.broker import CoordinationBroker
 from agents.coordination.models import CoordinationConfig
+from agents.dashboard_html import setup_dashboard
+from agents.executor import Executor
+from agents.history import HistoryDB
+from agents.notifier import Notifier
+from agents.project_store import ProjectStore
 from agents.streaming import StreamEvent
 
 
@@ -133,3 +143,141 @@ async def test_timeline_capped_at_100(broker, wt_a):
     # Snapshot returns at most 50
     snapshot = broker.get_coordination_snapshot()
     assert len(snapshot["timeline"]) <= 50
+
+
+# ---------------------------------------------------------------------------
+# Fixtures for dashboard route tests
+# ---------------------------------------------------------------------------
+
+
+def _make_dashboard_client(tmp_path, *, coordination_enabled=True):
+    """Create a minimal FastAPI app with dashboard routes and optional coordination."""
+    app = FastAPI()
+
+    history = HistoryDB(tmp_path / "history.db")
+    project_store = ProjectStore(tmp_path / "projects.db")
+    budget_config = BudgetConfig()
+    budget = BudgetManager(config=budget_config, history=history)
+    notifier = Notifier(webhook_url="")
+    exec_config = ExecutionConfig()
+    executor = Executor(
+        config=exec_config,
+        budget=budget,
+        history=history,
+        notifier=notifier,
+        data_dir=tmp_path,
+    )
+
+    broker_inst = None
+    if coordination_enabled:
+        broker_inst = CoordinationBroker(CoordinationConfig(enabled=True))
+
+    state = AppState(
+        projects={},
+        executor=executor,
+        history=history,
+        budget=budget,
+        notifier=notifier,
+        github_secret="",
+        linear_secret="",
+        project_store=project_store,
+        broker=broker_inst,
+    )
+    config = GlobalConfig()
+    setup_dashboard(app, state, config)
+    return TestClient(app), state
+
+
+@pytest.fixture
+def app_with_coordination(tmp_path):
+    client, _state = _make_dashboard_client(tmp_path, coordination_enabled=True)
+    return client
+
+
+@pytest.fixture
+def app_no_coordination(tmp_path):
+    client, _state = _make_dashboard_client(tmp_path, coordination_enabled=False)
+    return client
+
+
+# ---------------------------------------------------------------------------
+# Chunk 2+3 — Routes, templates, sidebar
+# ---------------------------------------------------------------------------
+
+
+def test_coordination_page_returns_200(app_with_coordination):
+    resp = app_with_coordination.get("/coordination")
+    assert resp.status_code == 200
+    assert "Coordination" in resp.text
+
+
+def test_coordination_page_has_status_bar(app_with_coordination):
+    resp = app_with_coordination.get("/coordination")
+    assert "runs" in resp.text.lower()
+    assert "claims" in resp.text.lower()
+    assert "contested" in resp.text.lower()
+    assert "mediating" in resp.text.lower()
+
+
+def test_coordination_claims_partial(app_with_coordination):
+    resp = app_with_coordination.get("/coordination/claims")
+    assert resp.status_code == 200
+
+
+def test_coordination_mediations_partial(app_with_coordination):
+    resp = app_with_coordination.get("/coordination/mediations")
+    assert resp.status_code == 200
+
+
+def test_coordination_timeline_partial(app_with_coordination):
+    resp = app_with_coordination.get("/coordination/timeline")
+    assert resp.status_code == 200
+
+
+def test_coordination_page_uses_css_tokens(app_with_coordination):
+    resp = app_with_coordination.get("/coordination")
+    html = resp.text
+    # Must use design tokens, not raw hex
+    assert "var(--" in html
+
+
+def test_coordination_link_in_sidebar(app_with_coordination):
+    resp = app_with_coordination.get("/dashboard")
+    assert "/coordination" in resp.text
+
+
+# ---------------------------------------------------------------------------
+# Chunk 4 — Empty states, no-broker fallback, accessibility
+# ---------------------------------------------------------------------------
+
+
+def test_coordination_page_no_broker(app_no_coordination):
+    """Coordination page works even without broker (shows empty state)."""
+    resp = app_no_coordination.get("/coordination")
+    assert resp.status_code == 200
+    assert "No active claims" in resp.text or "0" in resp.text
+
+
+def test_coordination_claims_empty(app_with_coordination):
+    resp = app_with_coordination.get("/coordination/claims")
+    assert resp.status_code == 200
+    assert "No active claims" in resp.text
+
+
+def test_coordination_mediations_empty(app_with_coordination):
+    resp = app_with_coordination.get("/coordination/mediations")
+    assert resp.status_code == 200
+    assert "No active mediations" in resp.text
+
+
+def test_coordination_timeline_empty(app_with_coordination):
+    resp = app_with_coordination.get("/coordination/timeline")
+    assert resp.status_code == 200
+    assert "No coordination events" in resp.text
+
+
+def test_coordination_page_accessible(app_with_coordination):
+    """WCAG: page must have proper heading text."""
+    resp = app_with_coordination.get("/coordination")
+    assert resp.status_code == 200
+    assert "Coordination" in resp.text
