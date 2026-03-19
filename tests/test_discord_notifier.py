@@ -111,6 +111,100 @@ class TestBuildEmbed:
         embed = notifier._build_embed("X", "Y", status="running")
         assert embed["color"] == 0x059669
 
+    def test_success_color(self, notifier):
+        embed = notifier._build_embed("X", "Y", status="success")
+        assert embed["color"] == 0x4ADE80
+
+    def test_failure_color(self, notifier):
+        embed = notifier._build_embed("X", "Y", status="failure")
+        assert embed["color"] == 0xF87171
+
+    def test_no_events_shows_placeholder(self, notifier):
+        embed = notifier._build_embed("PROJ-1", "Title")
+        assert "aguardando eventos" in embed["description"]
+
+    def test_tool_name_rendered_in_event_line(self, notifier):
+        events = [
+            {"type": "tool_use", "content": "reading file", "timestamp": 1000, "tool_name": "Read"}
+        ]
+        embed = notifier._build_embed("PROJ-1", "Title", events=events)
+        assert "**Read**" in embed["description"]
+        assert "reading file" in embed["description"]
+
+    def test_description_truncated_when_too_long(self, notifier):
+        # Create events whose combined text would exceed MAX_EMBED_LENGTH
+        events = [
+            {"type": "assistant", "content": "x" * 120, "timestamp": 1000 + i}
+            for i in range(50)
+        ]
+        embed = notifier._build_embed("PROJ-1", "Title", events=events, status="running")
+        assert len(embed["description"]) <= notifier.MAX_EMBED_LENGTH + len("**Title**\n\n")
+
+    def test_error_appended_to_description(self, notifier):
+        embed = notifier._build_embed("PROJ-1", "Title", error="boom!", status="failure")
+        assert "boom!" in embed["description"]
+
+    def test_pr_url_set_on_embed(self, notifier):
+        embed = notifier._build_embed(
+            "PROJ-1", "Title", pr_url="https://github.com/org/repo/pull/5", status="success"
+        )
+        assert embed["url"] == "https://github.com/org/repo/pull/5"
+
+    def test_footer_with_cost_and_duration(self, notifier):
+        embed = notifier._build_embed("PROJ-1", "Title", cost=0.42, duration_s=90.0, status="success")
+        footer_text = embed["footer"]["text"]
+        assert "$0.42" in footer_text
+        assert "1m30s" in footer_text
+
+    def test_no_footer_when_no_cost_or_duration(self, notifier):
+        embed = notifier._build_embed("PROJ-1", "Title")
+        assert "footer" not in embed
+
+
+class TestRateLimitRetry:
+    @pytest.mark.asyncio
+    async def test_request_retries_on_429(self, notifier):
+        import asyncio
+
+        ok_response = MagicMock()
+        ok_response.status_code = 200
+        ok_response.json.return_value = {"id": "msg-1"}
+        ok_response.raise_for_status = MagicMock()
+
+        rate_limited_response = MagicMock()
+        rate_limited_response.status_code = 429
+        rate_limited_response.json.return_value = {"retry_after": 0.01}
+
+        mock_client = AsyncMock()
+        mock_client.request = AsyncMock(side_effect=[rate_limited_response, ok_response])
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("agents.discord_notifier.httpx.AsyncClient", return_value=mock_client):
+            with patch("agents.discord_notifier.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+                result = await notifier._request("GET", "/guilds/g1/channels")
+
+        assert mock_client.request.call_count == 2
+        mock_sleep.assert_awaited_once()
+        assert result == {"id": "msg-1"}
+
+
+class TestFailRunMessagePatchUrl:
+    @pytest.mark.asyncio
+    async def test_fail_sends_patch_to_correct_url(self, notifier):
+        mock_client, _ = _mock_async_client({})
+        events = []
+
+        with patch("agents.discord_notifier.httpx.AsyncClient", return_value=mock_client):
+            await notifier.fail_run_message(
+                "chan-99", "msg-42", "PROJ-1", "Title", events,
+                error="err", attempt=1, max_attempts=3,
+            )
+
+        call_args = mock_client.request.call_args
+        assert call_args[0][0] == "PATCH"
+        assert "/channels/chan-99/messages/msg-42" in call_args[0][1]
+
 
 class TestFinalizeRunMessage:
     @pytest.mark.asyncio

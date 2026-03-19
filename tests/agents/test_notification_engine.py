@@ -152,3 +152,76 @@ async def test_process_new_events(engine, store):
     )
     await engine.process_new_events("p1")
     engine.slack_notifier.send_text.assert_called_once()
+
+
+# --- GAP COVERAGE: send_digest discord branch ---
+
+@pytest.mark.asyncio
+async def test_send_digest_discord_calls_create_run_message(engine, store):
+    """send_digest with a discord rule must delegate to discord_notifier.create_run_message."""
+    store.create_notification_rule(
+        project_id="p1", rule_type="digest", channel="discord",
+        channel_target="chan-abc", config={},
+    )
+    await engine.send_digest("p1")
+    engine.discord_notifier.create_run_message.assert_awaited_once()
+    call_args = engine.discord_notifier.create_run_message.call_args
+    # First positional arg must be the channel_target
+    assert call_args[0][0] == "chan-abc"
+    # Second positional arg is the project_id used as identifier
+    assert call_args[0][1] == "p1"
+
+
+@pytest.mark.asyncio
+async def test_send_digest_discord_does_not_call_slack(engine, store):
+    """A discord digest rule must not trigger the slack notifier."""
+    store.create_notification_rule(
+        project_id="p1", rule_type="digest", channel="discord",
+        channel_target="chan-abc", config={},
+    )
+    await engine.send_digest("p1")
+    engine.slack_notifier.send_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_send_digest_exception_is_swallowed(engine, store):
+    """If the notifier raises, send_digest must not propagate the exception."""
+    store.create_notification_rule(
+        project_id="p1", rule_type="digest", channel="slack",
+        channel_target="dm", config={},
+    )
+    engine.slack_notifier.send_text.side_effect = RuntimeError("network error")
+    # Must not raise
+    await engine.send_digest("p1")
+
+
+# --- GAP COVERAGE: send_urgent_alert cooldown ---
+
+@pytest.mark.asyncio
+async def test_send_urgent_alert_skips_when_recently_notified(engine, store):
+    """When was_recently_notified returns True the alert must not be sent again."""
+    rule_id = store.create_notification_rule(
+        project_id="p1", rule_type="alert", channel="slack",
+        channel_target="dm", config={},
+    )
+    event = {"id": "ev1", "title": "Critical!", "source_item_id": "ev1", "priority": "urgent"}
+    # Pre-populate the notification log to trigger the cooldown
+    store.log_notification(
+        project_id="p1", rule_id=rule_id, event_id="ev1", channel="slack", content="prev",
+    )
+    await engine.send_urgent_alert("p1", event)
+    engine.slack_notifier.send_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_send_urgent_alert_without_url(engine, store):
+    """Events without a url field must still send correctly."""
+    store.create_notification_rule(
+        project_id="p1", rule_type="alert", channel="slack",
+        channel_target="dm", config={},
+    )
+    event = {"id": "ev2", "title": "No URL event", "source_item_id": "ev2", "priority": "high"}
+    await engine.send_urgent_alert("p1", event)
+    engine.slack_notifier.send_text.assert_called_once()
+    call_text = engine.slack_notifier.send_text.call_args[0][0]
+    assert "No URL event" in call_text
