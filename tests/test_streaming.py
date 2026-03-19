@@ -202,3 +202,54 @@ def test_parse_bash_tool_no_file_path():
     event = parse_stream_line(line)
     assert event is not None
     assert event.file_path == ""
+
+
+def test_parse_multi_block_returns_first_only():
+    """parse_stream_line returns only the first content block (text wins over tool_use)."""
+    from agents.streaming import parse_stream_line
+
+    line = json.dumps({
+        "type": "assistant",
+        "message": {"content": [
+            {"type": "text", "text": "Let me edit that file"},
+            {"type": "tool_use", "name": "Edit", "input": {"file_path": "/tmp/x.py", "old_string": "a", "new_string": "b"}},
+        ]},
+    })
+    event = parse_stream_line(line)
+    assert event is not None
+    # Documents current behavior: text block wins, tool_use is lost
+    assert event.type == "assistant"
+    assert event.content == "Let me edit that file"
+    assert event.tool_name == ""
+
+
+def test_parse_tool_use_first_when_no_text():
+    """When tool_use is the only block, it's correctly returned."""
+    from agents.streaming import parse_stream_line
+
+    line = json.dumps({
+        "type": "assistant",
+        "message": {"content": [
+            {"type": "tool_use", "name": "Edit", "input": {"file_path": "/tmp/x.py"}},
+        ]},
+    })
+    event = parse_stream_line(line)
+    assert event.type == "tool_use"
+    assert event.tool_name == "Edit"
+    assert event.file_path == "/tmp/x.py"
+
+
+def test_parse_empty_content_blocks():
+    """Empty content blocks list returns None."""
+    from agents.streaming import parse_stream_line
+
+    line = json.dumps({"type": "assistant", "message": {"content": []}})
+    assert parse_stream_line(line) is None
+
+
+def test_parse_non_list_content_blocks():
+    """Non-list content returns None."""
+    from agents.streaming import parse_stream_line
+
+    line = json.dumps({"type": "assistant", "message": {"content": "just a string"}})
+    assert parse_stream_line(line) is None
