@@ -138,25 +138,30 @@ UNCLAIMED ──→ SOFT (Read)
 
 ### Detecção via stream-json (event-driven, zero polling)
 
-O stream-json do Claude CLI emite para cada tool call:
+O `claude -p --output-format stream-json` emite **message-level events** (não SSE deltas). Cada `assistant` event contém `tool_use` blocks completos:
 
-```
-content_block_start → {"type":"tool_use", "name":"Edit"}
-content_block_delta → {"type":"input_json_delta", "partial_json":"...file_path..."}
-content_block_stop  → tool call completa
+```json
+{"type": "assistant", "message": {"content": [
+  {"type": "tool_use", "name": "Edit", "input": {"file_path": "src/api/users.py", "old_string": "...", "new_string": "..."}}
+]}}
 ```
 
-O broker parseia `content_block_delta` para extrair `file_path` de `Edit`, `Write`, e `Read` tool calls. Hard claim registrado no `content_block_stop` (quando o input completo está disponível).
+O broker intercepta eventos `assistant` com `tool_use` blocks, extrai `input.file_path` de `Edit`, `Write`, e `Read` calls. **Nota**: o `streaming.py` atual trunca input a 200 chars — precisa ser estendido para expor `file_path` completo via novo campo `StreamEvent.file_path`.
+
+**Path normalization**: file_path vem como caminho absoluto do worktree (ex: `/tmp/agents/run-id/src/api/users.py`). O broker normaliza para repo-relative: `os.path.relpath(absolute_path, worktree_root)`.
 
 ### Claim TTL (lição do Cursor)
 
-Claims expiram após **300s sem atividade** (nenhum novo evento do agente owner). Previne o problema do Cursor onde agentes seguravam locks indefinidamente.
+Claims expiram após **300s sem atividade** (nenhum novo stream-json event do agente owner). Previne o problema do Cursor onde agentes seguravam locks indefinidamente. O broker usa **stream event activity** como health signal primário (mais confiável que heartbeats via inbox).
 
 ```python
 # Pseudo-código do TTL check
 if claim.status == HARD and (now - claim.last_activity) > claim_timeout:
     claim.status = RELEASED
     update_all_state_files()
+```
+
+`last_activity` é atualizado a cada stream-json event do agent owner, não apenas em edits.
 ```
 
 ### Detecção de conflitos
@@ -192,7 +197,8 @@ Changes Agent A already made (if any): {diff_a_for_file}
 
 ### Agent B — "{task_b.description}"
 Original task intent: "{task_b.intent}"
-What Agent B needs in {file}: "{inbox_b.intent_for_file}"
+What Agent B needs in {file}: "{inbox_b.intent_for_file or task_b.intent}"
+(If no inbox message exists — retroactive conflict — intent is synthesized from the task description and git diff of what the agent already changed)
 
 ### Current file (base branch):
 {file_content_from_base}
@@ -226,9 +232,23 @@ base_branch (main)
 
 Após mediator completar:
   1. Rebase branch de A sobre mediation branch
-  2. Rebase branch de B sobre mediation branch
-  3. Se rebase falha → PRs separados com nota de conflito
+     - Para arquivos mediados: git checkout --theirs (aceita versão do mediator)
+     - O mediator já incorporou o intent de A, então sua versão é autoritativa
+  2. Rebase branch de B sobre mediation branch (mesma estratégia)
+  3. Se rebase falha mesmo com --theirs → PRs separados com nota de conflito
 ```
+
+### Worktree lifecycle com coordination
+
+Quando `coordination.enabled = true`, o executor **NÃO deleta worktrees no `finally` block**. Em vez disso:
+
+1. Executor sinaliza `deregister_run()` ao broker
+2. Broker verifica `has_pending_mediations(run_id)`
+3. Se tem mediações pendentes: worktree persiste até mediação completar + rebase
+4. Broker chama `cleanup_worktree(run_id)` após rebase concluído
+5. Se não tem mediações: cleanup imediato (comportamento atual)
+
+Isso evita o conflito onde o executor deletava o worktree antes do rebase.
 
 ---
 
@@ -308,6 +328,7 @@ Tipos de mensagem:
 - `state.json`: write to `.state.json.tmp` → `os.rename()` (atômico em POSIX)
 - `inbox.jsonl` / `outbox.jsonl`: append direto (O(1), sem race condition para single writer por arquivo)
 - Broker lê inbox com seek incremental (guarda last read position por run_id)
+- **Debouncing**: state.json writes são coalesced em janelas de 200ms para evitar I/O excessivo durante edits rápidos. Claims acumulam no registry em memória e são flushed periodicamente.
 
 ---
 
@@ -372,7 +393,7 @@ src/agents/coordination/
 | Módulo | Mudança |
 |--------|---------|
 | `executor.py` | Cria `/.paperweight/`, registra run no broker, injeta preamble, faz rebase pós-mediação |
-| `streaming.py` | Extrai `file_path` de tool calls `Edit`/`Write`/`Read`, emite `FileClaimEvent` |
+| `streaming.py` | Adiciona campo `file_path` ao `StreamEvent`, extraído de `tool_use` blocks em `assistant` events. Remove truncamento de 200 chars para tool inputs quando coordination enabled. Parseia múltiplos content blocks por mensagem (hoje retorna só o primeiro). |
 | `app_state.py` | Adiciona `broker: CoordinationBroker` |
 | `main.py` | Inicializa broker no startup, hooks broker no pipeline de broadcast |
 | `config.py` | Adiciona `CoordinationConfig` ao `AppConfig` |
@@ -406,7 +427,7 @@ class ClaimRegistry:
     async def check_ttl(self) -> list[Claim]  # returns expired claims
     def get_claims_for_run(self, run_id: str) -> list[Claim]
     def get_claim_for_file(self, file_path: str) -> Claim | None
-    def detect_deadlock(self) -> list[tuple[str, str]]  # pairs of deadlocked runs
+    def detect_deadlock(self) -> list[list[str]]  # groups of deadlocked run_ids (DFS cycle detection on waits-for graph)
 ```
 
 ### `protocol.py` — I/O de filesystem
@@ -440,13 +461,16 @@ class MediatorSpawner:
 ### Nova tabela: `file_claims`
 
 ```sql
+PRAGMA foreign_keys = ON;  -- necessário para FK enforcement no SQLite
+
 CREATE TABLE file_claims (
     id TEXT PRIMARY KEY,
     run_id TEXT NOT NULL REFERENCES runs(id),
     file_path TEXT NOT NULL,
     claim_type TEXT NOT NULL CHECK(claim_type IN ('soft','hard')),
-    status TEXT NOT NULL CHECK(status IN ('active','contested','mediating','released')),
+    status TEXT NOT NULL CHECK(status IN ('active','contested','mediating','released','completed')),
     claimed_at REAL NOT NULL,
+    last_activity REAL NOT NULL,  -- atualizado a cada stream event do owner
     released_at REAL,
     UNIQUE(run_id, file_path)
 );
@@ -528,7 +552,7 @@ O protocolo depende do agente ser obediente. Ele pode não ser. Cada camada prot
 
 ### Camada 1: Prompt (proativo)
 - Agente lê state.json, evita conflitos
-- **Eficácia estimada**: ~80% (LLMs seguem instruções claras na maioria dos casos)
+- **Eficácia estimada**: ~50-60% para protocolo completo (LLMs seguem "read state.json before edit" com alta probabilidade, mas heartbeats e outbox polling são frequentemente ignorados). O que importa: mesmo compliance parcial (só ler state.json) já evita a maioria dos conflitos proativamente.
 
 ### Camada 2: Stream-json detection (retroativo)
 - Broker detecta edits reais em arquivos claimed via stream-json events
