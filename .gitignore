@@ -11,3 +11,4 @@ firebase-debug.log
 .worktrees/
 projects/*.yaml
 !projects/example.yaml
+!projects/paperweight.yaml

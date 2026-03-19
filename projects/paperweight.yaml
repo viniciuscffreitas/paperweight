@@ -1,0 +1,76 @@
+name: paperweight
+repo: /Users/vini/Developer/agents
+base_branch: main
+branch_prefix: agents/
+notify: slack
+linear_team_id: ""
+discord_channel_id: ""
+
+tasks:
+  issue-resolver:
+    description: "Resolve a Linear issue on paperweight itself"
+    intent: "Implement the given Linear issue following the project's devflow"
+    trigger:
+      type: linear
+      events: [Issue.create, Issue.update]
+      filter:
+        label: agent
+    prompt: |
+      You are an autonomous software agent working on Paperweight — a background agent runner
+      built with Python 3.13, FastAPI, HTMX, SQLite, and APScheduler.
+
+      Issue: {{issue_identifier}} — {{issue_title}}
+      Description:
+      {{issue_description}}
+
+      ## Codebase
+      - Source: src/agents/
+      - Tests: tests/
+      - Config: config.yaml, projects/*.yaml
+      - Stack: Python 3.13, FastAPI, Pydantic, Jinja2, HTMX, SQLite, APScheduler
+
+      ## Instructions
+      - Read CLAUDE.md first for project conventions.
+      - Follow TDD: write failing test -> implement -> verify.
+      - Run `python -m pytest tests/` to verify all tests pass.
+      - Run `python -m pyright src/` for type checking.
+      - Before starting, read {{progress_file_path}} if it exists — it has context from previous attempts.
+      - If you cannot complete the task, write a clear explanation to {{progress_file_path}}.
+      - Make atomic commits with descriptive messages.
+    model: claude-sonnet-4-6
+    max_cost_usd: 2.00
+    autonomy: pr-only
+
+  test-runner:
+    description: "Run the full test suite and report results"
+    intent: "Run the complete test suite and type checker for paperweight"
+    prompt: |
+      Run the full verification suite for this Python project:
+
+      1. Run `python -m pytest tests/ -v --tb=short` and report results.
+      2. Run `python -m pyright src/` and report any type errors.
+      3. If any tests fail, analyze the failures and create a summary.
+
+      Do NOT fix anything — only report. Output a clear summary of:
+      - Total tests, passed, failed, errors
+      - Any type checking issues
+      - Any patterns in failures (if any)
+    model: claude-haiku-4-5-20251001
+    max_cost_usd: 0.30
+    autonomy: pr-only
+
+  dep-update:
+    description: "Update Python dependencies weekly"
+    intent: "Update Python dependencies and verify nothing breaks"
+    schedule: "0 3 * * MON"
+    prompt: |
+      Update the Python dependencies for this project:
+
+      1. Check pyproject.toml for current dependencies.
+      2. Run `uv lock --upgrade` to update the lock file.
+      3. Run `python -m pytest tests/` to verify nothing broke.
+      4. If tests pass, commit the updated lock file.
+      5. If tests fail, revert and report which dependency caused the failure.
+    model: claude-sonnet-4-6
+    max_cost_usd: 1.00
+    autonomy: pr-only
