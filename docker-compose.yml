@@ -1,0 +1,15 @@
+services:
+  paperweight:
+    build: .
+    container_name: paperweight
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./data:/app/data            # SQLite persistence
+      - ./projects:/app/projects    # Project YAML configs (hot-reload)
+      - /tmp/agents:/tmp/agents     # Worktree scratch space
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1

@@ -23,7 +23,21 @@ server:
   host: 0.0.0.0
   port: 8080
 
+coordination:
+  enabled: false               # set true to enable inter-agent coordination
+  mode: full-mesh              # off | awareness-only | full-mesh
+  claim_timeout_seconds: 300   # auto-release claims after 5min inactivity
+  poll_interval_ms: 500        # broker inbox polling frequency
+  auto_rebase: true            # rebase branches after mediation
+  mediator:
+    model: claude-sonnet-4-6
+    max_cost_usd: 1.00
+    timeout_minutes: 5
+    max_concurrent: 2
+
 integrations:
   linear_api_key: ${LINEAR_API_KEY}
   discord_bot_token: ${DISCORD_BOT_TOKEN}
   discord_guild_id: ${DISCORD_GUILD_ID}
+  github_token: ${GITHUB_TOKEN}
+  slack_bot_token: ${SLACK_BOT_TOKEN}
