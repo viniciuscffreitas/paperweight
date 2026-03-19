@@ -41,6 +41,48 @@ class HistoryDB:
                 )
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_run_events_run_id ON run_events (run_id)")
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS file_claims (
+                    id TEXT PRIMARY KEY,
+                    run_id TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    claim_type TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    claimed_at REAL NOT NULL,
+                    last_activity REAL NOT NULL,
+                    released_at REAL,
+                    UNIQUE(run_id, file_path)
+                )
+            """)
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_claims_file"
+                " ON file_claims (file_path, status)"
+            )
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS mediations (
+                    id TEXT PRIMARY KEY,
+                    file_paths TEXT NOT NULL,
+                    requester_run_ids TEXT NOT NULL,
+                    mediator_run_id TEXT,
+                    status TEXT NOT NULL,
+                    created_at REAL NOT NULL,
+                    completed_at REAL
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS coordination_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    run_id TEXT NOT NULL,
+                    direction TEXT NOT NULL,
+                    message_type TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    timestamp REAL NOT NULL
+                )
+            """)
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_coordlog_run"
+                " ON coordination_log (run_id, timestamp)"
+            )
 
     def _conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
