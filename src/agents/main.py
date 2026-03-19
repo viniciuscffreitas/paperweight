@@ -129,6 +129,21 @@ def create_app(
             with contextlib.suppress(asyncio.QueueFull):
                 q.put_nowait(event_data)
 
+        # Coordination: forward event to broker for claim tracking
+        if state.broker:
+            worktree_path = Path(config.execution.worktree_base) / run_id
+            await state.broker.on_stream_event(
+                run_id, event,
+                worktree_root=worktree_path if worktree_path.exists() else None,
+            )
+
+    # Coordination broker (created before executor so it can be passed)
+    from agents.coordination.broker import CoordinationBroker
+
+    broker: CoordinationBroker | None = None
+    if config.coordination.enabled:
+        broker = CoordinationBroker(config.coordination)
+
     executor = Executor(
         config=config.execution,
         budget=budget,
@@ -138,6 +153,7 @@ def create_app(
         on_stream_event=broadcast_event,
         linear_client=linear_client,
         discord_notifier=discord_notifier_client,
+        broker=broker,
     )
 
     state = AppState(
@@ -152,6 +168,7 @@ def create_app(
         github_client=github_client,
         slack_bot_client=slack_bot_client,
         aggregator=aggregator,
+        broker=broker,
     )
 
     @asynccontextmanager
@@ -202,7 +219,11 @@ def create_app(
         scheduler.start()
         logger.info("Scheduler started with %d jobs", len(scheduler.get_jobs()))
         aggregator_task = asyncio.create_task(aggregator.start(poll_interval_seconds=300))
+        if broker:
+            await broker.start()
         yield
+        if broker:
+            await broker.stop()
         aggregator.stop()
         aggregator_task.cancel()
         scheduler.shutdown(wait=False)

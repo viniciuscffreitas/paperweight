@@ -199,8 +199,16 @@ class Executor:
             return run
 
         worktree_path: Path | None = None
+        coordination_enabled = bool(self.broker)
         try:
             prompt = build_prompt(task, variables or {})
+
+            # Coordination: inject preamble so the agent knows about the protocol
+            if coordination_enabled:
+                from agents.coordination.mediator import build_coordination_preamble
+
+                prompt = build_coordination_preamble() + "\n\n---\n\n" + prompt
+
             branch_name = generate_branch_name(project.branch_prefix, task_name)
             worktree_path = Path(self.config.worktree_base) / run_id
 
@@ -216,6 +224,12 @@ class Executor:
                 ],
                 cwd=project.repo,
             )
+
+            # Coordination: register run with broker after worktree exists
+            if coordination_enabled:
+                await self.broker.register_run(
+                    run_id, worktree_path, task.intent or task.prompt or "",
+                )
 
             claude_cmd = [
                 "claude",
@@ -289,7 +303,14 @@ class Executor:
                 error_message=run.error_message,
                 output_file=run.output_file,
             )
-            if worktree_path and worktree_path.exists():
+            # Coordination: deregister and conditionally defer worktree cleanup
+            should_cleanup = True
+            if coordination_enabled and worktree_path:
+                await self.broker.deregister_run(run_id)
+                if await self.broker.has_pending_mediations(run_id):
+                    should_cleanup = False
+                    logger.info("Deferring worktree cleanup for %s (pending mediations)", run_id)
+            if should_cleanup and worktree_path and worktree_path.exists():
                 try:
                     await self._run_cmd(
                         ["git", "worktree", "remove", "--force", str(worktree_path)],
