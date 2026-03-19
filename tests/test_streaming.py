@@ -132,3 +132,73 @@ def test_extract_result_from_line():
     assert output.cost_usd == pytest.approx(1.23)
     assert output.num_turns == 5
     assert output.is_error is False
+
+
+def test_parse_edit_tool_extracts_file_path():
+    from agents.streaming import parse_stream_line
+
+    line = json.dumps({
+        "type": "assistant",
+        "message": {"content": [{
+            "type": "tool_use",
+            "name": "Edit",
+            "input": {
+                "file_path": "/tmp/agents/run-1/src/api/users.py",
+                "old_string": "def get_users():",
+                "new_string": "def get_users(cursor=None):",
+            },
+        }]},
+    })
+    event = parse_stream_line(line)
+    assert event is not None
+    assert event.type == "tool_use"
+    assert event.tool_name == "Edit"
+    assert event.file_path == "/tmp/agents/run-1/src/api/users.py"
+
+
+def test_parse_write_tool_extracts_file_path():
+    from agents.streaming import parse_stream_line
+
+    line = json.dumps({
+        "type": "assistant",
+        "message": {"content": [{
+            "type": "tool_use",
+            "name": "Write",
+            "input": {"file_path": "/tmp/agents/run-1/src/new_file.py", "content": "hello"},
+        }]},
+    })
+    event = parse_stream_line(line)
+    assert event is not None
+    assert event.file_path == "/tmp/agents/run-1/src/new_file.py"
+
+
+def test_parse_read_tool_extracts_file_path():
+    from agents.streaming import parse_stream_line
+
+    line = json.dumps({
+        "type": "assistant",
+        "message": {"content": [{
+            "type": "tool_use",
+            "name": "Read",
+            "input": {"file_path": "/tmp/agents/run-1/README.md"},
+        }]},
+    })
+    event = parse_stream_line(line)
+    assert event is not None
+    assert event.file_path == "/tmp/agents/run-1/README.md"
+
+
+def test_parse_bash_tool_no_file_path():
+    from agents.streaming import parse_stream_line
+
+    line = json.dumps({
+        "type": "assistant",
+        "message": {"content": [{
+            "type": "tool_use",
+            "name": "Bash",
+            "input": {"command": "ls -la"},
+        }]},
+    })
+    event = parse_stream_line(line)
+    assert event is not None
+    assert event.file_path == ""

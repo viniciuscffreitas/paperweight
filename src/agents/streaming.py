@@ -26,6 +26,7 @@ class StreamEvent(BaseModel):
     type: StreamEventType
     content: str = ""
     tool_name: str = ""
+    file_path: str = ""
     timestamp: float
 
 
@@ -63,10 +64,16 @@ def parse_stream_line(line: str) -> StreamEvent | None:
                     timestamp=time.time(),
                 )
             if block_type == "tool_use":
+                tool_name = block.get("name", "")
+                tool_input = block.get("input", {})
+                file_path = ""
+                if isinstance(tool_input, dict) and tool_name in ("Edit", "Write", "Read"):
+                    file_path = tool_input.get("file_path", "")
                 return StreamEvent(
                     type="tool_use",
-                    tool_name=block.get("name", ""),
-                    content=json.dumps(block.get("input", {}))[:200],
+                    tool_name=tool_name,
+                    content=json.dumps(tool_input)[:200],
+                    file_path=file_path,
                     timestamp=time.time(),
                 )
             if block_type == "thinking":
