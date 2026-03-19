@@ -4,7 +4,7 @@ from __future__ import annotations
 import time
 from enum import StrEnum
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 
 class ClaimType(StrEnum):
@@ -38,15 +38,9 @@ class Claim(BaseModel):
     claim_type: ClaimType
     status: ClaimStatus = ClaimStatus.ACTIVE
     claimed_at: float = Field(default_factory=_now)
-    last_activity: float | None = None
+    last_activity: float = Field(default_factory=_now)
     released_at: float | None = None
     intent: str = ""
-
-    @model_validator(mode="after")
-    def _set_last_activity_default(self) -> Claim:
-        if self.last_activity is None:
-            self.last_activity = self.claimed_at
-        return self
 
 
 class Mediation(BaseModel):

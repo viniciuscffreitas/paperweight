@@ -14,6 +14,7 @@ from agents.coordination.protocol import (
     read_inbox,
     write_state,
 )
+from agents.streaming import StreamEvent
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class CoordinationBroker:
         self._inbox_positions: dict[str, int] = {}
         self._poll_task: asyncio.Task | None = None
         self._pending_mediations: dict[str, list[str]] = {}
+        self._lock = asyncio.Lock()
 
     async def start(self) -> None:
         if self.config.enabled:
@@ -59,29 +61,30 @@ class CoordinationBroker:
     async def on_stream_event(
         self,
         run_id: str,
-        event: object,
+        event: StreamEvent,
         worktree_root: Path | None = None,
     ) -> Claim | None:
-        self.claims.update_activity(run_id)
+        async with self._lock:
+            self.claims.update_activity(run_id)
 
-        tool_name = getattr(event, "tool_name", "")
-        file_path = getattr(event, "file_path", "")
+            tool_name = event.tool_name
+            file_path = event.file_path
 
-        if not tool_name or tool_name not in _FILE_TOOLS or not file_path:
-            return None
+            if not tool_name or tool_name not in _FILE_TOOLS or not file_path:
+                return None
 
-        rel_path = file_path
-        if worktree_root and os.path.isabs(file_path):
-            try:
-                rel_path = os.path.relpath(file_path, str(worktree_root))
-            except ValueError:
-                rel_path = file_path
+            rel_path = file_path
+            if worktree_root and os.path.isabs(file_path):
+                try:
+                    rel_path = os.path.relpath(file_path, str(worktree_root))
+                except ValueError:
+                    rel_path = file_path
 
-        conflict: Claim | None = None
-        if tool_name in _WRITE_TOOLS:
-            conflict = self.claims.hard_claim(run_id, rel_path)
-        elif tool_name in _READ_TOOLS:
-            self.claims.soft_claim(run_id, rel_path)
+            conflict: Claim | None = None
+            if tool_name in _WRITE_TOOLS:
+                conflict = self.claims.hard_claim(run_id, rel_path)
+            elif tool_name in _READ_TOOLS:
+                self.claims.soft_claim(run_id, rel_path)
 
         await self._update_all_state_files()
         return conflict
@@ -118,12 +121,13 @@ class CoordinationBroker:
             logger.warning("Run %s escalated: %s", run_id, msg.get("message", ""))
 
     async def _update_all_state_files(self) -> None:
+        loop = asyncio.get_running_loop()
         for run_id, worktree in list(self.active_worktrees.items()):
             state = self.claims.build_state_snapshot(
                 this_run_id=run_id,
                 this_intent=self.claims.get_intent(run_id),
             )
-            write_state(worktree, state)
+            await loop.run_in_executor(None, write_state, worktree, state)
 
     async def _poll_loop(self) -> None:
         interval = self.config.poll_interval_ms / 1000

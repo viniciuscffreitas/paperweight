@@ -36,9 +36,9 @@ def init_coordination_dir(worktree: Path) -> None:
 def write_state(worktree: Path, state: dict) -> None:
     """Atomic write: tmp file → os.rename (POSIX-atomic)."""
     pw = worktree / COORD_DIR
-    state["updated_at"] = _iso_now()
+    out = {**state, "updated_at": _iso_now()}
     tmp_path = pw / ".state.json.tmp"
-    tmp_path.write_text(json.dumps(state, indent=2))
+    tmp_path.write_text(json.dumps(out, indent=2))
     os.rename(str(tmp_path), str(pw / "state.json"))
 
 
@@ -68,9 +68,9 @@ def read_inbox(worktree: Path, from_position: int = 0) -> tuple[list[dict], int]
 def append_outbox(worktree: Path, message: dict) -> None:
     """Append a single JSONL line to outbox."""
     outbox = worktree / COORD_DIR / "outbox.jsonl"
-    message["ts"] = message.get("ts") or _iso_now()
+    out = {**message, "ts": message.get("ts") or _iso_now()}
     with outbox.open("a") as f:
-        f.write(json.dumps(message) + "\n")
+        f.write(json.dumps(out) + "\n")
 
 
 def _iso_now() -> str:

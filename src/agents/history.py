@@ -58,6 +58,10 @@ class HistoryDB:
                 "CREATE INDEX IF NOT EXISTS idx_claims_file"
                 " ON file_claims (file_path, status)"
             )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_claims_run"
+                " ON file_claims (run_id, status)"
+            )
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS mediations (
                     id TEXT PRIMARY KEY,

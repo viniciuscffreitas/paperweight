@@ -48,6 +48,8 @@ def build_mediator_prompt(
     if diff_a:
         diff_section = f"\nChanges Agent A already made (diff):\n```\n{diff_a}\n```\n"
 
+    basename = file_path.rsplit("/", 1)[-1] if "/" in file_path else file_path
+
     return f"""## Mediation Task
 
 Two agents need changes to the same file. Apply BOTH changes coherently.
@@ -68,6 +70,6 @@ What Agent B needs in {file_path}: "{intent_b}"
 2. Apply both changes coherently — they should work together
 3. If the changes are incompatible, apply the most critical one and document the other as a TODO
 4. Write tests if the file has associated test files
-5. Commit: "mediation({file_path.split('/')[-1]}): <summary>"
+5. Commit: "mediation({basename}): <summary>"
 6. Touch ONLY the contested file(s) — nothing else
 """
