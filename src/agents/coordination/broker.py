@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 from pathlib import Path
@@ -9,7 +10,6 @@ from pathlib import Path
 from agents.coordination.claims import ClaimRegistry
 from agents.coordination.models import Claim, CoordinationConfig
 from agents.coordination.protocol import (
-    append_outbox,
     init_coordination_dir,
     read_inbox,
     write_state,
@@ -39,10 +39,8 @@ class CoordinationBroker:
     async def stop(self) -> None:
         if self._poll_task:
             self._poll_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._poll_task
-            except asyncio.CancelledError:
-                pass
         logger.info("CoordinationBroker stopped")
 
     async def register_run(self, run_id: str, worktree: Path, intent: str) -> None:

@@ -1,7 +1,6 @@
 """MediatorSpawner — builds mediator prompts and coordinates mediation runs."""
 from __future__ import annotations
 
-
 COORDINATION_PREAMBLE = """## Coordinated Mode — Paperweight Protocol
 
 You are running alongside other AI agents on the same repository. Each agent has

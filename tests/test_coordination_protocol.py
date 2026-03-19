@@ -1,6 +1,5 @@
 """Tests for coordination protocol filesystem I/O."""
 import json
-from pathlib import Path
 
 import pytest
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import time
 from enum import StrEnum
-from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -44,7 +43,7 @@ class Claim(BaseModel):
     intent: str = ""
 
     @model_validator(mode="after")
-    def _set_last_activity_default(self) -> "Claim":
+    def _set_last_activity_default(self) -> Claim:
         if self.last_activity is None:
             self.last_activity = self.claimed_at
         return self

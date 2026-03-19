@@ -1,7 +1,5 @@
 """Tests for CoordinationBroker."""
-import asyncio
 import json
-from pathlib import Path
 
 import pytest
 
@@ -135,7 +133,8 @@ async def test_process_inbox_need_file(broker, worktree_a, worktree_b):
 
     inbox = worktree_b / ".paperweight" / "inbox.jsonl"
     with inbox.open("a") as f:
-        f.write(json.dumps({"type": "need_file", "file": "src/users.py", "intent": "add auth"}) + "\n")
+        msg = {"type": "need_file", "file": "src/users.py", "intent": "add auth"}
+        f.write(json.dumps(msg) + "\n")
 
     await broker.poll_inboxes_once()
 

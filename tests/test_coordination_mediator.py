@@ -1,5 +1,4 @@
 """Tests for MediatorSpawner prompt building."""
-import pytest
 
 
 def test_build_mediator_prompt():
