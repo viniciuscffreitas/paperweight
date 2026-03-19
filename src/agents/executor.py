@@ -94,6 +94,7 @@ class Executor:
         on_stream_event: Callable | None = None,
         linear_client: object | None = None,
         discord_notifier: object | None = None,
+        broker: object | None = None,
     ) -> None:
         self.config = config
         self.budget = budget
@@ -104,6 +105,7 @@ class Executor:
         self.on_stream_event = on_stream_event or self._noop_event
         self.linear_client = linear_client
         self.discord_notifier = discord_notifier
+        self.broker = broker
 
     async def _noop_event(self, run_id: str, event: object) -> None:
         pass
