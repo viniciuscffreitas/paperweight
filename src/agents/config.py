@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import yaml
 from pydantic import BaseModel
 
+from agents.coordination.models import CoordinationConfig
 from agents.models import ProjectConfig
 
 if TYPE_CHECKING:
@@ -59,6 +60,7 @@ class GlobalConfig(BaseModel):
     execution: ExecutionConfig = ExecutionConfig()
     server: ServerConfig = ServerConfig()
     integrations: IntegrationsConfig = IntegrationsConfig()
+    coordination: CoordinationConfig = CoordinationConfig()
 
 
 def resolve_env_vars(value: str) -> str:
