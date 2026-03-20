@@ -1,6 +1,8 @@
 """Tests for composite Jinja2 macros."""
 from __future__ import annotations
+
 from pathlib import Path
+
 import pytest
 from jinja2 import Environment, FileSystemLoader
 

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from agents.session_manager import AgentSession
 
 # Re-export utilities that external callers import from this module
-from agents.executor_utils import (  # noqa: E402  # re-exports
+from agents.executor_utils import (  # re-exports
     append_progress_log,
     delete_progress_log,
     parse_claude_output,

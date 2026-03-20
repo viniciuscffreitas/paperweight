@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 async def finalize_agent_success(
-    project: "ProjectConfig",
+    project: ProjectConfig,
     variables: dict[str, str],
     discord_msg_id: str,
-    run: "RunRecord",
+    run: RunRecord,
     linear_client: object | None,
     discord_notifier: object | None,
 ) -> None:
@@ -50,10 +50,10 @@ async def finalize_agent_success(
 
 
 async def fail_agent_run(
-    project: "ProjectConfig",
+    project: ProjectConfig,
     variables: dict[str, str],
     discord_msg_id: str,
-    run: "RunRecord",
+    run: RunRecord,
     attempt: int,
     max_attempts: int,
     linear_client: object | None,

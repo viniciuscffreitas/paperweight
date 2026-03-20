@@ -1,6 +1,5 @@
 """Tests for coordination Pydantic models and config."""
 
-import pytest
 
 
 def test_claim_model_defaults():

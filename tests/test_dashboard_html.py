@@ -262,6 +262,7 @@ def test_dashboard_main_element_has_id_for_skip_link(app_with_dashboard):
 def test_main_imports_dashboard_html_not_nicegui():
     """main.py must import from dashboard_html, not from dashboard (NiceGUI)."""
     import inspect
+
     from agents import main
     source = inspect.getsource(main)
     assert "from agents.dashboard_html import setup_dashboard" in source
