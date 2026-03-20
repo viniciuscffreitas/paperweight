@@ -49,7 +49,11 @@ function setupTabSwitching() {
   var container = document.querySelector('[style*="border-bottom:1px solid var(--separator-strong)"]');
   if (!container) return;
   var buttons = container.querySelectorAll('button');
-  var tabs = ['activity', 'output', 'chat'];
+  // Detect tab names from button labels
+  var tabs = [];
+  buttons.forEach(function(btn) {
+    tabs.push(btn.textContent.trim().toLowerCase());
+  });
 
   buttons.forEach(function(btn, i) {
     btn.removeAttribute('hx-get'); // Prevent HTMX from firing
@@ -72,10 +76,12 @@ function switchTab(tabName, activeBtn, allButtons) {
   activeBtn.dataset.active = 'true';
 
   // Show/hide tab content
+  var spec = document.getElementById('spec-content');
   var activity = document.getElementById('activity-feed');
   var output = document.getElementById('output-content');
   var chat = document.getElementById('chat-content');
 
+  if (spec) spec.style.display = tabName === 'spec' ? 'block' : 'none';
   if (activity) activity.style.display = tabName === 'activity' ? 'block' : 'none';
   if (output) output.style.display = tabName === 'output' ? 'block' : 'none';
   if (chat) chat.style.display = tabName === 'chat' ? 'flex' : 'none';

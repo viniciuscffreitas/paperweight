@@ -21,6 +21,32 @@ _BASE = Path(__file__).parent
 _TEMPLATES = Jinja2Templates(directory=_BASE / "templates")
 
 
+def _find_related_docs(
+    item: object, session: object | None,
+) -> str:
+    """Search for spec/plan docs related to a task in repo and worktree."""
+    title_slug = re.sub(r"[^a-z0-9]+", "-", getattr(item, "title", "").lower()).strip("-")
+    search_dirs: list[Path] = []
+    # Check worktree if session exists
+    if session and hasattr(session, "worktree_path"):
+        wt = Path(session.worktree_path)
+        search_dirs.append(wt / "docs" / "superpowers" / "specs")
+        search_dirs.append(wt / "docs" / "superpowers" / "plans")
+    for d in search_dirs:
+        if not d.exists():
+            continue
+        for f in sorted(d.glob("*.md"), reverse=True):
+            # Match by title slug overlap
+            fname = f.stem.lower()
+            words = [w for w in title_slug.split("-") if len(w) > 2]
+            if any(w in fname for w in words):
+                try:
+                    return f.read_text(encoding="utf-8")
+                except Exception:
+                    continue
+    return ""
+
+
 def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None:
     """Mount static files and register all HTML routes."""
     app.mount("/static", StaticFiles(directory=_BASE / "static"), name="static")
@@ -98,6 +124,8 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
             session = state.session_manager.get_session(item.session_id)
         project = state.project_store.get_project(project_id) if state.project_store else None
         projects = state.project_store.list_projects() if state.project_store else []
+        # Find related spec/plan docs
+        spec_content = _find_related_docs(item, session)
         return _TEMPLATES.TemplateResponse(
             request,
             "task-detail.html",
@@ -108,6 +136,7 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
                 "projects": projects,
                 "selected_project": project_id,
                 "project_name": project["name"] if project else project_id,
+                "spec_content": spec_content,
             },
         )
 
