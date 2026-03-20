@@ -1,12 +1,21 @@
 <div style="padding:16px;display:flex;flex-direction:column;gap:4px;">
 
-  <!-- Agent sessions (chats) -->
+  <!-- Search -->
   {% if sessions %}
+  <input type="text" placeholder="Buscar chats..."
+         oninput="(function(q){document.querySelectorAll('.hub-chat-row').forEach(function(r){r.style.display=(!q||r.dataset.search.indexOf(q)>=0)?'':'none'})})(this.value.toLowerCase().trim())"
+         style="background:var(--bg-chrome);border:1px solid var(--border-default);border-radius:6px;
+                padding:7px 12px;font-size:12px;color:var(--text-primary);font-family:inherit;
+                outline:none;margin-bottom:8px;box-sizing:border-box;transition:border-color .15s;"
+         onfocus="this.style.borderColor='var(--accent)'"
+         onblur="this.style.borderColor='var(--border-default)'">
+
   <div style="font-size:9px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1.5px;padding:0 4px 6px;">
     Chats
   </div>
   {% for s in sessions %}
-  <div hx-get="/hub/{{ id }}/agent?session={{ s.id }}"
+  <div class="hub-chat-row" data-search="{{ s.title|lower }}"
+       hx-get="/hub/{{ id }}/agent?session={{ s.id }}"
        hx-target="#tab-content"
        role="button" tabindex="0"
        onkeydown="if(event.key==='Enter')this.click()"
