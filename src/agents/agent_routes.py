@@ -128,16 +128,6 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
             session = session_manager.create_session(project_name, model, max_cost_usd)
             session_manager.try_acquire_run(session.id)  # always succeeds for fresh session
             is_resume = False
-            # Auto-create a work item so no session is orphaned
-            if state.task_store:
-                title = _generate_title(prompt) or "Chat session"
-                state.task_store.create(
-                    project=project_name,
-                    title=title,
-                    description=prompt[:200],
-                    source="agent",
-                    session_id=session.id,
-                )
 
         run_id = generate_run_id(project_name, "agent")
 
