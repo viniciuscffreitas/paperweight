@@ -45,6 +45,24 @@ def register_task_routes(app: FastAPI, task_store: TaskStore) -> None:
         updated = task_store.get(item_id)
         return updated.model_dump(mode="json")
 
+    @app.post("/api/work-items/from-session", status_code=201, response_model=None)
+    async def create_from_session(data: dict) -> dict | Response:
+        """Create a work item from an active Agent Tab session."""
+        title = data.get("title", "")
+        description = data.get("description", title)
+        project = data.get("project", "")
+        session_id = data.get("session_id")
+        if not title or not project:
+            return Response(status_code=400, content="title and project required")
+        item = task_store.create(
+            project=project,
+            title=title,
+            description=description,
+            source="agent-tab",
+            session_id=session_id,
+        )
+        return item.model_dump(mode="json")
+
     @app.post("/api/work-items/{item_id}/rerun", response_model=None)
     async def rerun_work_item(item_id: str) -> Response | dict:
         item = task_store.get(item_id)

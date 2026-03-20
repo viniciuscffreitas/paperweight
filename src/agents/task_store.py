@@ -165,3 +165,48 @@ class TaskStore:
                 (source, source_id),
             ).fetchone()
         return row is not None
+
+    def add_context(
+        self, task_id: str, entry_type: str, content: str,
+        source_run_id: str | None = None,
+    ) -> None:
+        """Add a context entry. Auto-prunes if over 50 entries."""
+        import time
+        now = time.time()
+        # Truncate content to 4KB
+        if len(content) > 4096:
+            content = content[:4093] + "..."
+        with self._conn() as conn:
+            conn.execute(
+                """INSERT INTO task_context (task_id, type, source_run_id, content, timestamp)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (task_id, entry_type, source_run_id, content, now),
+            )
+            # Prune oldest non-error entries if over 50
+            count = conn.execute(
+                "SELECT COUNT(*) as c FROM task_context WHERE task_id = ?", (task_id,)
+            ).fetchone()["c"]
+            if count > 50:
+                conn.execute(
+                    """DELETE FROM task_context WHERE id IN (
+                        SELECT id FROM task_context
+                        WHERE task_id = ? AND type NOT IN ('run_error', 'ci_failure')
+                        ORDER BY timestamp ASC LIMIT ?
+                    )""",
+                    (task_id, count - 50),
+                )
+
+    def get_context(self, task_id: str, limit: int = 50) -> list[dict]:
+        """Get context entries for a task, newest first."""
+        with self._conn() as conn:
+            rows = conn.execute(
+                """SELECT type, content, source_run_id, timestamp
+                   FROM task_context WHERE task_id = ?
+                   ORDER BY timestamp DESC LIMIT ?""",
+                (task_id, limit),
+            ).fetchall()
+        return [
+            {"type": row["type"], "content": row["content"],
+             "source_run_id": row["source_run_id"], "timestamp": row["timestamp"]}
+            for row in rows
+        ]

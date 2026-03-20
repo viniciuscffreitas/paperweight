@@ -27,6 +27,12 @@
             style="color:var(--text-muted);">
         {{ 'session: ' + session.id[:8] if session else 'sem sessão' }}
       </span>
+      <button onclick="showCreateTaskModal('{{ id }}')"
+              style="padding:2px 8px;font-size:9px;color:var(--text-muted);background:transparent;
+                     border:1px solid var(--border-default);border-radius:3px;cursor:pointer;font-family:inherit;
+                     transition:all .15s"
+              onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+              onmouseout="this.style.borderColor='var(--border-default)';this.style.color='var(--text-muted)'">+ Task</button>
       {% if session %}
       <button onclick="endAgentSession('{{ session.id }}')"
               style="padding:2px 8px;font-size:9px;color:var(--text-muted);background:transparent;
@@ -37,6 +43,32 @@
       {% endif %}
     </div>
   </div>
+
+  {% if task %}
+  <!-- Task context bar -->
+  <div id="task-context-bar" style="display:flex;align-items:center;gap:10px;padding:6px 14px;
+              background:var(--bg-elevated);border-bottom:1px solid var(--border-subtle);font-size:11px;flex-shrink:0;">
+    <span style="color:var(--accent);font-weight:600;">TASK</span>
+    <span style="color:var(--text-primary);font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ task.title }}</span>
+    <span style="text-transform:uppercase;letter-spacing:.5px;padding:2px 8px;border-radius:4px;
+                 background:{% if task.status == 'running' %}rgba(59,130,246,.15);color:var(--accent){% elif task.status in ('done','review') %}rgba(74,222,128,.15);color:var(--status-success){% elif task.status == 'failed' %}rgba(248,113,113,.15);color:var(--status-error){% else %}var(--bg-chrome);color:var(--text-muted){% endif %}">{{ task.status }}</span>
+    {% if task.pr_url %}
+    <a href="{{ task.pr_url }}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:10px">PR ↗</a>
+    {% endif %}
+    <button onclick="rerunTask('{{ task.id }}')"
+            style="padding:2px 8px;font-size:9px;color:var(--text-muted);background:transparent;
+                   border:1px solid var(--border-default);border-radius:3px;cursor:pointer;font-family:inherit;
+                   transition:all .15s"
+            onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+            onmouseout="this.style.borderColor='var(--border-default)';this.style.color='var(--text-muted)'">Re-run</button>
+  </div>
+  <script>
+  function rerunTask(taskId) {
+    fetch('/api/work-items/' + taskId + '/rerun', {method: 'POST'})
+      .then(function() { location.reload(); });
+  }
+  </script>
+  {% endif %}
 
   <!-- Terminal output -->
   <div id="agent-output" style="flex:1;overflow-y:auto;padding:16px 18px;background:#0a0c14;font-size:13px;line-height:1.8;">
@@ -74,6 +106,68 @@
     color: #3b82f6;
   }
 </style>
+
+<!-- Create Task modal -->
+<div id="create-task-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;
+         align-items:center;justify-content:center">
+  <div style="background:var(--bg-content);border:1px solid var(--border-default);border-radius:12px;padding:20px;
+              width:90%;max-width:400px">
+    <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:12px">Create Task</div>
+    <input id="create-task-title" placeholder="Task title..."
+           style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--border-default);
+                  background:var(--bg-elevated);color:var(--text-primary);font-size:13px;font-family:inherit;
+                  margin-bottom:8px;box-sizing:border-box">
+    <textarea id="create-task-desc" placeholder="Description (optional)..." rows="3"
+              style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--border-default);
+                     background:var(--bg-elevated);color:var(--text-primary);font-size:13px;font-family:inherit;
+                     resize:vertical;margin-bottom:12px;box-sizing:border-box"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="hideCreateTaskModal()"
+              style="padding:6px 14px;border-radius:6px;background:transparent;border:1px solid var(--border-default);
+                     color:var(--text-muted);font-size:12px;cursor:pointer;font-family:inherit">Cancel</button>
+      <button onclick="submitCreateTask()"
+              style="padding:6px 14px;border-radius:6px;background:var(--accent);border:none;
+                     color:white;font-size:12px;cursor:pointer;font-family:inherit">Create</button>
+    </div>
+  </div>
+</div>
+<script>
+var _createTaskProject = '';
+function showCreateTaskModal(projectId) {
+  _createTaskProject = projectId;
+  var modal = document.getElementById('create-task-modal');
+  modal.style.display = 'flex';
+  document.getElementById('create-task-title').focus();
+}
+function hideCreateTaskModal() {
+  document.getElementById('create-task-modal').style.display = 'none';
+}
+function submitCreateTask() {
+  var title = document.getElementById('create-task-title').value.trim();
+  if (!title) return;
+  var desc = document.getElementById('create-task-desc').value.trim() || title;
+  var sessionId = _agentSessionId || '';
+  fetch('/api/work-items/from-session', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      project: _createTaskProject,
+      title: title,
+      description: desc,
+      session_id: sessionId || null
+    })
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    hideCreateTaskModal();
+    // Show confirmation in the terminal output
+    var output = document.getElementById('agent-output');
+    var div = document.createElement('div');
+    div.style.cssText = 'color:#4ade80;margin:8px 0;font-size:12px';
+    div.textContent = '✓ Task created: ' + data.title + ' (' + data.id + ')';
+    output.appendChild(div);
+    output.scrollTop = output.scrollHeight;
+  });
+}
+</script>
 
 <script src="/static/agent.js"></script>
 <script>

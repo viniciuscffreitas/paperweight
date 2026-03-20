@@ -88,7 +88,8 @@ class TaskProcessor:
             self.task_store.update_session(item.id, session.id)
 
         is_resume = session.claude_session_id is not None
-        prompt = self.build_prompt(item, context_entries=[])
+        context_entries = self.task_store.get_context(item.id)
+        prompt = self.build_prompt(item, context_entries=context_entries)
 
         try:
             async with (
@@ -122,6 +123,29 @@ class TaskProcessor:
                     except Exception:
                         logger.warning("Failed to create PR for task %s", item.id)
 
+                # Write run context entry
+                try:
+                    run_events = self.state.history.list_events(run_id)
+                    files_changed = [
+                        e.get("file_path", "") for e in run_events
+                        if e.get("type") == "tool_use" and e.get("tool_name") in ("Edit", "Write")
+                        and e.get("file_path")
+                    ]
+                    summary = f"Status: {result.status}\nCost: ${result.cost_usd or 0:.2f}"
+                    if files_changed:
+                        summary += f"\nFiles changed: {', '.join(set(files_changed))}"
+                    if result.error_message:
+                        summary += f"\nError: {result.error_message}"
+                    self.task_store.add_context(
+                        item.id,
+                        "run_result" if result.status == RunStatus.SUCCESS else "run_error",
+                        summary,
+                        source_run_id=run_id,
+                    )
+                except Exception:
+                    logger.warning("Failed to write context for task %s", item.id)
+
+                if result.status == RunStatus.SUCCESS:
                     self.task_store.update_status(
                         item.id,
                         TaskStatus.REVIEW if pr_url else TaskStatus.DONE,

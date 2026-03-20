@@ -162,10 +162,17 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
                 active_session = state.session_manager.get_session(session)
             else:
                 active_session = state.session_manager.get_active_session(project_id)
+        task_id = request.query_params.get("task", "")
+        task = None
+        if task_id and state.task_store:
+            task = state.task_store.get(task_id)
+            # If task has a session, use it
+            if task and task.session_id and hasattr(state, "session_manager") and state.session_manager:
+                active_session = state.session_manager.get_session(task.session_id)
         return _TEMPLATES.TemplateResponse(
             request,
             "hub/agent.html",
-            {"id": project_id, "session": active_session, "focus_run": run or ""},
+            {"id": project_id, "session": active_session, "focus_run": run or "", "task": task},
         )
 
     # --- Coordination routes ---

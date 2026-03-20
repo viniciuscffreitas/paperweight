@@ -56,3 +56,13 @@ def test_rerun_task(client):
     resp = client.post(f"/api/work-items/{item_id}/rerun")
     assert resp.status_code == 200
     assert resp.json()["status"] == "pending"
+
+def test_create_from_session(client):
+    resp = client.post("/api/work-items/from-session", json={
+        "project": "pw", "title": "Fix slow tests",
+        "description": "Tests take 30s, should take 5s", "session_id": "sess-123",
+    })
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["source"] == "agent-tab"
+    assert data["session_id"] == "sess-123"
