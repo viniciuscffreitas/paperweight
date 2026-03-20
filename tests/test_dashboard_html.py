@@ -498,7 +498,7 @@ def test_hub_agent_loads_agent_js(app_with_project):
 def test_hub_agent_no_session_shows_placeholder(app_with_project):
     """Agent tab with no active session must show the placeholder hint."""
     resp = app_with_project.get("/hub/p1/agent")
-    assert b"no session" in resp.content
+    assert b"sem sess" in resp.content
 
 
 def test_hub_agent_session_status_has_data_attribute(app_with_project):
