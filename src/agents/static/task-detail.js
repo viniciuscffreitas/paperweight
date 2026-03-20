@@ -161,13 +161,27 @@ function parseToolLabel(ev) {
   var content = ev.content || '';
   try {
     var parsed = JSON.parse(content);
+    // Skill tool
+    if (parsed.skill) return parsed.skill + (parsed.args ? ' ' + parsed.args.substring(0, 40) : '');
+    // Bash — show description or command
     if (parsed.description) return parsed.description;
+    if (parsed.command) {
+      var cmd = parsed.command;
+      // Clean up long commands — show first meaningful part
+      if (cmd.length > 60) cmd = cmd.substring(0, 57) + '...';
+      return cmd;
+    }
+    // File operations
     if (parsed.file_path) return parsed.file_path;
-    if (parsed.command) return parsed.command.substring(0, 60);
-    if (parsed.pattern) return parsed.pattern;
+    // Search tools
+    if (parsed.pattern) return (parsed.glob || '') + ' ' + parsed.pattern;
     if (parsed.query) return parsed.query;
+    // Agent tool
+    if (parsed.prompt) return parsed.prompt.substring(0, 60);
   } catch (e) { /* not JSON */ }
-  return content.substring(0, 80);
+  // Fallback: if content looks like JSON but couldn't parse specific fields
+  if (content.length > 80) return content.substring(0, 77) + '...';
+  return content;
 }
 
 function renderActivityEvent(container, toolName, label, timestamp) {
