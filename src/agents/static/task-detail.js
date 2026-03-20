@@ -615,25 +615,24 @@ function startTask() {
   var btn = document.querySelector('[onclick="startTask()"]');
   if (btn) { btn.textContent = 'Starting...'; btn.style.opacity = '0.6'; btn.disabled = true; }
 
-  // Build prompt: include spec content if available
-  var title = document.querySelector('[style*="font-size:20px"]');
+  // Get markdown source (not rendered textContent)
+  var specSource = document.getElementById('spec-source');
   var desc = document.getElementById('task-description');
-  var spec = document.getElementById('spec-rendered');
+  var titleEl = document.querySelector('[style*="font-size:20px"]');
+  var taskTitle = titleEl ? titleEl.textContent.trim() : '';
 
   var prompt = '';
-  if (spec && spec.textContent.trim()) {
-    prompt = '# Task: ' + (title ? title.textContent.trim() : '') + '\n\n';
-    prompt += 'Implement this spec:\n\n' + spec.textContent.trim();
+  if (specSource && specSource.textContent.trim()) {
+    prompt = 'Implement this spec:\n\n' + specSource.textContent.trim();
   } else if (desc) {
     prompt = desc.textContent.trim();
-  } else if (title) {
-    prompt = title.textContent.trim();
+  } else {
+    prompt = taskTitle;
   }
 
   var modelSelect = document.getElementById('chat-model');
   var model = modelSelect ? modelSelect.value : 'claude-sonnet-4-6';
 
-  // Start agent with task description as prompt
   fetch('/api/projects/' + _taskConfig.projectId + '/agent', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -641,15 +640,78 @@ function startTask() {
   })
   .then(function(r) { return r.json(); })
   .then(function(data) {
-    // Link session to task
     _taskConfig.sessionId = data.session_id;
+    _taskConfig.status = 'running';
+
+    // Link session to task
     fetch('/api/work-items/' + _taskConfig.taskId, {
       method: 'PATCH',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ session_id: data.session_id, status: 'running' })
-    }).then(function() {
-      window.location.reload();
     });
+
+    // Update UI without reload — switch to Activity tab and show live progress
+    // Update status badge
+    var statusBadge = document.querySelector('[style*="text-transform:uppercase"]');
+    if (statusBadge) { statusBadge.textContent = 'running'; statusBadge.style.color = 'var(--status-running)'; }
+
+    // Swap Start → Cancel button
+    if (btn) {
+      btn.textContent = 'Cancel';
+      btn.style.opacity = '1';
+      btn.disabled = false;
+      btn.style.background = 'transparent';
+      btn.style.color = 'var(--status-error)';
+      btn.style.border = '1px solid var(--status-error)';
+      btn.setAttribute('onclick', 'cancelRun()');
+    }
+
+    // Switch to Activity tab and show progress
+    var activityFeed = document.getElementById('activity-feed');
+    var specTab = document.getElementById('spec-content');
+    if (specTab) specTab.style.display = 'none';
+    if (activityFeed) activityFeed.style.display = 'block';
+    var eventsContainer = document.getElementById('activity-events');
+    if (eventsContainer) eventsContainer.innerHTML = '';
+
+    // Activate Activity tab button
+    var tabButtons = document.querySelectorAll('[style*="border-bottom:1px solid var(--separator-strong)"] button');
+    tabButtons.forEach(function(b) {
+      var isActivity = b.textContent.trim().toLowerCase() === 'activity';
+      b.style.color = isActivity ? 'var(--text-primary)' : 'var(--text-muted)';
+      b.style.borderBottom = isActivity ? '2px solid var(--accent-text)' : '2px solid transparent';
+    });
+
+    // Connect WebSocket for live streaming
+    showThinking();
+    _taskWs = connectRunStream(data.run_id,
+      function(event) {
+        hideThinking();
+        if (event.type === 'tool_use') {
+          renderActivityEvent(eventsContainer, event.tool_name || 'Tool', parseToolLabel(event), '');
+          eventsContainer.parentElement.scrollTop = eventsContainer.parentElement.scrollHeight;
+        } else if (event.type === 'assistant' && event.content) {
+          // Show in output area
+          var outputText = document.getElementById('output-text');
+          if (outputText) {
+            outputText.textContent += event.content;
+          }
+        }
+      },
+      function() {
+        hideThinking();
+        if (btn) { btn.textContent = 'Rerun'; btn.setAttribute('onclick', 'rerunTask()'); }
+        // Add completion indicator
+        var done = document.createElement('div');
+        done.style.cssText = 'padding:16px 0;text-align:center;color:var(--status-success);font-size:13px;';
+        done.textContent = 'Task completed';
+        eventsContainer.appendChild(done);
+      },
+      function() {
+        hideThinking();
+        if (btn) { btn.textContent = 'Rerun'; btn.setAttribute('onclick', 'rerunTask()'); }
+      }
+    );
   })
   .catch(function(err) {
     if (btn) { btn.textContent = 'Start'; btn.style.opacity = '1'; btn.disabled = false; }
