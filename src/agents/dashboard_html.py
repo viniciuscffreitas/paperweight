@@ -32,6 +32,9 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
     @app.get("/dashboard", response_class=HTMLResponse)
     async def dashboard_page(request: Request) -> HTMLResponse:
         projects = state.project_store.list_projects() if state.project_store else []
+        if projects:
+            return RedirectResponse(f"/hub/{projects[0]['id']}/tasks", status_code=302)
+        # No projects — show empty state with sidebar + wizard CTA
         return _TEMPLATES.TemplateResponse(
             request,
             "project-picker.html",
