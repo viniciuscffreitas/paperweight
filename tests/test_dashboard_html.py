@@ -457,10 +457,10 @@ def test_inactive_tabs_have_data_active_aware_hover(app_with_project):
 
 
 def test_hub_panel_contains_agent_tab(app_with_project):
-    """Tab bar must contain an AGENT tab button."""
+    """Tab bar must contain a 'Nova sessão' button."""
     resp = app_with_project.get("/hub/p1")
     assert resp.status_code == 200
-    assert b"AGENT" in resp.content
+    assert b"Nova sess" in resp.content
 
 
 def test_hub_panel_agent_tab_htmx_get(app_with_project):

@@ -207,7 +207,7 @@ def test_tab_bar_renders_all_tab_labels(jinja_env):
     assert "ACTIVITY" in html
     assert "TASKS" in html
     assert "RUNS" in html
-    assert "AGENT" in html
+    assert "Nova sess" in html
 
 
 def test_tab_bar_uses_no_raw_hex(jinja_env):

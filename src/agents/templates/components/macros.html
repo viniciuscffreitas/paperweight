@@ -140,21 +140,33 @@
    Inactive tab: color=--text-disabled, border-bottom=transparent
    ─────────────────────────────────────────────────────────────────────── #}
 {% macro tab_bar(project_id, active_tab='activity') %}
-<div style="display:flex;border-bottom:1px solid var(--border-subtle);padding:0 12px;flex-shrink:0;">
-  {%- for t in ['activity', 'tasks', 'runs', 'agent'] -%}
+<div style="display:flex;align-items:center;border-bottom:1px solid var(--border-subtle);padding:0 12px;flex-shrink:0;">
+  {%- for t in ['activity', 'tasks', 'runs'] -%}
   <button hx-get="/hub/{{ project_id }}/{{ t }}"
           hx-target="#tab-content"
           onclick="activateTab(this)"
           {% if t == active_tab %}data-active="true"{% endif %}
           style="padding:10px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;
-                 color:{% if t == active_tab %}var(--text-primary){% else %}var(--text-disabled){% endif %};cursor:pointer;border:none;background:transparent;
+                 color:{% if t == active_tab %}var(--text-primary){% else %}var(--text-muted){% endif %};cursor:pointer;border:none;background:transparent;
                  border-bottom:2px solid {% if t == active_tab %}var(--accent){% else %}transparent{% endif %};margin-bottom:-1px;font-family:inherit;
                  transition:color .15s;white-space:nowrap;flex-shrink:0;"
           onmouseover="if (!this.dataset.active) this.style.color='var(--text-secondary)'"
-          onmouseout="if (!this.dataset.active) this.style.color='var(--text-disabled)'">
+          onmouseout="if (!this.dataset.active) this.style.color='var(--text-muted)'">
     {{ t | upper }}
   </button>
   {%- endfor -%}
+  <span style="flex:1;"></span>
+  <button hx-get="/hub/{{ project_id }}/agent"
+          hx-target="#tab-content"
+          onclick="activateTab(this)"
+          style="padding:6px 12px;font-size:10px;letter-spacing:.5px;cursor:pointer;
+                 border:1px solid var(--accent);background:transparent;color:var(--accent);
+                 border-radius:4px;font-family:inherit;transition:all .15s;white-space:nowrap;
+                 margin-bottom:0;flex-shrink:0;"
+          onmouseover="this.style.background='var(--accent)';this.style.color='var(--bg-chrome)'"
+          onmouseout="this.style.background='transparent';this.style.color='var(--accent)'">
+    + Nova sessão
+  </button>
 </div>
 {% endmacro %}
 

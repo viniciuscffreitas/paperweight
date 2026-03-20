@@ -130,15 +130,19 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         project = state.project_store.get_project(project_id) if state.project_store else None
         if not project:
             return HTMLResponse("<p>Project not found</p>", status_code=404)
+        sessions = []
+        if hasattr(state, "session_manager") and state.session_manager:
+            sessions = state.session_manager.list_sessions_with_stats(project_id)
+        task_runs = []
         try:
             all_runs = state.history.list_runs_today()
-            runs = [r for r in all_runs if r.project == project_id][:20]
+            task_runs = [r for r in all_runs if r.project == project_id and r.trigger_type != "agent"][:20]
         except Exception:
-            runs = []
+            pass
         return _TEMPLATES.TemplateResponse(
             request,
             "hub/runs.html",
-            {"runs": runs, "id": project_id},
+            {"sessions": sessions, "task_runs": task_runs, "id": project_id},
         )
 
     @app.get("/hub/{project_id}/agent", response_class=HTMLResponse)

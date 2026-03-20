@@ -1,0 +1,14 @@
+{% from "components/macros.html" import status_dot %}
+<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;
+            border-bottom:1px solid var(--border-subtle);transition:background .15s;"
+     onmouseover="this.style.background='var(--bg-overlay)'"
+     onmouseout="this.style.background='transparent'">
+  {{ status_dot(run.status) }}
+  <span style="flex:1;font-size:12px;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ run.task }}</span>
+  {% if run.cost_usd %}
+  <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${{ "%.2f" | format(run.cost_usd) }}</span>
+  {% endif %}
+  {% if run.pr_url %}
+  <a href="{{ run.pr_url }}" target="_blank" rel="noopener" style="font-size:11px;color:var(--accent);text-decoration:none;white-space:nowrap;">PR ↗</a>
+  {% endif %}
+</div>

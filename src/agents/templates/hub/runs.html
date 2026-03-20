@@ -1,11 +1,49 @@
-<div style="padding:16px;">
-  {% if runs %}
-    {% for run in runs %}
-      {% include "partials/run_row.html" %}
-    {% endfor %}
-  {% else %}
+<div style="padding:16px;display:flex;flex-direction:column;gap:4px;">
+
+  <!-- Agent sessions (chats) -->
+  {% if sessions %}
+  <div style="font-size:9px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1.5px;padding:0 4px 6px;">
+    Chats
+  </div>
+  {% for s in sessions %}
+  <div hx-get="/hub/{{ id }}/agent?session={{ s.id }}"
+       hx-target="#tab-content"
+       role="button" tabindex="0"
+       onkeydown="if(event.key==='Enter')this.click()"
+       style="display:flex;align-items:center;padding:8px 12px;border-radius:6px;
+              background:var(--bg-task-hover);gap:8px;cursor:pointer;transition:background .15s;"
+       onmouseover="this.style.background='var(--bg-elevated)'"
+       onmouseout="this.style.background='var(--bg-task-hover)'">
+    {% if s.status == 'active' %}
+    <span class="status-dot running" aria-hidden="true"></span>
+    {% else %}
+    <span class="status-dot success" aria-hidden="true"></span>
+    {% endif %}
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:13px;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ s.title }}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+        {{ s.model }} · {{ s.run_count }} msg{{ 's' if s.run_count != 1 }} · ${{ "%.3f" | format(s.total_cost) }}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <!-- Task runs (non-agent) -->
+  {% if task_runs %}
+  {% if sessions %}
+  <div style="font-size:9px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1.5px;padding:12px 4px 6px 4px;">
+    Task Runs
+  </div>
+  {% endif %}
+  {% for run in task_runs %}
+    {% include "partials/task_run_row.html" %}
+  {% endfor %}
+  {% endif %}
+
+  {% if not sessions and not task_runs %}
   <div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px;font-style:italic;">
-    No runs today.
+    Nenhuma atividade ainda.
   </div>
   {% endif %}
 </div>
