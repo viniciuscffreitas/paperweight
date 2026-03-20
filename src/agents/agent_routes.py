@@ -49,9 +49,27 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                     state.get_semaphore(config.execution.max_concurrent),
                     state.get_repo_semaphore(project.repo),
                 ):
-                    await state.executor.run_adhoc(
+                    result = await state.executor.run_adhoc(
                         project, prompt, session, is_resume=is_resume, run_id=run_id,
                     )
+                    # Capture Claude session_id from raw output for --resume support
+                    if result.output_file:
+                        import json
+
+                        try:
+                            raw = Path(result.output_file).read_text()
+                            for line in raw.strip().split("\n"):
+                                try:
+                                    d = json.loads(line)
+                                    if d.get("type") == "result" and d.get("session_id"):
+                                        state.session_manager.update_session(
+                                            session.id, claude_session_id=d["session_id"],
+                                        )
+                                        break
+                                except json.JSONDecodeError:
+                                    continue
+                        except FileNotFoundError:
+                            pass
             finally:
                 state.session_manager.release_run(session.id)
 
