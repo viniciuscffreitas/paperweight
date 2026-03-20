@@ -173,14 +173,25 @@ function showEmptyActivity(message) {
   }
 }
 
+var _thinkingEl = null;
+
 function showThinking() {
-  var el = document.getElementById('thinking-indicator');
-  if (el) el.style.display = 'block';
+  hideThinking();
+  var container = document.getElementById('chat-messages');
+  if (!container) return;
+  _thinkingEl = document.createElement('div');
+  _thinkingEl.className = 'chat-msg';
+  _thinkingEl.innerHTML = '<div class="chat-msg-label agent">agent</div>' +
+    '<div class="thinking-dots"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>';
+  container.appendChild(_thinkingEl);
+  container.scrollTop = container.scrollHeight;
 }
 
 function hideThinking() {
-  var el = document.getElementById('thinking-indicator');
-  if (el) el.style.display = 'none';
+  if (_thinkingEl && _thinkingEl.parentNode) {
+    _thinkingEl.parentNode.removeChild(_thinkingEl);
+  }
+  _thinkingEl = null;
 }
 
 function loadChatHistory(events) {
@@ -189,28 +200,115 @@ function loadChatHistory(events) {
 
   events.forEach(function(ev) {
     if (ev.type === 'user_prompt' && ev.content) {
-      appendChatMessage(chatMessages, 'you', ev.content);
+      appendChatMessage(chatMessages, 'you', ev.content, false);
     } else if (ev.type === 'assistant' && ev.content) {
-      appendChatMessage(chatMessages, 'agent', ev.content);
+      appendChatMessage(chatMessages, 'agent', ev.content, false);
+    } else if (ev.type === 'tool_use') {
+      renderToolCallInChat(chatMessages, ev);
     }
   });
 }
 
-function appendChatMessage(container, role, text) {
+function appendChatMessage(container, role, text, isStreaming) {
   var wrapper = document.createElement('div');
-  wrapper.style.cssText = 'margin-bottom:12px;';
+  wrapper.className = 'chat-msg';
 
   var label = document.createElement('div');
-  label.style.cssText = 'font-size:10px;color:' + (role === 'you' ? 'var(--text-muted)' : 'var(--accent-text)') + ';margin-bottom:2px;';
-  label.textContent = role;
+  label.className = 'chat-msg-label ' + role;
+  label.textContent = role === 'you' ? 'you' : 'agent';
 
   var content = document.createElement('div');
-  content.style.cssText = 'font-size:13px;color:var(--text-primary);white-space:pre-wrap;line-height:1.7;';
-  content.textContent = text;
+  content.className = 'chat-msg-content';
+  if (isStreaming) {
+    content.classList.add('streaming');
+    content.textContent = text;
+  } else {
+    // Render markdown for completed messages
+    if (typeof marked !== 'undefined' && role === 'agent') {
+      content.innerHTML = marked.parse(text);
+      addCodeBlockHeaders(content);
+      if (typeof hljs !== 'undefined') {
+        content.querySelectorAll('pre code').forEach(function(block) {
+          hljs.highlightElement(block);
+        });
+      }
+    } else {
+      content.textContent = text;
+    }
+  }
 
   wrapper.appendChild(label);
   wrapper.appendChild(content);
   container.appendChild(wrapper);
+  container.scrollTop = container.scrollHeight;
+  return content;
+}
+
+function addCodeBlockHeaders(container) {
+  container.querySelectorAll('pre code').forEach(function(codeBlock) {
+    var pre = codeBlock.parentElement;
+    // Detect language from class
+    var lang = '';
+    var classes = codeBlock.className.split(' ');
+    for (var i = 0; i < classes.length; i++) {
+      if (classes[i].startsWith('language-')) {
+        lang = classes[i].replace('language-', '');
+        break;
+      }
+    }
+
+    var header = document.createElement('div');
+    header.className = 'code-header';
+
+    var langSpan = document.createElement('span');
+    langSpan.textContent = lang || 'code';
+
+    var copyBtn = document.createElement('button');
+    copyBtn.textContent = 'Copy';
+    copyBtn.onclick = function() {
+      navigator.clipboard.writeText(codeBlock.textContent).then(function() {
+        copyBtn.textContent = 'Copied!';
+        setTimeout(function() { copyBtn.textContent = 'Copy'; }, 1500);
+      });
+    };
+
+    header.appendChild(langSpan);
+    header.appendChild(copyBtn);
+    pre.insertBefore(header, codeBlock);
+  });
+}
+
+function renderToolCallInChat(container, event) {
+  var toolName = event.tool_name || 'Tool';
+  var label = event.file_path || event.content || '';
+  if (label.length > 80) label = label.substring(0, 80) + '...';
+
+  var colorMap = {
+    'Edit': '#22c55e', 'Write': '#22c55e',
+    'Bash': '#fbbf24',
+    'Read': '#818cf8', 'Grep': '#818cf8', 'Glob': '#818cf8'
+  };
+  var color = colorMap[toolName] || '#c084fc';
+
+  var card = document.createElement('div');
+  card.className = 'tool-call';
+  card.style.borderLeftColor = color;
+
+  var header = document.createElement('div');
+  header.className = 'tool-call-header';
+  header.innerHTML = '<span class="arrow">&#9654;</span>' +
+    '<span class="tool-name" style="color:' + color + ';">' + toolName + '</span>' +
+    '<span class="tool-label">' + label + '</span>';
+
+  var detail = document.createElement('div');
+  detail.className = 'tool-call-detail';
+  detail.textContent = event.content || '';
+
+  header.onclick = function() { card.classList.toggle('expanded'); };
+
+  card.appendChild(header);
+  card.appendChild(detail);
+  container.appendChild(card);
 }
 
 function sendChatPrompt() {
@@ -219,14 +317,21 @@ function sendChatPrompt() {
   if (!text) return;
 
   input.value = '';
+  input.parentNode.dataset.replicatedValue = '';
   input.disabled = true;
-  input.placeholder = 'Thinking...';
 
   var chatMessages = document.getElementById('chat-messages');
-  appendChatMessage(chatMessages, 'you', text);
+  appendChatMessage(chatMessages, 'you', text, false);
 
   var body = { prompt: text, model: 'claude-sonnet-4-6', max_cost_usd: 2.0 };
   if (_taskConfig.sessionId) body.session_id = _taskConfig.sessionId;
+
+  showThinking();
+
+  // Show stop button
+  var sendArea = document.getElementById('chat-send-area');
+  var origHTML = sendArea.innerHTML;
+  sendArea.innerHTML = '<button onclick="stopGeneration()" style="background:transparent;color:var(--status-error);border:1px solid var(--status-error);padding:6px 16px;font-size:13px;font-weight:500;border-radius:8px;cursor:pointer;font-family:inherit;">Stop</button>';
 
   fetch('/api/projects/' + _taskConfig.projectId + '/agent', {
     method: 'POST',
@@ -239,33 +344,70 @@ function sendChatPrompt() {
   })
   .then(function(data) {
     _taskConfig.sessionId = data.session_id;
-    // Connect to stream for response
-    var ws = connectRunStream(data.run_id,
+    hideThinking();
+
+    var streamingContent = null;
+    var streamingText = '';
+
+    _taskWs = connectRunStream(data.run_id,
       function(event) {
         if (event.type === 'assistant' && event.content) {
-          appendChatMessage(chatMessages, 'agent', event.content);
+          if (!streamingContent) {
+            streamingContent = appendChatMessage(chatMessages, 'agent', '', true);
+          }
+          streamingText += event.content;
+          streamingContent.textContent = streamingText;
+          chatMessages.scrollTop = chatMessages.scrollHeight;
         } else if (event.type === 'tool_use') {
+          renderToolCallInChat(chatMessages, event);
+          // Also add to activity feed
           var eventsContainer = document.getElementById('activity-events');
-          renderActivityEvent(eventsContainer, event.tool_name || 'Tool', event.file_path || event.content, '');
+          if (eventsContainer) {
+            renderActivityEvent(eventsContainer, event.tool_name || 'Tool', event.file_path || event.content, '');
+          }
         }
-        chatMessages.scrollTop = chatMessages.scrollHeight;
       },
       function() {
+        // Stream complete — finalize markdown
+        if (streamingContent && streamingText) {
+          streamingContent.classList.remove('streaming');
+          if (typeof marked !== 'undefined') {
+            streamingContent.innerHTML = marked.parse(streamingText);
+            addCodeBlockHeaders(streamingContent);
+            if (typeof hljs !== 'undefined') {
+              streamingContent.querySelectorAll('pre code').forEach(function(block) {
+                hljs.highlightElement(block);
+              });
+            }
+          }
+        }
         input.disabled = false;
-        input.placeholder = 'Send a message...';
         input.focus();
+        sendArea.innerHTML = origHTML;
+        _taskWs = null;
       },
       function() {
+        hideThinking();
+        appendChatMessage(chatMessages, 'agent', 'Connection error. Try again.', false);
         input.disabled = false;
-        input.placeholder = 'Connection error. Try again...';
+        sendArea.innerHTML = origHTML;
+        _taskWs = null;
       }
     );
   })
   .catch(function(err) {
-    appendChatMessage(chatMessages, 'agent', 'Error: ' + err.message);
+    hideThinking();
+    appendChatMessage(chatMessages, 'agent', 'Error: ' + err.message, false);
     input.disabled = false;
-    input.placeholder = 'Try again...';
+    sendArea.innerHTML = origHTML;
   });
+}
+
+function stopGeneration() {
+  if (_taskWs) {
+    _taskWs.close();
+    _taskWs = null;
+  }
 }
 
 function cancelRun() {
