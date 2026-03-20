@@ -105,3 +105,20 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                     worktree_path, session_id,
                 )
         return {"status": "closed"}
+
+    @app.get("/api/sessions/{session_id}/events")
+    async def session_events(session_id: str) -> list[dict]:
+        """Return all events for all runs in a session, ordered chronologically."""
+        runs = state.history.list_runs_by_session(session_id)
+        events: list[dict] = []
+        for run in runs:
+            run_events = state.history.list_events(run.id)
+            # Prepend user prompt as a synthetic event
+            if run.trigger_type == "agent" and run.task:
+                events.append({
+                    "type": "user_prompt",
+                    "content": run.task,
+                    "timestamp": run.started_at.timestamp(),
+                })
+            events.extend(run_events)
+        return events

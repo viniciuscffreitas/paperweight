@@ -223,6 +223,14 @@ class HistoryDB:
             for row in rows
         ]
 
+    def list_runs_by_session(self, session_id: str) -> list[RunRecord]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM runs WHERE session_id = ? ORDER BY started_at ASC",
+                (session_id,),
+            ).fetchall()
+        return [self._row_to_record(row) for row in rows]
+
     def find_run_by_issue_id(self, issue_id: str) -> RunRecord | None:
         with self._conn() as conn:
             row = conn.execute(

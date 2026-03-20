@@ -4,11 +4,56 @@ var _agentSessionId = null;
 var _agentWs = null;
 var _thinkingEl = null;
 
-// Read session ID from data attribute
+// Read session ID from data attribute and load history if session exists
 (function() {
   var el = document.getElementById('agent-session-status');
-  if (el && el.dataset.sessionId) _agentSessionId = el.dataset.sessionId;
+  if (el && el.dataset.sessionId) {
+    _agentSessionId = el.dataset.sessionId;
+    loadSessionHistory(_agentSessionId);
+  }
 })();
+
+function loadSessionHistory(sessionId) {
+  fetch('/api/sessions/' + sessionId + '/events')
+  .then(function(r) { return r.json(); })
+  .then(function(events) {
+    if (!events.length) return;
+    var output = document.getElementById('agent-output');
+    if (!output) return;
+    // Clear placeholder
+    var ph = output.querySelector('[style*="font-style:italic"]');
+    if (ph) ph.remove();
+
+    var lastType = '';
+    for (var i = 0; i < events.length; i++) {
+      var ev = events[i];
+      if (ev.type === 'user_prompt') {
+        appendBlock(output, 'div', 'you', {color:'#6b7280', fontSize:'10px', marginTop:'14px'});
+        appendBlock(output, 'div', ev.content, {color:'#e8eaed', marginBottom:'14px', paddingLeft:'2px', fontSize:'13px'});
+        lastType = 'user';
+      } else if (ev.type === 'assistant' && ev.content) {
+        if (lastType !== 'agent') {
+          appendBlock(output, 'div', 'agent', {color:'#3b82f6', fontSize:'10px'});
+          lastType = 'agent';
+        }
+        renderAgentEvent(ev, output);
+      } else if (ev.type === 'tool_use' || ev.type === 'tool_result') {
+        if (lastType !== 'agent') {
+          appendBlock(output, 'div', 'agent', {color:'#3b82f6', fontSize:'10px'});
+          lastType = 'agent';
+        }
+        renderAgentEvent(ev, output);
+      } else if (ev.type === 'task_completed' || ev.type === 'task_failed') {
+        var clr = ev.type === 'task_completed' ? '#22c55e' : '#f85149';
+        var icon = ev.type === 'task_completed' ? '\u2713 ' : '\u2717 ';
+        appendBlock(output, 'div', icon + (ev.content || ''), {color:clr, margin:'10px 0', paddingLeft:'2px', fontSize:'12px'});
+        lastType = '';
+      }
+    }
+    output.scrollTop = output.scrollHeight;
+  })
+  .catch(function() {}); // silently fail — session may have no events
+}
 
 function sendAgentPrompt(projectId) {
   var input = document.getElementById('agent-input');
