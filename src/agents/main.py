@@ -412,6 +412,12 @@ def create_app(
     @app.websocket("/ws/runs/{run_id}")
     async def ws_run(websocket: WebSocket, run_id: str) -> None:
         await websocket.accept()
+        # Replay cached events so client sees events emitted before connection
+        for cached in state.run_events.get(run_id, []):
+            try:
+                await websocket.send_text(json_module.dumps(cached))
+            except Exception:
+                return
         state.ws_clients.setdefault(run_id, set()).add(websocket)
         try:
             while True:

@@ -33,13 +33,24 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                 return Response(status_code=404, content="Session not found")
             if session.status != "active":
                 return Response(status_code=410, content="Session closed")
-            is_resume = True
+            # Concurrency check before anything else
+            if not state.session_manager.try_acquire_run(session.id):
+                return Response(status_code=409, content="A run is already in progress for this session")
+            # If worktree is gone (stale session), close it and start fresh
+            if not Path(session.worktree_path).exists():
+                state.session_manager.release_run(session.id)
+                state.session_manager.close_session(session_id)
+                session = state.session_manager.create_session(project_name, model, max_cost_usd)
+                if not state.session_manager.try_acquire_run(session.id):
+                    return Response(status_code=409, content="A run is already in progress")
+                is_resume = False
+            else:
+                is_resume = True
         else:
             session = state.session_manager.create_session(project_name, model, max_cost_usd)
             is_resume = False
-
-        if not state.session_manager.try_acquire_run(session.id):
-            return Response(status_code=409, content="A run is already in progress for this session")
+            if not state.session_manager.try_acquire_run(session.id):
+                return Response(status_code=409, content="A run is already in progress")
 
         run_id = generate_run_id(project_name, "agent")
 
