@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from agents.coordination.broker import CoordinationBroker
     from agents.github_client import GitHubClient
     from agents.slack_client import SlackBotClient
+    from agents.task_store import TaskStore
 
 
 class AppState:
@@ -35,6 +36,7 @@ class AppState:
         aggregator: "AggregatorService | None" = None,
         broker: "CoordinationBroker | None" = None,
         session_manager: SessionManager | None = None,
+        task_store: "TaskStore | None" = None,
     ) -> None:
         self.projects = projects
         self.executor = executor
@@ -49,6 +51,7 @@ class AppState:
         self.aggregator = aggregator
         self.broker = broker
         self.session_manager = session_manager
+        self.task_store = task_store
         self._semaphore: asyncio.Semaphore | None = None
         self._repo_semaphores: dict[str, asyncio.Semaphore] = {}
         self.ws_clients: dict[str, set[WebSocket]] = {}

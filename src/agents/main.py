@@ -60,6 +60,9 @@ def create_app(
     from agents.session_manager import SessionManager
     session_manager = SessionManager(db_path, worktree_base=config.execution.worktree_base)
 
+    from agents.task_store import TaskStore
+    task_store = TaskStore(db_path)
+
     from agents.aggregator import AggregatorService
     from agents.discord_notifier import DiscordRunNotifier
     from agents.github_client import GitHubClient
@@ -175,6 +178,7 @@ def create_app(
         aggregator=aggregator,
         broker=broker,
         session_manager=session_manager,
+        task_store=task_store,
     )
 
     @asynccontextmanager
@@ -280,7 +284,12 @@ def create_app(
         aggregator_task = asyncio.create_task(aggregator.start(poll_interval_seconds=300))
         if broker:
             await broker.start()
+        from agents.task_processor import TaskProcessor
+        task_processor = TaskProcessor(task_store=task_store, state=state, config=config)
+        processor_task = asyncio.create_task(task_processor.run_loop())
         yield
+        task_processor.stop()
+        processor_task.cancel()
         if broker:
             await broker.stop()
         aggregator.stop()
@@ -344,6 +353,9 @@ def create_app(
 
     from agents.agent_routes import register_agent_routes
     register_agent_routes(app, state, config)
+
+    from agents.task_routes import register_task_routes
+    register_task_routes(app, task_store)
 
     # --- Webhook routes ---
 
