@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block topbar %}
+<span style="font-size:14px;font-weight:600;color:var(--text-primary);">Convites</span>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:640px;padding:32px 24px;">
+
+  {% if new_code %}
+  <div style="padding:16px;background:rgba(129,140,248,0.1);border:1px solid rgba(129,140,248,0.3);
+              border-radius:8px;margin-bottom:24px;">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;
+                color:var(--accent-text);margin-bottom:8px;">Novo convite criado</div>
+    <div style="font-family:monospace;font-size:13px;color:var(--text-primary);
+                word-break:break-all;margin-bottom:8px;">
+      {{ request.url.scheme }}://{{ request.headers.get('host', 'localhost') }}/register?invite={{ new_code }}
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);">Expira em 7 dias. Compartilhe este link com quem você quiser convidar.</div>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/admin/invite" style="margin-bottom:32px;">
+    <button type="submit"
+            style="padding:10px 20px;background:var(--accent-gradient);border:none;border-radius:6px;
+                   color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;">
+      + Gerar convite
+    </button>
+  </form>
+
+  <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;
+              color:var(--text-disabled);margin-bottom:16px;">Todos os convites</div>
+
+  {% if invites %}
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    {% for inv in invites %}
+    <div style="padding:12px 16px;background:var(--bg-elevated);border:1px solid var(--border-default);
+                border-radius:8px;display:flex;align-items:center;gap:12px;">
+      <code style="font-size:12px;color:var(--text-secondary);flex:1;word-break:break-all;">{{ inv.code }}</code>
+      <div style="flex-shrink:0;text-align:right;">
+        {% if inv.used_by %}
+          <span style="font-size:11px;color:var(--status-success);">Usado</span>
+        {% elif inv.expires_at and inv.expires_at < now %}
+          <span style="font-size:11px;color:var(--text-disabled);">Expirado</span>
+        {% else %}
+          <span style="font-size:11px;color:var(--accent-text);">Disponível</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="font-size:13px;color:var(--text-disabled);">Nenhum convite ainda.</div>
+  {% endif %}
+
+</div>
+{% endblock %}

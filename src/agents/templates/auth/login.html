@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="{{ request.cookies.get('theme', 'dark') }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>paperweight — entrar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: var(--bg-content);
+      margin: 0;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    .auth-card {
+      width: 100%;
+      max-width: 360px;
+      padding: 40px 36px;
+      background: var(--bg-chrome);
+      border: 1px solid var(--border-default);
+      border-radius: 12px;
+    }
+    .auth-logo {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+    .auth-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+    }
+    .auth-field {
+      margin-bottom: 16px;
+    }
+    .auth-field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .auth-field input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      background: var(--bg-content);
+      border: 1px solid var(--border-default);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .auth-field input:focus {
+      border-color: var(--accent-focus);
+    }
+    .auth-submit {
+      width: 100%;
+      padding: 10px;
+      background: var(--accent-gradient);
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity 0.15s;
+    }
+    .auth-submit:hover { opacity: 0.9; }
+    .auth-submit:active { opacity: 0.8; }
+    .auth-error {
+      padding: 10px 12px;
+      background: rgba(248, 113, 113, 0.12);
+      border: 1px solid rgba(248, 113, 113, 0.3);
+      border-radius: 6px;
+      color: var(--status-error);
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-card">
+    <div class="auth-logo">paperweight</div>
+    <div class="auth-subtitle">Background Agent Runner</div>
+
+    {% if error %}
+    <div class="auth-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/login">
+      <div class="auth-field">
+        <label for="username">Usuário</label>
+        <input id="username" name="username" type="text" autocomplete="username"
+               placeholder="seu usuário" autofocus required>
+      </div>
+      <div class="auth-field">
+        <label for="password">Senha</label>
+        <input id="password" name="password" type="password" autocomplete="current-password"
+               placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="auth-submit">Entrar</button>
+    </form>
+  </div>
+</body>
+</html>
