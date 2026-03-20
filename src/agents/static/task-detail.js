@@ -237,19 +237,50 @@ function loadChatHistory(events) {
 
 function appendChatMessage(container, role, text, isStreaming) {
   var wrapper = document.createElement('div');
-  wrapper.className = 'chat-msg';
+  wrapper.className = 'chat-msg ' + role;
+
+  // Header: avatar + label + timestamp
+  var header = document.createElement('div');
+  header.className = 'chat-msg-header';
+
+  var avatar = document.createElement('div');
+  avatar.className = 'chat-msg-avatar ' + role;
+  avatar.textContent = role === 'you' ? 'Y' : 'A';
 
   var label = document.createElement('div');
   label.className = 'chat-msg-label ' + role;
-  label.textContent = role === 'you' ? 'you' : 'agent';
+  label.textContent = role === 'you' ? 'You' : 'Agent';
 
+  var time = document.createElement('div');
+  time.className = 'chat-msg-time';
+  time.textContent = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+
+  header.appendChild(avatar);
+  header.appendChild(label);
+  header.appendChild(time);
+
+  // Actions toolbar (hover-reveal)
+  var actions = document.createElement('div');
+  actions.className = 'msg-actions';
+  var copyBtn = document.createElement('button');
+  copyBtn.className = 'msg-action-btn';
+  copyBtn.textContent = 'Copy';
+  copyBtn.onclick = function(e) {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text).then(function() {
+      copyBtn.textContent = 'Copied!';
+      setTimeout(function() { copyBtn.textContent = 'Copy'; }, 1500);
+    });
+  };
+  actions.appendChild(copyBtn);
+
+  // Content
   var content = document.createElement('div');
   content.className = 'chat-msg-content';
   if (isStreaming) {
     content.classList.add('streaming');
     content.textContent = text;
   } else {
-    // Render markdown for completed messages
     if (typeof marked !== 'undefined' && role === 'agent') {
       content.innerHTML = marked.parse(text);
       addCodeBlockHeaders(content);
@@ -263,7 +294,8 @@ function appendChatMessage(container, role, text, isStreaming) {
     }
   }
 
-  wrapper.appendChild(label);
+  wrapper.appendChild(header);
+  wrapper.appendChild(actions);
   wrapper.appendChild(content);
   container.appendChild(wrapper);
   container.scrollTop = container.scrollHeight;
