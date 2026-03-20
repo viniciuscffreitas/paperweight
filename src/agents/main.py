@@ -111,6 +111,16 @@ def create_app(
         if run_id in state.ws_clients:
             state.ws_clients[run_id].difference_update(dead)
 
+        # Close WebSocket connections when run finishes
+        if event.type in ("task_completed", "task_failed"):
+            for ws in set(state.ws_clients.get(run_id, set())):
+                try:
+                    await ws.close()
+                except Exception:
+                    pass
+            state.ws_clients.pop(run_id, None)
+            state.run_events.pop(run_id, None)
+
         dead_global: set[WebSocket] = set()
         for ws in set(state.ws_global_clients):
             try:
