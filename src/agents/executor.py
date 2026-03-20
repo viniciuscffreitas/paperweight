@@ -211,6 +211,7 @@ class Executor:
                 pr_url = await self._create_pr(
                     cwd=str(worktree_path), project=project, task_name=task_name,
                     branch=branch_name, autonomy=task.autonomy,
+                    variables=variables, cost_usd=output.cost_usd,
                 )
                 run.status = RunStatus.SUCCESS
                 run.pr_url = pr_url
@@ -462,6 +463,8 @@ class Executor:
         task_name: str,
         branch: str,
         autonomy: str,
+        variables: dict[str, str] | None = None,
+        cost_usd: float = 0.0,
     ) -> str | None:
         log_output = await self._run_cmd(
             ["git", "log", f"{project.base_branch}..HEAD", "--oneline"],
@@ -469,11 +472,27 @@ class Executor:
         )
         if not log_output.strip():
             return None
+
+        diff_stat = await self._run_cmd(
+            ["git", "diff", "--stat", f"{project.base_branch}..HEAD"],
+            cwd=cwd,
+        )
+
+        from agents.pr_body_builder import build_pr_body
+        body = build_pr_body(
+            project_name=project.name,
+            task_name=task_name,
+            variables=variables or {},
+            diff_stat=diff_stat.strip(),
+            commit_log=log_output.strip(),
+            cost_usd=cost_usd,
+        )
+
         await self._run_cmd(["git", "push", "-u", "origin", branch], cwd=cwd)
         pr_cmd = [
             "gh", "pr", "create",
             "--title", f"[agents] {project.name}/{task_name}",
-            "--body", f"Automated by Background Agent Runner\n\nTask: {task_name}\nProject: {project.name}",
+            "--body", body,
             "--base", project.base_branch,
         ]
         pr_output = await self._run_cmd(pr_cmd, cwd=cwd)

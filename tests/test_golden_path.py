@@ -235,7 +235,7 @@ async def test_golden_path_single_agent_full_lifecycle(tmp_path):
         result = await stream.process_stream(proc)
         return result, stream.get_raw_output()
 
-    async def mock_create_pr(cwd, project, task_name, branch, autonomy):
+    async def mock_create_pr(cwd, project, task_name, branch, autonomy, **kwargs):
         return "https://github.com/org/myapp/pull/42"
 
     executor._run_claude = mock_run_claude
@@ -401,7 +401,7 @@ async def test_golden_path_two_agents_parallel_no_conflict(tmp_path):
             return result, stream.get_raw_output()
         return mock_run_claude
 
-    async def mock_create_pr(cwd, project, task_name, branch, autonomy):
+    async def mock_create_pr(cwd, project, task_name, branch, autonomy, **kwargs):
         return f"https://github.com/org/myapp/pull/{task_name}"
 
     # Run agent A (auth.py)
@@ -529,7 +529,7 @@ async def test_golden_path_two_agents_same_file_conflict_detected(tmp_path):
             return result, stream.get_raw_output()
         return mock_run_claude
 
-    async def mock_pr(cwd, project, task_name, branch, autonomy):
+    async def mock_pr(cwd, project, task_name, branch, autonomy, **kwargs):
         return f"https://github.com/org/myapp/pull/{task_name}"
 
     # Agent A runs first — claims shared.py
