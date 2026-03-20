@@ -736,8 +736,9 @@ function startTask() {
 }
 
 function rerunTask() {
+  // Reset status then start — same as startTask
   fetch('/api/work-items/' + _taskConfig.taskId + '/rerun', { method: 'POST' })
     .then(function() {
-      window.location.reload();
+      startTask();
     });
 }
