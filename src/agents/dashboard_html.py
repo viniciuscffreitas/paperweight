@@ -22,23 +22,43 @@ _TEMPLATES = Jinja2Templates(directory=_BASE / "templates")
 
 
 def _find_related_docs(
-    item: object, session: object | None,
+    item: object,
+    session: object | None,
+    config: GlobalConfig | None = None,
 ) -> str:
-    """Search for spec/plan docs related to a task in repo and worktree."""
-    title_slug = re.sub(r"[^a-z0-9]+", "-", getattr(item, "title", "").lower()).strip("-")
+    """Search for spec/plan docs related to a task in worktrees and repo."""
+    title_slug = re.sub(
+        r"[^a-z0-9]+", "-",
+        getattr(item, "title", "").lower(),
+    ).strip("-")
+    words = [w for w in title_slug.split("-") if len(w) > 2]
+    if not words:
+        return ""
+
     search_dirs: list[Path] = []
-    # Check worktree if session exists
+    # 1. Worktree of this task's session
     if session and hasattr(session, "worktree_path"):
         wt = Path(session.worktree_path)
         search_dirs.append(wt / "docs" / "superpowers" / "specs")
         search_dirs.append(wt / "docs" / "superpowers" / "plans")
+    # 2. All worktrees (other sessions may have the spec)
+    worktree_base = Path("/tmp/agents")
+    if worktree_base.exists():
+        for wt_dir in worktree_base.iterdir():
+            if wt_dir.is_dir():
+                search_dirs.append(wt_dir / "docs" / "superpowers" / "specs")
+                search_dirs.append(wt_dir / "docs" / "superpowers" / "plans")
+    # 3. Main repo
+    search_dirs.append(_BASE.parent.parent / "docs" / "superpowers" / "specs")
+    search_dirs.append(_BASE.parent.parent / "docs" / "superpowers" / "plans")
+
+    seen: set[str] = set()
     for d in search_dirs:
-        if not d.exists():
+        if not d.exists() or str(d) in seen:
             continue
+        seen.add(str(d))
         for f in sorted(d.glob("*.md"), reverse=True):
-            # Match by title slug overlap
             fname = f.stem.lower()
-            words = [w for w in title_slug.split("-") if len(w) > 2]
             if any(w in fname for w in words):
                 try:
                     return f.read_text(encoding="utf-8")
