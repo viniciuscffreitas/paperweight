@@ -644,7 +644,7 @@ function startTask() {
   fetch('/api/projects/' + _taskConfig.projectId + '/agent', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ prompt: prompt, model: model, max_cost_usd: 50.0 })
+    body: JSON.stringify({ prompt: prompt, model: model, max_cost_usd: 10.0 })
   })
   .then(function(r) { return r.json(); })
   .then(function(data) {
