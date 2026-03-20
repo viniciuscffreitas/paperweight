@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "components/macros.html" import btn %}
+
+{% block topbar %}
+<span style="font-size:15px;font-weight:600;color:var(--text-primary);">Projects</span>
+{% endblock %}
+
+{% block topbar_actions %}
+{{ btn('+ New Project', variant='primary', onclick='openWizard()') }}
+{% endblock %}
+
+{% block content %}
+<div style="flex:1;overflow-y:auto;padding:24px;">
+  {% if projects %}
+  <div style="display:flex;flex-direction:column;gap:8px;max-width:600px;">
+    {% for p in projects %}
+    <div hx-get="/hub/{{ p.id }}/tasks" hx-target="#content-inner" hx-push-url="true"
+         style="background:var(--bg-card-done);border:1px solid var(--border-card-neutral);border-radius:var(--card-radius);
+                padding:18px 22px;cursor:pointer;transition:border-color 0.15s;"
+         onmouseover="this.style.borderColor='var(--accent-text)'"
+         onmouseout="this.style.borderColor='var(--border-card-neutral)'">
+      <div style="font-size:17px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">{{ p.name }}</div>
+      <div style="font-size:12px;color:var(--text-muted);">{{ p.repo_path|default('') }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+              flex:1;padding:48px 24px;text-align:center;">
+    <div style="font-size:15px;color:var(--text-muted);margin-bottom:16px;">No projects yet</div>
+    {{ btn('+ New Project', variant='primary', onclick='openWizard()') }}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

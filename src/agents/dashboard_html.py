@@ -32,33 +32,15 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
     @app.get("/dashboard", response_class=HTMLResponse)
     async def dashboard_page(request: Request) -> HTMLResponse:
         projects = state.project_store.list_projects() if state.project_store else []
-        runs = []
-        sessions = []
-        try:
-            from agents.dashboard_formatters import build_history_rows
-            runs = build_history_rows(state.history.list_runs_today())
-            # Filter out agent runs (they're shown as sessions)
-            runs = [r for r in runs if r.get("trigger") != "agent"]
-        except Exception:
-            pass
-        if hasattr(state, "session_manager") and state.session_manager:
-            sessions = state.session_manager.list_sessions_with_stats()
         return _TEMPLATES.TemplateResponse(
             request,
-            "dashboard.html",
-            {"projects": projects, "runs": runs, "sessions": sessions},
+            "project-picker.html",
+            {"projects": projects},
         )
 
     @app.get("/hub/{project_id}", response_class=HTMLResponse)
     async def hub_panel(request: Request, project_id: str) -> HTMLResponse:
-        project = state.project_store.get_project(project_id) if state.project_store else None
-        if not project:
-            return HTMLResponse("<p>Project not found</p>", status_code=404)
-        return _TEMPLATES.TemplateResponse(
-            request,
-            "hub/panel.html",
-            {"project": project, "id": project_id},
-        )
+        return RedirectResponse(f"/hub/{project_id}/tasks", status_code=302)
 
     @app.get("/hub/{project_id}/activity", response_class=HTMLResponse)
     async def hub_activity(request: Request, project_id: str) -> HTMLResponse:
@@ -74,18 +56,41 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
 
     @app.get("/hub/{project_id}/tasks", response_class=HTMLResponse)
     async def hub_tasks(request: Request, project_id: str) -> HTMLResponse:
-        # Live work items from TaskStore
+        project = state.project_store.get_project(project_id) if state.project_store else None
+        if not project:
+            return HTMLResponse("<p>Project not found</p>", status_code=404)
         work_items = state.task_store.list_by_project(project_id) if state.task_store else []
-        # Task templates from project_store (existing Run buttons)
+        # Build counts
+        counts = {'running': 0, 'review': 0, 'queued': 0, 'done': 0}
+        for item in work_items:
+            s = item.status
+            if s == 'running':
+                counts['running'] += 1
+            elif s == 'review':
+                counts['review'] += 1
+            elif s in ('pending', 'draft'):
+                counts['queued'] += 1
+            elif s in ('done', 'failed'):
+                counts['done'] += 1
+        # Task templates (for potential use)
         tasks = []
         if state.project_store:
-            project = state.project_store.get_project(project_id)
-            if project:
-                tasks = state.project_store.list_tasks(project_id)
+            tasks = state.project_store.list_tasks(project_id)
+        projects = state.project_store.list_projects() if state.project_store else []
         return _TEMPLATES.TemplateResponse(
             request,
-            "hub/tasks.html",
-            {"work_items": work_items, "tasks": tasks, "id": project_id},
+            "tasks.html",
+            {
+                "projects": projects,
+                "selected_project": project_id,
+                "project_name": project["name"],
+                "id": project_id,
+                "work_items": work_items,
+                "tasks": tasks,
+                "counts": counts,
+                "budget_spent": 0,
+                "budget_total": 0,
+            },
         )
 
     @app.post("/setup/discover", response_class=HTMLResponse)

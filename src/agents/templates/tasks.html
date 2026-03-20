@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% from "components/macros.html" import stats_line, task_card, task_card_done, btn %}
+
+{% block mobile_title %}{{ project_name|default('Tasks') }}{% endblock %}
+
+{% block topbar %}
+<span style="font-size:15px;font-weight:600;color:var(--text-primary);">{{ project_name|default('') }}</span>
+{% endblock %}
+
+{% block topbar_actions %}
+{{ btn('+ New Task', variant='primary', onclick='openNewTaskModal()') }}
+{% endblock %}
+
+{% block content %}
+<!-- Stats line -->
+<div style="padding:14px 24px;border-bottom:1px solid var(--separator-subtle);">
+  {{ stats_line(counts|default({'running':0,'review':0,'queued':0,'done':0}), budget_spent|default(0), budget_total|default(0)) }}
+</div>
+
+<!-- Task cards -->
+<div style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:8px;">
+  {% set has_active = false %}
+  {% for item in work_items|default([]) %}
+    {% if item.status in ('done',) %}
+      {{ task_card_done(item, project_id=id) }}
+    {% else %}
+      {% set has_active = true %}
+      {{ task_card(item, project_id=id) }}
+    {% endif %}
+  {% else %}
+  <!-- Empty state -->
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+              flex:1;padding:48px 24px;text-align:center;">
+    <div style="font-size:15px;color:var(--text-muted);margin-bottom:16px;">No tasks yet</div>
+    {{ btn('+ New Task', variant='primary', onclick='openNewTaskModal()') }}
+  </div>
+  {% endfor %}
+</div>
+
+<!-- New Task Modal -->
+<div id="new-task-modal" role="dialog" aria-label="Create task" aria-modal="true"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;
+            align-items:center;justify-content:center;">
+  <div style="background:var(--bg-content);border:1px solid var(--separator-strong);border-radius:16px;
+              padding:24px;width:90%;max-width:420px;">
+    <div style="font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:16px;">New Task</div>
+    <input id="new-task-title" placeholder="Task title..." autocomplete="off"
+           style="width:100%;padding:10px 14px;font-size:13px;background:var(--bg-chrome);
+                  border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                  font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;"
+           onfocus="this.style.borderColor='var(--accent-focus)'"
+           onblur="this.style.borderColor='var(--separator-strong)'">
+    <textarea id="new-task-desc" placeholder="Description (optional)..." rows="3"
+              style="width:100%;padding:10px 14px;font-size:13px;background:var(--bg-chrome);
+                     border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                     font-family:inherit;resize:vertical;outline:none;box-sizing:border-box;margin-bottom:16px;display:none;"
+              onfocus="this.style.borderColor='var(--accent-focus)'"
+              onblur="this.style.borderColor='var(--separator-strong)'"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      {{ btn('Cancel', variant='ghost', onclick='closeNewTaskModal()') }}
+      {{ btn('Create', variant='primary', onclick='submitNewTask()') }}
+    </div>
+  </div>
+</div>
+
+<script>
+function openNewTaskModal() {
+  document.getElementById('new-task-modal').style.display = 'flex';
+  setTimeout(function() { document.getElementById('new-task-title').focus(); }, 60);
+}
+function closeNewTaskModal() {
+  document.getElementById('new-task-modal').style.display = 'none';
+  document.getElementById('new-task-title').value = '';
+  document.getElementById('new-task-desc').value = '';
+}
+function submitNewTask() {
+  var title = document.getElementById('new-task-title').value.trim();
+  if (!title) return;
+  var desc = document.getElementById('new-task-desc').value.trim() || title;
+  fetch('/api/work-items', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ project: '{{ id }}', title: title, description: desc, source: 'manual' })
+  }).then(function(r) { return r.json(); }).then(function() {
+    closeNewTaskModal();
+    // Reload task list via HTMX
+    htmx.ajax('GET', '/hub/{{ id }}/tasks', {target: '#content-inner', swap: 'innerHTML'});
+  });
+}
+</script>
+{% endblock %}
