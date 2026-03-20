@@ -5,6 +5,14 @@ var _taskWs = null;
 var _typewriterQueue = [];
 var _typewriterActive = false;
 
+function _makeActionBtn(iconName, tooltip, onclick) {
+  var btn = document.createElement('button');
+  btn.className = 'msg-action-btn';
+  btn.innerHTML = '<span class="material-icons">' + iconName + '</span><span class="tooltip">' + tooltip + '</span>';
+  btn.onclick = function(e) { e.stopPropagation(); onclick(); };
+  return btn;
+}
+
 function initTaskDetail(config) {
   _taskConfig = config;
 
@@ -239,13 +247,14 @@ function appendChatMessage(container, role, text, isStreaming) {
   var wrapper = document.createElement('div');
   wrapper.className = 'chat-msg ' + role;
 
-  // Header: avatar + label + timestamp
+  // Header: icon + label + timestamp
   var header = document.createElement('div');
   header.className = 'chat-msg-header';
 
-  var avatar = document.createElement('div');
-  avatar.className = 'chat-msg-avatar ' + role;
-  avatar.textContent = role === 'you' ? 'Y' : 'A';
+  var icon = document.createElement('span');
+  icon.className = 'material-icons chat-msg-icon ' + role;
+  icon.textContent = role === 'you' ? 'person' : 'smart_toy';
+  icon.setAttribute('aria-hidden', 'true');
 
   var label = document.createElement('div');
   label.className = 'chat-msg-label ' + role;
@@ -255,24 +264,48 @@ function appendChatMessage(container, role, text, isStreaming) {
   time.className = 'chat-msg-time';
   time.textContent = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
 
-  header.appendChild(avatar);
+  header.appendChild(icon);
   header.appendChild(label);
   header.appendChild(time);
 
-  // Actions toolbar (hover-reveal)
+  // Actions toolbar (hover-reveal, icon buttons with tooltips)
   var actions = document.createElement('div');
   actions.className = 'msg-actions';
-  var copyBtn = document.createElement('button');
-  copyBtn.className = 'msg-action-btn';
-  copyBtn.textContent = 'Copy';
-  copyBtn.onclick = function(e) {
-    e.stopPropagation();
+
+  // Copy button
+  actions.appendChild(_makeActionBtn('content_copy', 'Copy', function() {
     navigator.clipboard.writeText(text).then(function() {
-      copyBtn.textContent = 'Copied!';
-      setTimeout(function() { copyBtn.textContent = 'Copy'; }, 1500);
+      // Brief visual feedback
+      icon.style.opacity = '0.5';
+      setTimeout(function() { icon.style.opacity = '1'; }, 300);
     });
-  };
-  actions.appendChild(copyBtn);
+  }));
+
+  if (role === 'agent' && !isStreaming) {
+    // Retry button (re-send previous user message)
+    actions.appendChild(_makeActionBtn('refresh', 'Retry', function() {
+      var msgs = container.querySelectorAll('.chat-msg.user');
+      if (msgs.length > 0) {
+        var lastUserContent = msgs[msgs.length - 1].querySelector('.chat-msg-content');
+        if (lastUserContent) {
+          var input = document.getElementById('chat-input');
+          if (input) { input.value = lastUserContent.textContent; sendChatPrompt(); }
+        }
+      }
+    }));
+  }
+
+  if (role === 'you') {
+    // Edit button (put text back in input)
+    actions.appendChild(_makeActionBtn('edit', 'Edit', function() {
+      var input = document.getElementById('chat-input');
+      if (input) {
+        input.value = text;
+        input.parentNode.dataset.replicatedValue = text;
+        input.focus();
+      }
+    }));
+  }
 
   // Content
   var content = document.createElement('div');
