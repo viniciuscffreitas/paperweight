@@ -464,6 +464,14 @@ function sendChatPrompt() {
   })
   .then(function(data) {
     _taskConfig.sessionId = data.session_id;
+    // Update task's session_id in backend so reload preserves chat
+    if (_taskConfig.taskId) {
+      fetch('/api/work-items/' + _taskConfig.taskId, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({session_id: data.session_id})
+      }).catch(function() {});
+    }
     // Keep thinking visible until first content arrives
 
     var streamingContent = null;

@@ -42,6 +42,9 @@ def register_task_routes(app: FastAPI, task_store: TaskStore) -> None:
         status = data.get("status")
         if status:
             task_store.update_status(item_id, TaskStatus(status), pr_url=data.get("pr_url"))
+        session_id = data.get("session_id")
+        if session_id:
+            task_store.update_session(item_id, session_id)
         updated = task_store.get(item_id)
         return updated.model_dump(mode="json")
 
