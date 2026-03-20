@@ -75,7 +75,8 @@ function loadActivityFeed(sessionId) {
       var lastOutput = '';
       events.forEach(function(ev) {
         if (ev.type === 'tool_use') {
-          renderActivityEvent(container, ev.tool_name || 'Tool', ev.file_path || ev.content, '');
+          var actLabel = parseToolLabel(ev);
+          renderActivityEvent(container, ev.tool_name || 'Tool', actLabel, '');
         } else if (ev.type === 'assistant' && ev.content) {
           lastOutput += ev.content + '\n';
         } else if (ev.type === 'tool_result' && ev.content) {
@@ -89,10 +90,21 @@ function loadActivityFeed(sessionId) {
         }
       });
 
-      // Set output tab content
+      // Set output tab content with markdown rendering
       var outputText = document.getElementById('output-text');
       if (outputText && lastOutput) {
-        outputText.textContent = lastOutput.trim();
+        if (typeof marked !== 'undefined') {
+          outputText.innerHTML = marked.parse(lastOutput.trim());
+          outputText.classList.add('chat-msg-content');
+          addCodeBlockHeaders(outputText);
+          if (typeof hljs !== 'undefined') {
+            outputText.querySelectorAll('pre code').forEach(function(block) {
+              hljs.highlightElement(block);
+            });
+          }
+        } else {
+          outputText.textContent = lastOutput.trim();
+        }
       }
 
       // Connect WebSocket if still running
@@ -119,6 +131,20 @@ function connectTaskStream() {
       // Check if there's a way to get the run_id from work item
       showThinking();
     });
+}
+
+function parseToolLabel(ev) {
+  if (ev.file_path) return ev.file_path;
+  var content = ev.content || '';
+  try {
+    var parsed = JSON.parse(content);
+    if (parsed.description) return parsed.description;
+    if (parsed.file_path) return parsed.file_path;
+    if (parsed.command) return parsed.command.substring(0, 60);
+    if (parsed.pattern) return parsed.pattern;
+    if (parsed.query) return parsed.query;
+  } catch (e) { /* not JSON */ }
+  return content.substring(0, 80);
 }
 
 function renderActivityEvent(container, toolName, label, timestamp) {
@@ -280,7 +306,7 @@ function addCodeBlockHeaders(container) {
 
 function renderToolCallInChat(container, event) {
   var toolName = event.tool_name || 'Tool';
-  var label = event.file_path || event.content || '';
+  var label = parseToolLabel(event);
   if (label.length > 80) label = label.substring(0, 80) + '...';
 
   var colorMap = {
