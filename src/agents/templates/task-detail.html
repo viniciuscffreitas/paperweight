@@ -18,10 +18,11 @@
   <option value="claude-haiku-4-5-20251001">Haiku</option>
   <option value="claude-opus-4-6">Opus</option>
 </select>
-{% if item.status == 'running' %}
+{% if item.status in ('pending', 'draft') %}
+  {{ btn('Start', variant='primary', onclick='startTask()') }}
+{% elif item.status == 'running' %}
   {{ btn('Cancel', variant='danger', onclick='cancelRun()') }}
-{% endif %}
-{% if item.status in ('done', 'failed') %}
+{% elif item.status in ('done', 'failed') %}
   {{ btn('Rerun', variant='ghost', onclick='rerunTask()') }}
 {% endif %}
 {% if item.pr_url %}
@@ -46,7 +47,19 @@
   <div style="font-size:20px;font-weight:700;letter-spacing:-0.3px;color:var(--text-primary);margin-bottom:6px;">{{ item.title }}</div>
 
   {% if item.description and item.description != item.title %}
-  <div style="font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px;">{{ item.description }}</div>
+  <div id="task-description" class="chat-msg-content" style="font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px;">{{ item.description }}</div>
+  <script>
+    // Render description as markdown if marked.js is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+      var desc = document.getElementById('task-description');
+      if (desc && typeof marked !== 'undefined') {
+        desc.innerHTML = marked.parse(desc.textContent);
+        if (typeof hljs !== 'undefined') {
+          desc.querySelectorAll('pre code').forEach(function(b) { hljs.highlightElement(b); });
+        }
+      }
+    });
+  </script>
   {% endif %}
 
   <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);margin-bottom:16px;">

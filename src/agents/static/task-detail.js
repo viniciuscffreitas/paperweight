@@ -587,6 +587,14 @@ function cancelRun() {
     });
 }
 
+function startTask() {
+  // Start a pending task — same as rerun but for first execution
+  fetch('/api/work-items/' + _taskConfig.taskId + '/rerun', { method: 'POST' })
+    .then(function() {
+      window.location.reload();
+    });
+}
+
 function rerunTask() {
   fetch('/api/work-items/' + _taskConfig.taskId + '/rerun', { method: 'POST' })
     .then(function() {
