@@ -46,7 +46,7 @@
           onmouseover="this.style.background='var(--bg-elevated)'"
           onmouseout="this.style.background='transparent'"
           {% if r.session_id and r.trigger == 'agent' %}
-          onclick="openAgentSession('{{ r.project }}', '{{ r.session_id }}')"
+          onclick="openAgentRun('{{ r.project }}', '{{ r.session_id }}', '{{ r.id }}')"
           {% endif %}>
         <td style="padding:8px 8px;">
           {{ status_dot(r.raw_status) }}

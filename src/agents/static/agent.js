@@ -16,6 +16,40 @@ function initAgentTab() {
   }
 }
 
+function loadRunHistory(runId) {
+  fetch('/api/runs/' + runId + '/events')
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (!data.events || !data.events.length) return;
+    var output = document.getElementById('agent-output');
+    if (!output) return;
+    var ph = output.querySelector('[style*="font-style:italic"]');
+    if (ph) ph.remove();
+
+    // Show user prompt
+    if (data.prompt) {
+      appendBlock(output, 'div', 'you', {color:'#6b7280', fontSize:'10px', marginTop:'14px'});
+      appendBlock(output, 'div', data.prompt, {color:'#e8eaed', marginBottom:'14px', paddingLeft:'2px', fontSize:'13px'});
+    }
+    appendBlock(output, 'div', 'agent', {color:'#3b82f6', fontSize:'10px'});
+
+    for (var i = 0; i < data.events.length; i++) {
+      var ev = data.events[i];
+      if (ev.type === 'assistant' && ev.content) {
+        appendBlock(output, 'div', ev.content, {color:'#c8ccd4', margin:'4px 0', paddingLeft:'2px', whiteSpace:'pre-wrap', fontSize:'13px', lineHeight:'1.7'});
+      } else if (ev.type === 'tool_use' || ev.type === 'tool_result') {
+        renderAgentEvent(ev, output, true);
+      } else if (ev.type === 'task_completed' || ev.type === 'task_failed') {
+        var clr = ev.type === 'task_completed' ? '#22c55e' : '#f85149';
+        var icon = ev.type === 'task_completed' ? '\u2713 ' : '\u2717 ';
+        appendBlock(output, 'div', icon + (ev.content || ''), {color:clr, margin:'10px 0', paddingLeft:'2px', fontSize:'12px'});
+      }
+    }
+    output.scrollTop = output.scrollHeight;
+  })
+  .catch(function(err) { console.error('loadRunHistory error:', err); });
+}
+
 function loadSessionHistory(sessionId) {
   fetch('/api/sessions/' + sessionId + '/events')
   .then(function(r) { return r.json(); })

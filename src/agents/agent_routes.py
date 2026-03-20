@@ -113,7 +113,6 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
         events: list[dict] = []
         for run in runs:
             run_events = state.history.list_events(run.id)
-            # Prepend user prompt as a synthetic event
             if run.trigger_type == "agent" and run.task:
                 events.append({
                     "type": "user_prompt",
@@ -122,3 +121,15 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                 })
             events.extend(run_events)
         return events
+
+    @app.get("/api/runs/{run_id}/events")
+    async def run_events(run_id: str) -> dict:
+        """Return events for a single run, with prompt text."""
+        run = state.history.get_run(run_id)
+        if run is None:
+            return {"prompt": "", "events": []}
+        events = state.history.list_events(run_id)
+        return {
+            "prompt": run.task if run.trigger_type == "agent" else "",
+            "events": events,
+        }

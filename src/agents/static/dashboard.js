@@ -120,7 +120,47 @@ document.addEventListener('DOMContentLoaded', function() {
   _makeSwipeable('projects-sheet-handle', 'projects-sheet', closeProjectsSheet);
 });
 
-// ── Open agent session from dashboard row ──
+// ── Open specific agent run from dashboard row ──
+function openAgentRun(projectId, sessionId, runId) {
+  var panel = document.getElementById('panel-content');
+  fetch('/hub/' + projectId)
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+      panel.innerHTML = html;
+      if (window.htmx) htmx.process(panel);
+      openPanel();
+      var tabContent = document.getElementById('tab-content');
+      if (tabContent) {
+        fetch('/hub/' + projectId + '/agent?session=' + sessionId)
+          .then(function(r) { return r.text(); })
+          .then(function(agentHtml) {
+            tabContent.innerHTML = agentHtml;
+            if (window.htmx) htmx.process(tabContent);
+            var tabs = tabContent.previousElementSibling;
+            if (tabs) {
+              var buttons = tabs.querySelectorAll('button');
+              buttons.forEach(function(b) {
+                b.style.color = 'var(--text-muted)';
+                b.style.borderBottomColor = 'transparent';
+                b.removeAttribute('data-active');
+              });
+              var agentBtn = buttons[buttons.length - 1];
+              if (agentBtn) {
+                agentBtn.style.color = 'var(--text-primary)';
+                agentBtn.style.borderBottomColor = 'var(--accent)';
+                agentBtn.setAttribute('data-active', 'true');
+              }
+            }
+            _ensureAgentJs(function() {
+              _agentSessionId = sessionId;
+              loadRunHistory(runId);
+            });
+          });
+      }
+    });
+}
+
+// ── Open agent session (full history) from hub panel ──
 function openAgentSession(projectId, sessionId) {
   var panel = document.getElementById('panel-content');
   // Load the hub panel first, then switch to agent tab

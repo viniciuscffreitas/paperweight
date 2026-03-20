@@ -137,7 +137,9 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         )
 
     @app.get("/hub/{project_id}/agent", response_class=HTMLResponse)
-    async def hub_agent(request: Request, project_id: str, session: str | None = None) -> HTMLResponse:
+    async def hub_agent(
+        request: Request, project_id: str, session: str | None = None, run: str | None = None,
+    ) -> HTMLResponse:
         project = state.project_store.get_project(project_id) if state.project_store else None
         if not project:
             return HTMLResponse("<p>Project not found</p>", status_code=404)
@@ -150,7 +152,7 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         return _TEMPLATES.TemplateResponse(
             request,
             "hub/agent.html",
-            {"id": project_id, "session": active_session},
+            {"id": project_id, "session": active_session, "focus_run": run or ""},
         )
 
     # --- Coordination routes ---

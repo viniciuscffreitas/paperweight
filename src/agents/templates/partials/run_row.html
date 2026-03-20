@@ -1,7 +1,7 @@
 {% from "components/macros.html" import status_dot %}
 {% set is_agent = run.trigger_type == 'agent' and run.session_id %}
 <div {% if is_agent %}
-       hx-get="/hub/{{ run.project }}/agent?session={{ run.session_id }}"
+       hx-get="/hub/{{ run.project }}/agent?session={{ run.session_id }}&run={{ run.id }}"
        hx-target="#tab-content"
        onclick="activateTab(document.querySelector('[hx-get*=\'/agent\']'))"
        role="button" tabindex="0"

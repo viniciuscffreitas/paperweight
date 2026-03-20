@@ -76,4 +76,12 @@
 </style>
 
 <script src="/static/agent.js"></script>
-<script>initAgentTab();</script>
+<script>
+  var _focusRun = '{{ focus_run }}';
+  if (_focusRun) {
+    _agentSessionId = '{{ session.id if session else "" }}';
+    loadRunHistory(_focusRun);
+  } else {
+    initAgentTab();
+  }
+</script>
