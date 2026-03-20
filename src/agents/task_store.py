@@ -1,0 +1,167 @@
+"""Task (work item) persistence — SQLite CRUD with atomic claim."""
+import sqlite3
+import uuid
+from datetime import UTC, datetime
+from pathlib import Path
+
+from agents.models import TaskStatus, WorkItem
+
+
+class TaskStore:
+    def __init__(self, db_path: Path) -> None:
+        self.db_path = db_path
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._init_db()
+
+    def _conn(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _init_db(self) -> None:
+        with self._conn() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS work_items (
+                    id TEXT PRIMARY KEY,
+                    project TEXT NOT NULL,
+                    template TEXT,
+                    title TEXT NOT NULL,
+                    description TEXT NOT NULL DEFAULT '',
+                    source TEXT NOT NULL,
+                    source_id TEXT NOT NULL DEFAULT '',
+                    source_url TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    session_id TEXT,
+                    pr_url TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_work_items_project"
+                " ON work_items (project, status)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_work_items_source"
+                " ON work_items (source, source_id)"
+            )
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS task_context (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    source_run_id TEXT,
+                    content TEXT NOT NULL DEFAULT '',
+                    timestamp REAL NOT NULL
+                )
+            """)
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_task_context_task"
+                " ON task_context (task_id, timestamp)"
+            )
+
+    def _row_to_item(self, row: sqlite3.Row) -> WorkItem:
+        return WorkItem(
+            id=row["id"],
+            project=row["project"],
+            template=row["template"],
+            title=row["title"],
+            description=row["description"],
+            source=row["source"],
+            source_id=row["source_id"],
+            source_url=row["source_url"],
+            status=row["status"],
+            session_id=row["session_id"],
+            pr_url=row["pr_url"],
+            created_at=datetime.fromisoformat(row["created_at"]),
+            updated_at=datetime.fromisoformat(row["updated_at"]),
+        )
+
+    def create(
+        self, project: str, title: str, description: str, source: str,
+        source_id: str = "", source_url: str = "", template: str | None = None,
+        status: TaskStatus = TaskStatus.PENDING, session_id: str | None = None,
+    ) -> WorkItem:
+        item_id = uuid.uuid4().hex[:12]
+        now = datetime.now(UTC)
+        item = WorkItem(
+            id=item_id, project=project, template=template, title=title,
+            description=description, source=source, source_id=source_id,
+            source_url=source_url, status=status, session_id=session_id,
+            created_at=now, updated_at=now,
+        )
+        with self._conn() as conn:
+            conn.execute(
+                """INSERT INTO work_items
+                   (id, project, template, title, description, source, source_id,
+                    source_url, status, session_id, pr_url, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (item.id, item.project, item.template, item.title,
+                 item.description, item.source, item.source_id,
+                 item.source_url, item.status, item.session_id,
+                 item.pr_url, now.isoformat(), now.isoformat()),
+            )
+        return item
+
+    def get(self, item_id: str) -> WorkItem | None:
+        with self._conn() as conn:
+            row = conn.execute("SELECT * FROM work_items WHERE id = ?", (item_id,)).fetchone()
+        if row is None:
+            return None
+        return self._row_to_item(row)
+
+    def list_by_project(self, project: str) -> list[WorkItem]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM work_items WHERE project = ? ORDER BY created_at DESC",
+                (project,),
+            ).fetchall()
+        return [self._row_to_item(r) for r in rows]
+
+    def list_pending(self, limit: int = 10) -> list[WorkItem]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM work_items WHERE status = ? ORDER BY created_at ASC LIMIT ?",
+                (TaskStatus.PENDING, limit),
+            ).fetchall()
+        return [self._row_to_item(r) for r in rows]
+
+    def try_claim(self, item_id: str) -> bool:
+        now = datetime.now(UTC).isoformat()
+        with self._conn() as conn:
+            cursor = conn.execute(
+                "UPDATE work_items SET status = ?, updated_at = ? WHERE id = ? AND status = ?",
+                (TaskStatus.RUNNING, now, item_id, TaskStatus.PENDING),
+            )
+            return cursor.rowcount == 1
+
+    def update_status(self, item_id: str, status: TaskStatus, pr_url: str | None = None) -> None:
+        now = datetime.now(UTC).isoformat()
+        if pr_url is not None:
+            with self._conn() as conn:
+                conn.execute(
+                    "UPDATE work_items SET status = ?, pr_url = ?, updated_at = ? WHERE id = ?",
+                    (status, pr_url, now, item_id),
+                )
+        else:
+            with self._conn() as conn:
+                conn.execute(
+                    "UPDATE work_items SET status = ?, updated_at = ? WHERE id = ?",
+                    (status, now, item_id),
+                )
+
+    def update_session(self, item_id: str, session_id: str) -> None:
+        now = datetime.now(UTC).isoformat()
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE work_items SET session_id = ?, updated_at = ? WHERE id = ?",
+                (session_id, now, item_id),
+            )
+
+    def exists_by_source(self, source: str, source_id: str) -> bool:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM work_items WHERE source = ? AND source_id = ? LIMIT 1",
+                (source, source_id),
+            ).fetchone()
+        return row is not None
