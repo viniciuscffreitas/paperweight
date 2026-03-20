@@ -29,6 +29,16 @@ async def auto_discover_project_ids(
                 "Auto-discovered linear_team_id for %s: %s", project.name, project.linear_team_id
             )
 
+        if not project.linear_team_id:
+            for team_name, tid in teams.items():
+                if project.name.lower() in team_name or team_name in project.name.lower():
+                    project.linear_team_id = tid
+                    logger.info(
+                        "Auto-discovered linear_team_id (fuzzy) for %s: %s (team: %s)",
+                        project.name, tid, team_name,
+                    )
+                    break
+
         # Auto-fill discord_channel_id
         if not project.discord_channel_id and discord_notifier and guild_id:
             try:
