@@ -36,6 +36,24 @@
   --separator-strong: #1a1a1a;
   --separator-subtle: #141414;
 
+  /* Legacy aliases (backward-compat with existing tests) */
+  --border-subtle: #141414;
+  --border-default: #1a1a1a;
+  --border-strong: #252525;
+  --accent: #818cf8;
+  --accent-bg: rgba(99,102,241,0.1);
+  --accent-hover: #6366f1;
+  --bg-elevated: #161616;
+  --bg-overlay: #0a0a0a;
+  --bg-task-success: #0d1a0f;
+  --bg-task-error: #1a0d0d;
+  --bg-task-hover: #1a1a1a;
+  --text-placeholder: #444444;
+
+  /* Overlay tokens */
+  --overlay-backdrop: rgba(0,0,0,0.65);
+  --overlay-shadow: 0 8px 32px rgba(0,0,0,0.6);
+
   --card-radius: 14px;
   --panel-radius: 16px;
 }
@@ -73,6 +91,26 @@
 
   --separator-strong: #e0e0e0;
   --separator-subtle: #eeeeee;
+
+  /* Legacy aliases */
+  --border-subtle: #eeeeee;
+  --border-default: #e0e0e0;
+  --border-strong: #cccccc;
+  --accent: #4f46e5;
+  --accent-bg: rgba(79,70,229,0.08);
+  --accent-hover: #4338ca;
+  --bg-elevated: #f5f5f5;
+  --bg-overlay: #e8e8e8;
+  --bg-task-success: #f0fdf4;
+  --bg-task-error: #fef2f2;
+  --bg-task-hover: #eeeeee;
+  --text-placeholder: #aaaaaa;
+
+  /* Overlay tokens */
+  --overlay-backdrop: rgba(0,0,0,0.35);
+  --overlay-shadow: 0 8px 32px rgba(0,0,0,0.15);
+
+  --status-neutral: #888888;
 }
 
 /* ---------------------------------------------------------
@@ -113,9 +151,12 @@ html, body { height: 100%; background: var(--bg-chrome); color: var(--text-prima
    --------------------------------------------------------- */
 @media (max-width: 767px) {
   #sidebar { position: fixed; left: 0; top: 0; height: 100%; z-index: 100; transform: translateX(-200px); transition: transform 0.22s ease; }
-  #sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.5); }
-  #sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 99; }
+  #sidebar.open { transform: translateX(0); box-shadow: var(--overlay-shadow); }
+  #sidebar-backdrop { display: none; position: fixed; inset: 0; background: var(--overlay-backdrop); z-index: 99; }
   #sidebar-backdrop.open { display: block; }
+  #panel-backdrop { display: none; position: fixed; inset: 0; background: var(--overlay-backdrop); z-index: 48; }
+  #panel-backdrop.open { display: block; }
+  #projects-backdrop { background: var(--overlay-backdrop); }
   #hamburger { display: flex !important; }
   #bottom-nav { display: flex !important; }
   main { padding-bottom: 52px; }

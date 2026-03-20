@@ -1,4 +1,4 @@
-{% from "components/macros.html" import btn, input_field, status_dot, section_label, sidebar_item %}
+{% from "components/macros.html" import btn, input_field, section_label, sidebar_item %}
 <!DOCTYPE html>
 <html lang="pt-BR" data-theme="{{ request.cookies.get('theme', 'dark') }}">
 <head>
@@ -6,26 +6,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>paperweight</title>
   <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Ubuntu+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-  <script src="/static/ws.js"></script>
-  <script src="/static/dashboard.js"></script>
-  <link rel="stylesheet" href="/static/dashboard.css">
-  <script>
-    tailwind.config = {
-      theme: { extend: { fontFamily: { mono: ['"Ubuntu Mono"', 'monospace'] } } }
-    }
-  </script>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
 </head>
-<body class="flex h-screen overflow-hidden">
+<body style="display:flex;height:100vh;overflow:hidden;">
 
   <!-- Skip to main content (WCAG 2.4.1) -->
-  <a href="#main-content"
-     class="sr-only"
+  <a href="#main-content" class="sr-only"
      style="position:absolute;top:8px;left:8px;z-index:200;padding:6px 12px;
-            background:var(--accent);color:#fff;border-radius:4px;font-size:12px;
+            background:var(--accent-gradient);color:#fff;border-radius:8px;font-size:12px;
             text-decoration:none;"
      onfocus="this.classList.remove('sr-only')"
      onblur="this.classList.add('sr-only')">
@@ -35,99 +27,84 @@
   <!-- Sidebar backdrop (mobile) -->
   <div id="sidebar-backdrop" onclick="closeSidebar()" aria-hidden="true"></div>
 
-  <!-- Panel backdrop (mobile bottom sheet) -->
-  <div id="panel-backdrop" onclick="closePanel()" aria-hidden="true"></div>
-
-  <!-- Sidebar -->
-  <nav id="sidebar"
-       role="navigation"
-       aria-label="Menu principal"
-       style="width:160px;min-width:160px;background:var(--bg-chrome);
-              display:flex;flex-direction:column;flex-shrink:0;">
-    <div style="height:44px;display:flex;align-items:center;padding:0 12px;">
-      <span style="font-size:11px;font-weight:700;letter-spacing:2px;color:var(--text-secondary);text-transform:uppercase;">paperweight</span>
+  <!-- Sidebar (vertical part of the L) -->
+  <nav id="sidebar" role="navigation" aria-label="Menu principal"
+       style="width:200px;min-width:200px;background:var(--bg-chrome);
+              display:flex;flex-direction:column;flex-shrink:0;z-index:100;">
+    <div style="height:44px;display:flex;align-items:center;padding:0 16px;">
+      <span style="font-size:15px;font-weight:700;letter-spacing:-0.5px;color:var(--text-primary);">paperweight</span>
     </div>
-    <div style="padding:8px 0;flex:1;overflow-y:auto;">
+
+    <div style="padding:0 8px;flex:1;overflow-y:auto;">
       {{ section_label('Projects') }}
       {% for p in projects %}
-      {{ sidebar_item(p.name, p.id) }}
+        {{ sidebar_item(p.name, p.id, active=(selected_project|default('') == p.id)) }}
       {% else %}
-      <div style="padding:12px 12px 8px;">
-        <div style="font-size:10px;color:var(--text-placeholder);font-style:italic;margin-bottom:8px;">no projects yet</div>
-        {{ btn('+ add project', variant='dashed', onclick='openWizard()', aria_label='Adicionar projeto') }}
-      </div>
+        <div style="padding:12px 12px 8px;">
+          <div style="font-size:12px;color:var(--text-disabled);font-style:italic;margin-bottom:8px;">No projects yet</div>
+          {{ btn('+ add project', variant='dashed', onclick='openWizard()', aria_label='Add project') }}
+        </div>
       {% endfor %}
-      {{ section_label('Ops') }}
-      <a href="/coordination"
-         style="display:block;padding:8px 12px;font-size:12px;
-                color:{{ 'var(--text-primary)' if current_path == '/coordination' else 'var(--text-muted)' }};
-                text-decoration:none;border-radius:4px;margin:1px 6px;transition:background .15s;"
-         onmouseover="this.style.background='var(--bg-elevated)'"
-         onmouseout="this.style.background='transparent'">
-        Coordination
-      </a>
     </div>
-    <div style="padding:8px 12px;">
-      <a href="/dashboard"
-         style="font-size:11px;color:var(--text-secondary);text-decoration:none;letter-spacing:.5px;"
-         aria-label="Ir para o Dashboard">Dashboard</a>
+
+    <div style="padding:12px 16px;">
+      <a href="/coordination"
+         style="display:block;padding:6px 0;font-size:12px;color:var(--text-disabled);text-decoration:none;transition:color .15s;"
+         onmouseover="this.style.color='var(--text-secondary)'"
+         onmouseout="this.style.color='var(--text-disabled)'">Coordination</a>
+      <div style="padding:6px 0;font-size:12px;color:var(--text-disabled);cursor:pointer;"
+           onmouseover="this.style.color='var(--text-secondary)'"
+           onmouseout="this.style.color='var(--text-disabled)'">Settings</div>
     </div>
   </nav>
 
-  <!-- Main content -->
-  <main id="main-content"
-        role="main"
+  <!-- Main area -->
+  <main id="main-content" role="main"
         style="flex:1;overflow:hidden;display:flex;flex-direction:column;min-width:0;">
 
     <!-- Hamburger bar (mobile only) -->
-    <div id="hamburger-btn"
-         style="display:none;align-items:center;gap:10px;padding:10px 14px;
-                border-bottom:1px solid var(--border-subtle);flex-shrink:0;background:var(--bg-chrome);">
-      <button id="hamburger-toggle"
-              onclick="toggleSidebar()"
-              aria-label="Abrir menu"
-              aria-expanded="false"
-              aria-controls="sidebar"
-              style="background:transparent;border:1px solid transparent;color:var(--text-secondary);cursor:pointer;
-                     font-size:16px;padding:4px 6px;line-height:1;font-family:inherit;
-                     border-radius:3px;transition:color .15s;"
-              onmouseover="this.style.color='var(--text-primary)'"
-              onmouseout="this.style.color='var(--text-secondary)'">☰</button>
-      <span style="font-size:10px;letter-spacing:2px;color:var(--text-secondary);text-transform:uppercase;"
-            aria-hidden="true">paperweight</span>
+    <div id="hamburger" style="display:none;align-items:center;gap:10px;padding:14px 16px;
+                                background:var(--bg-chrome);flex-shrink:0;">
+      <button onclick="toggleSidebar()" aria-label="Abrir menu" aria-expanded="false" aria-controls="sidebar"
+              style="background:transparent;border:none;color:var(--text-secondary);cursor:pointer;
+                     font-size:18px;padding:4px 6px;font-family:inherit;border-radius:3px;">☰</button>
+      <span style="font-size:14px;font-weight:600;color:var(--text-primary);">
+        {% block mobile_title %}paperweight{% endblock %}
+      </span>
     </div>
 
-    <!-- Topbar slot (part of the chrome L) -->
-    <div id="app-topbar"
-         style="flex-shrink:0;background:var(--bg-chrome);display:flex;align-items:center;justify-content:space-between;">
-      <div style="flex:1;">{% block topbar %}{% endblock %}</div>
-      <button id="theme-toggle"
-              onclick="toggleTheme()"
-              aria-label="Alternar tema"
-              title="Alternar tema"
-              style="background:transparent;border:none;color:var(--text-secondary);
-                     cursor:pointer;font-size:16px;padding:4px 10px;line-height:1;
-                     font-family:inherit;border-radius:3px;transition:color .15s;
-                     flex-shrink:0;margin-right:8px;"
-              onmouseover="this.style.color='var(--text-primary)'"
-              onmouseout="this.style.color='var(--text-secondary)'">{{ '☀' if request.cookies.get('theme', 'dark') == 'light' else '☾' }}</button>
+    <!-- Header (horizontal part of the L) -->
+    <div id="app-topbar" style="flex-shrink:0;background:var(--bg-chrome);display:flex;align-items:center;
+                                 justify-content:space-between;">
+      <div style="flex:1;height:44px;display:flex;align-items:center;padding:0 24px;">{% block topbar %}{% endblock %}</div>
+      <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;padding-right:16px;">
+        <button id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme" title="Toggle theme"
+                style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;
+                       font-size:13px;padding:4px 8px;font-family:inherit;border-radius:3px;transition:color .15s;"
+                onmouseover="this.style.color='var(--text-primary)'"
+                onmouseout="this.style.color='var(--text-muted)'">{{ '☀' if request.cookies.get('theme', 'dark') == 'light' else '☾' }}</button>
+        {% block topbar_actions %}{% endblock %}
+      </div>
     </div>
 
-    <!-- Content card — rounded top-left corner closes the L -->
+    <!-- Floating content panel -->
     <div id="content-card"
          style="flex:1;overflow:hidden;display:flex;flex-direction:column;
-                border-radius:10px 0 0 0;
-                background:var(--bg-content);">
-      {% block content %}{% endblock %}
+                border-radius:var(--panel-radius) var(--panel-radius) var(--panel-radius) var(--panel-radius);
+                background:var(--bg-content);border:1px solid var(--separator-strong);
+                margin:0 12px 12px 0;">
+      <div id="content-inner" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;">
+        {% block content %}{% endblock %}
+      </div>
     </div>
   </main>
 
-  <!-- Right panel / Bottom sheet -->
+  <!-- Right panel shell (kept for backward-compat; hidden by default) -->
   <div id="right-panel"
        role="dialog"
        aria-label="Detalhes do projeto"
        aria-modal="true"
-       style="display:none;position:fixed;top:0;bottom:0;right:0;left:160px;
+       style="display:none;position:fixed;top:0;bottom:0;right:0;left:200px;
               background:var(--bg-chrome);
               z-index:50;flex-direction:column;">
 
@@ -136,139 +113,88 @@
          style="display:none;justify-content:center;align-items:center;
                 padding:10px 0 6px;flex-shrink:0;cursor:grab;"
          aria-hidden="true">
-      <div style="width:36px;height:4px;border-radius:2px;background:var(--border-default);"></div>
+      <div style="width:36px;height:4px;border-radius:2px;background:var(--separator-strong);"></div>
     </div>
 
     <div id="panel-content" style="display:flex;flex-direction:column;height:100%;overflow:hidden;"></div>
   </div>
 
-  <!-- Projects sheet backdrop (mobile only) -->
-  <div id="projects-backdrop" onclick="closeProjectsSheet()" aria-hidden="true"></div>
-
-  <!-- Projects bottom sheet (mobile only) -->
-  <div id="projects-sheet"
-       role="dialog"
-       aria-label="Projetos"
-       aria-modal="true"
-       style="display:none;position:fixed;z-index:55;background:var(--bg-chrome);
-              flex-direction:column;overflow:hidden;">
-    <!-- Drag handle -->
-    <div id="projects-sheet-handle"
-         style="display:flex;justify-content:center;align-items:center;
-                padding:10px 0 6px;flex-shrink:0;cursor:grab;"
-         aria-hidden="true">
-      <div style="width:36px;height:4px;border-radius:2px;background:var(--border-default);"></div>
-    </div>
-    <!-- Header -->
-    <div style="padding:0 16px 10px;font-size:9px;color:var(--text-secondary);
-                text-transform:uppercase;letter-spacing:1.5px;flex-shrink:0;">
-      Projects
-    </div>
-    <!-- Project list -->
-    <div style="overflow-y:auto;flex:1;padding-bottom:8px;">
-      {% for p in projects %}
-      <div hx-get="/hub/{{ p.id }}"
-           hx-target="#panel-content"
-           hx-on::after-request="closeProjectsSheet(); openPanel()"
-           role="button"
-           tabindex="0"
-           aria-label="Abrir projeto {{ p.name }}"
-           onkeydown="if(event.key==='Enter'||event.key===' '){this.click()}"
-           style="padding:12px 16px;font-size:13px;color:var(--text-secondary);cursor:pointer;
-                  border-bottom:1px solid var(--bg-overlay);transition:background .15s;"
-           onmouseover="this.style.background='var(--bg-elevated)';this.style.color='var(--text-primary)'"
-           onmouseout="this.style.background='transparent';this.style.color='var(--text-secondary)'">
-        {{ p.name }}
-      </div>
-      {% else %}
-      <div style="padding:20px 16px;">
-        <div style="text-align:center;color:var(--text-placeholder);font-size:12px;font-style:italic;margin-bottom:12px;">
-          Nenhum projeto configurado.
-        </div>
-        {{ btn('+ add project', variant='dashed', onclick='closeProjectsSheet();openWizard()', aria_label='Adicionar projeto') }}
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-
   <!-- Bottom navigation (mobile only) -->
-  <nav id="bottom-nav"
-       role="navigation"
-       aria-label="Navegação inferior"
+  <nav id="bottom-nav" role="navigation" aria-label="Bottom navigation"
        style="display:none;position:fixed;bottom:0;left:0;right:0;height:52px;
-              background:var(--bg-chrome);border-top:1px solid var(--border-subtle);
+              background:var(--bg-chrome);border-top:1px solid var(--separator-strong);
               z-index:60;align-items:stretch;">
     {% set current_path = request.url.path %}
-    <a href="/dashboard"
-       aria-label="Dashboard"
-       {% if current_path == '/dashboard' %}aria-current="page"{% endif %}
+    <a href="/dashboard" aria-label="Tasks"
+       {% if '/hub/' in current_path or current_path == '/dashboard' %}aria-current="page"{% endif %}
        style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-              gap:2px;text-decoration:none;
-              color:{{ 'var(--text-primary)' if current_path == '/dashboard' else 'var(--text-muted)' }};
-              font-size:9px;letter-spacing:.5px;text-transform:uppercase;
-              transition:color .15s;border-top:2px solid {{ 'var(--accent)' if current_path == '/dashboard' else 'transparent' }};"
-       onmouseover="this.style.color='var(--text-primary)'"
-       onmouseout="this.style.color='{{ 'var(--text-primary)' if current_path == '/dashboard' else 'var(--text-muted)' }}'">
-      <span class="material-icons" aria-hidden="true" style="font-size:18px;">dashboard</span>
-      <span>Dashboard</span>
+              gap:2px;text-decoration:none;font-size:9px;letter-spacing:.5px;text-transform:uppercase;
+              color:{{ 'var(--text-primary)' if '/hub/' in current_path or current_path == '/dashboard' else 'var(--text-muted)' }};
+              border-top:2px solid {{ 'var(--accent-text)' if '/hub/' in current_path or current_path == '/dashboard' else 'transparent' }};">
+      <span class="material-icons" aria-hidden="true" style="font-size:18px;">task_alt</span>
+      <span>Tasks</span>
     </a>
-    <button onclick="openProjectsSheet()"
-            aria-label="Abrir lista de projetos"
+    <button onclick="openProjectsSheet()" aria-label="Projects"
             style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
                    gap:2px;background:transparent;border:none;border-top:2px solid transparent;
-                   color:var(--text-muted);cursor:pointer;font-size:9px;letter-spacing:.5px;text-transform:uppercase;
-                   font-family:inherit;transition:color .15s;"
-            onmouseover="this.style.color='var(--text-primary)'"
-            onmouseout="this.style.color='var(--text-muted)'">
+                   color:var(--text-muted);cursor:pointer;font-size:9px;letter-spacing:.5px;
+                   text-transform:uppercase;font-family:inherit;">
       <span class="material-icons" aria-hidden="true" style="font-size:18px;">folder</span>
       <span>Projects</span>
     </button>
   </nav>
 
+  <!-- Projects bottom sheet backdrop (mobile) -->
+  <div id="projects-backdrop" onclick="closeProjectsSheet()" aria-hidden="true"
+       style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:48;"></div>
+
+  <!-- Projects bottom sheet (mobile) -->
+  <div id="projects-sheet" role="dialog" aria-label="Projects" aria-modal="true"
+       style="display:none;position:fixed;z-index:55;background:var(--bg-chrome);
+              bottom:52px;left:0;right:0;max-height:65vh;border-radius:16px 16px 0 0;
+              border-top:1px solid var(--separator-strong);flex-direction:column;overflow:hidden;
+              transform:translateY(110%);transition:transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);">
+    <div style="display:flex;justify-content:center;padding:10px 0 6px;"><div style="width:36px;height:4px;border-radius:2px;background:var(--separator-strong);"></div></div>
+    <div style="padding:0 16px 10px;">{{ section_label('Projects') }}</div>
+    <div style="overflow-y:auto;flex:1;padding-bottom:8px;">
+      {% for p in projects %}
+      <div hx-get="/hub/{{ p.id }}/tasks" hx-target="#content-inner" hx-push-url="true"
+           hx-on::after-request="closeProjectsSheet()"
+           role="button" tabindex="0" aria-label="Open {{ p.name }}"
+           onkeydown="if(event.key==='Enter'||event.key===' '){this.click()}"
+           style="padding:12px 16px;font-size:13px;color:var(--text-secondary);cursor:pointer;
+                  border-bottom:1px solid var(--separator-subtle);transition:background .15s;"
+           onmouseover="this.style.background='var(--bg-content)';this.style.color='var(--text-primary)'"
+           onmouseout="this.style.background='transparent';this.style.color='var(--text-secondary)'">{{ p.name }}</div>
+      {% endfor %}
+    </div>
+  </div>
 
   <!-- Setup wizard modal -->
-  <div id="wizard-overlay"
-       role="dialog"
-       aria-label="Criar novo projeto"
-       aria-modal="true"
+  <div id="wizard-overlay" role="dialog" aria-label="Create new project" aria-modal="true"
        style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);
               z-index:300;align-items:center;justify-content:center;padding:16px;">
     <div id="wizard-card"
-         style="background:var(--bg-content);border:1px solid var(--border-default);border-radius:8px;
-                width:480px;max-width:100%;padding:32px;position:relative;
-                box-shadow:0 24px 48px rgba(0,0,0,.5);">
-
-      <!-- Close -->
-      <button onclick="closeWizard()"
-              aria-label="Fechar"
-              style="position:absolute;top:14px;right:14px;background:transparent;
-                     border:none;color:var(--text-disabled);cursor:pointer;font-size:20px;
-                     line-height:1;font-family:inherit;padding:2px 8px;border-radius:3px;
-                     transition:color .15s;"
+         style="background:var(--bg-content);border:1px solid var(--separator-strong);border-radius:16px;
+                width:480px;max-width:100%;padding:32px;position:relative;">
+      <button onclick="closeWizard()" aria-label="Close"
+              style="position:absolute;top:14px;right:14px;background:transparent;border:none;
+                     color:var(--text-disabled);cursor:pointer;font-size:20px;font-family:inherit;
+                     padding:2px 8px;border-radius:3px;transition:color .15s;"
               onmouseover="this.style.color='var(--text-secondary)'"
               onmouseout="this.style.color='var(--text-disabled)'">×</button>
 
-      <!-- Step progress -->
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:28px;">
-        <div id="wizard-dot-1"
-             style="width:6px;height:6px;border-radius:50%;background:var(--accent);transition:background .2s;"></div>
-        <div style="flex:1;height:1px;background:var(--border-subtle);"></div>
-        <div id="wizard-dot-2"
-             style="width:6px;height:6px;border-radius:50%;background:var(--border-default);transition:background .2s;"></div>
+        <div id="wizard-dot-1" style="width:6px;height:6px;border-radius:50%;background:var(--accent-text);transition:background .2s;"></div>
+        <div style="flex:1;height:1px;background:var(--separator-strong);"></div>
+        <div id="wizard-dot-2" style="width:6px;height:6px;border-radius:50%;background:var(--separator-strong);transition:background .2s;"></div>
       </div>
 
-      <!-- Wizard body — HTMX swaps here for step 2 -->
       <div id="wizard-body">
-        <!-- Step 1: project info -->
-        <div style="margin-bottom:4px;font-size:9px;color:var(--text-disabled);letter-spacing:1.5px;text-transform:uppercase;">
-          Step 1 of 2
-        </div>
-        <div style="font-size:14px;color:var(--text-primary);margin-bottom:22px;font-weight:700;">New project</div>
-
-        <form hx-post="/setup/discover"
-              hx-target="#wizard-body"
-              hx-swap="innerHTML"
-              hx-on:htmx:before-request="document.getElementById('wizard-dot-2').style.background='var(--accent)'">
+        <div style="margin-bottom:4px;">{{ section_label('Step 1 of 2') }}</div>
+        <div style="font-size:16px;color:var(--text-primary);margin-bottom:22px;font-weight:700;">New project</div>
+        <form hx-post="/setup/discover" hx-target="#wizard-body" hx-swap="innerHTML"
+              hx-on:htmx:before-request="document.getElementById('wizard-dot-2').style.background='var(--accent-text)'">
           {{ input_field('name', placeholder='my-project', required=true, label='Project name') }}
           {{ input_field('repo_path', placeholder='/Users/you/my-project', required=true, label='Repository path') }}
           <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -276,12 +202,12 @@
             {{ btn('Discover sources →', variant='primary', type='submit') }}
           </div>
         </form>
-      </div><!-- #wizard-body -->
-
-    </div><!-- #wizard-card -->
-  </div><!-- #wizard-overlay -->
+      </div>
+    </div>
+  </div>
 
   <script>
+    /* Theme toggle */
     function toggleTheme() {
       var html = document.documentElement;
       var current = html.dataset.theme || 'dark';
@@ -292,39 +218,28 @@
         method: 'POST',
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         body: 'theme=' + next
-      }).then(function(r) {
-        if (!r.ok) {
-          html.dataset.theme = current;
-          document.getElementById('theme-toggle').textContent = current === 'light' ? '☀' : '☾';
-        }
       }).catch(function() {
         html.dataset.theme = current;
         document.getElementById('theme-toggle').textContent = current === 'light' ? '☀' : '☾';
       });
     }
-  </script>
 
-  <script>
+    /* Wizard */
     var _wizardStep1Html = '';
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
       _wizardStep1Html = document.getElementById('wizard-body').innerHTML;
     });
-
     function openWizard() {
       var overlay = document.getElementById('wizard-overlay');
       overlay.style.display = 'flex';
-      setTimeout(function () {
-        var input = overlay.querySelector('input[name="name"]');
-        if (input) input.focus();
-      }, 60);
+      setTimeout(function() { var input = overlay.querySelector('input[name="name"]'); if (input) input.focus(); }, 60);
     }
-
     function closeWizard() {
       document.getElementById('wizard-overlay').style.display = 'none';
       var body = document.getElementById('wizard-body');
       body.innerHTML = _wizardStep1Html;
       if (window.htmx) htmx.process(body);
-      document.getElementById('wizard-dot-2').style.background = 'var(--border-default)';
+      document.getElementById('wizard-dot-2').style.background = 'var(--separator-strong)';
     }
   </script>
 

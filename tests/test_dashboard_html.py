@@ -513,10 +513,10 @@ def test_hub_agent_session_status_has_data_attribute(app_with_project):
 
 
 def test_css_vars_root_defined():
-    """dashboard.css must define the :root CSS custom properties block."""
+    """styles.css must define the :root CSS custom properties block."""
     import os
     css_path = os.path.join(
-        os.path.dirname(__file__), "../src/agents/static/dashboard.css"
+        os.path.dirname(__file__), "../src/agents/static/styles.css"
     )
     with open(css_path) as f:
         css = f.read()
@@ -548,7 +548,7 @@ def test_templates_use_css_vars(app_with_project):
 def _read_css() -> str:
     import os
     css_path = os.path.join(
-        os.path.dirname(__file__), "../src/agents/static/dashboard.css"
+        os.path.dirname(__file__), "../src/agents/static/styles.css"
     )
     with open(css_path) as f:
         return f.read()
@@ -751,3 +751,12 @@ def test_theme_toggle_js_rollback_present(app_with_dashboard):
     html = resp.text
     assert "toggleTheme" in html
     assert "html.dataset.theme = current" in html
+
+
+def test_base_uses_new_assets(app_with_dashboard):
+    r = app_with_dashboard.get("/dashboard")
+    assert r.status_code == 200
+    assert 'styles.css' in r.text
+    assert 'app.js' in r.text
+    assert 'dashboard.css' not in r.text
+    assert 'dashboard.js' not in r.text
