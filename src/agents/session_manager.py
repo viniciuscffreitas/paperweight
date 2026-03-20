@@ -53,6 +53,7 @@ class SessionManager:
             for migration in [
                 "ALTER TABLE agent_sessions ADD COLUMN running INTEGER NOT NULL DEFAULT 0",
                 "ALTER TABLE agent_sessions ADD COLUMN title TEXT NOT NULL DEFAULT ''",
+                "ALTER TABLE agent_sessions ADD COLUMN task_id TEXT",
             ]:
                 try:
                     conn.execute(migration)

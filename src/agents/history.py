@@ -101,6 +101,11 @@ class HistoryDB:
             except sqlite3.OperationalError as e:
                 if "duplicate column" not in str(e).lower():
                     raise
+            try:
+                conn.execute("ALTER TABLE runs ADD COLUMN task_id TEXT")
+            except sqlite3.OperationalError as e:
+                if "duplicate column" not in str(e).lower():
+                    raise
 
     def _conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
