@@ -259,13 +259,13 @@ function loadChatHistory(events) {
   var chatMessages = document.getElementById('chat-messages');
   if (!chatMessages) return;
 
+  // Chat history shows only user prompts and agent responses.
+  // Tool calls are visible in the Activity tab — keeping chat clean.
   events.forEach(function(ev) {
     if (ev.type === 'user_prompt' && ev.content) {
       appendChatMessage(chatMessages, 'you', ev.content, false);
     } else if (ev.type === 'assistant' && ev.content) {
       appendChatMessage(chatMessages, 'agent', ev.content, false);
-    } else if (ev.type === 'tool_use') {
-      renderToolCallInChat(chatMessages, ev);
     }
   });
 }
