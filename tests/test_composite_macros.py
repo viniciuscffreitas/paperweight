@@ -54,4 +54,4 @@ def test_sidebar_item_active(jinja_env):
     tmpl = jinja_env.from_string('{% from "components/macros.html" import sidebar_item %}{{ sidebar_item("myproj", "proj1", active=true) }}')
     html = tmpl.render()
     assert "myproj" in html
-    assert "#161616" in html or "active" in html.lower()
+    assert "bg-elevated" in html or "active" in html.lower()

@@ -461,11 +461,10 @@ def test_panel_close_button_present(app_with_project):
 
 
 def test_htmx_targets_preserved(app_with_project):
-    """Tasks page targets #content-inner for HTMX navigation."""
-    # Redesign: old #tab-content replaced with #content-inner (base.html)
+    """Tasks page has content-inner container for HTMX navigation."""
     resp = app_with_project.get("/hub/p1")
     html = resp.text
-    assert 'hx-target="#content-inner"' in html
+    assert 'id="content-inner"' in html
 
 
 def test_activity_tab_has_data_active_initially(app_with_project):

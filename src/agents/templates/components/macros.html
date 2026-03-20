@@ -307,19 +307,15 @@
      active      — if true, applies active background highlight
    ─────────────────────────────────────────────────────────────────────── #}
 {% macro sidebar_item(name, project_id, active=false) %}
-<div hx-get="/hub/{{ project_id }}/tasks"
-     hx-target="#content-inner"
-     hx-push-url="true"
-     role="button"
-     tabindex="0"
-     aria-label="Open {{ name }}"
-     onkeydown="if(event.key==='Enter'||event.key===' '){this.click()}"
-     style="padding:8px 12px;font-size:13px;font-weight:500;border-radius:8px;cursor:pointer;transition:background 0.15s;
-            {% if active %}background:#161616;color:var(--text-primary);{% else %}color:var(--text-muted);{% endif %}"
-     {%- if not active %}
-     onmouseover="this.style.background='var(--bg-content)';this.style.color='var(--text-secondary)'"
-     onmouseout="this.style.background='transparent';this.style.color='var(--text-muted)'"
-     {%- endif %}>{{ name }}</div>
+<a href="/hub/{{ project_id }}/tasks"
+   aria-label="Open {{ name }}"
+   style="display:block;padding:8px 12px;font-size:13px;font-weight:500;border-radius:8px;
+          text-decoration:none;transition:background 0.15s;
+          {% if active %}background:var(--bg-elevated);color:var(--text-primary);{% else %}color:var(--text-muted);{% endif %}"
+   {%- if not active %}
+   onmouseover="this.style.background='var(--bg-content)';this.style.color='var(--text-secondary)'"
+   onmouseout="this.style.background='transparent';this.style.color='var(--text-muted)'"
+   {%- endif %}>{{ name }}</a>
 {% endmacro %}
 
 

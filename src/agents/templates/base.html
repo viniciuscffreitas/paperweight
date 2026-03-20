@@ -154,14 +154,11 @@
     <div style="padding:0 16px 10px;">{{ section_label('Projects') }}</div>
     <div style="overflow-y:auto;flex:1;padding-bottom:8px;">
       {% for p in projects %}
-      <div hx-get="/hub/{{ p.id }}/tasks" hx-target="#content-inner" hx-push-url="true"
-           hx-on::after-request="closeProjectsSheet()"
-           role="button" tabindex="0" aria-label="Open {{ p.name }}"
-           onkeydown="if(event.key==='Enter'||event.key===' '){this.click()}"
-           style="padding:12px 16px;font-size:13px;color:var(--text-secondary);cursor:pointer;
-                  border-bottom:1px solid var(--separator-subtle);transition:background .15s;"
-           onmouseover="this.style.background='var(--bg-content)';this.style.color='var(--text-primary)'"
-           onmouseout="this.style.background='transparent';this.style.color='var(--text-secondary)'">{{ p.name }}</div>
+      <a href="/hub/{{ p.id }}/tasks" aria-label="Open {{ p.name }}"
+         style="display:block;padding:12px 16px;font-size:13px;color:var(--text-secondary);text-decoration:none;
+                border-bottom:1px solid var(--separator-subtle);transition:background .15s;"
+         onmouseover="this.style.background='var(--bg-content)';this.style.color='var(--text-primary)'"
+         onmouseout="this.style.background='transparent';this.style.color='var(--text-secondary)'">{{ p.name }}</a>
       {% endfor %}
     </div>
   </div>
