@@ -15,7 +15,7 @@ from agents.budget import BudgetManager
 from agents.config import GlobalConfig, load_global_config, load_project_configs
 from agents.executor import Executor
 from agents.history import HistoryDB
-from agents.models import ProjectConfig, RunRecord
+from agents.models import ProjectConfig, RunRecord, RunStatus
 from agents.notifier import Notifier
 from agents.project_store import ProjectStore
 from agents.scheduler import create_scheduler, register_jobs
@@ -224,7 +224,54 @@ def create_app(
             if cleaned:
                 logger.info("Cleaned up %d stale agent sessions", cleaned)
 
+        async def poll_linear_issues() -> None:
+            """Fallback: poll Linear for agent issues missed by webhooks."""
+            if not linear_client:
+                return
+            for project in state.projects.values():
+                if not project.linear_team_id or "issue-resolver" not in project.tasks:
+                    continue
+                try:
+                    raw_issues = await linear_client.fetch_team_issues(project.linear_team_id)
+                    for issue in raw_issues:
+                        issue_id = issue.get("id", "")
+                        existing = state.history.find_run_by_issue_id(issue_id)
+                        if existing and existing.status in (RunStatus.RUNNING, RunStatus.SUCCESS):
+                            continue
+                        # Check if issue has agent label via full fetch
+                        full = await linear_client.fetch_issue(issue_id)
+                        if "agent" not in full.get("labels", []):
+                            continue
+                        state_name = full.get("state", "").lower()
+                        if state_name in ("done", "cancelled", "canceled"):
+                            continue
+                        logger.info("Polling: found unprocessed agent issue %s", issue_id)
+                        variables = {
+                            "issue_id": issue_id,
+                            "issue_identifier": full.get("identifier", ""),
+                            "issue_title": full.get("title", ""),
+                            "issue_description": full.get("description", ""),
+                            "team_id": project.linear_team_id,
+                        }
+                        # Dispatch as background task — do NOT await inline
+                        async def _run_polled(
+                            p: ProjectConfig = project,
+                            v: dict[str, str] = variables,
+                        ) -> None:
+                            async with (
+                                state.get_semaphore(config.execution.max_concurrent),
+                                state.get_repo_semaphore(p.repo),
+                            ):
+                                await state.executor.run_task(
+                                    p, "issue-resolver",
+                                    trigger_type="linear", variables=v,
+                                )
+                        asyncio.create_task(_run_polled())
+                except Exception:
+                    logger.warning("Polling failed for project %s", project.name)
+
         register_jobs(scheduler, state.projects, scheduled_run)
+        scheduler.add_job(poll_linear_issues, "interval", minutes=15, id="poll_linear_issues")
         scheduler.add_job(run_daily_digest, "cron", hour=9, minute=0, id="daily_digest")
         scheduler.add_job(cleanup_old_events, "cron", hour=3, minute=0, id="event_cleanup")
         scheduler.add_job(cleanup_sessions, "interval", minutes=10, id="session_cleanup")
