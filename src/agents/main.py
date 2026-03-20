@@ -200,19 +200,33 @@ def create_app(
         async def scheduled_run(project_name: str, task_name: str) -> None:
             project = state.projects.get(project_name)
             if project and task_name in project.tasks:
-                async with (
-                    state.get_semaphore(config.execution.max_concurrent),
-                    state.get_repo_semaphore(project.repo),
-                ):
-                    await state.executor.run_task(
-                        project,
-                        task_name,
-                        trigger_type="schedule",
-                        variables={
-                            "date": datetime.now(UTC).strftime("%Y-%m-%d"),
-                            "project_name": project_name,
-                        },
+                task = project.tasks[task_name]
+                from agents.config import build_prompt
+                prompt = build_prompt(task, {"date": datetime.now(UTC).strftime("%Y-%m-%d"), "project_name": project_name})
+                if state.task_store:
+                    state.task_store.create(
+                        project=project_name,
+                        title=f"{project_name}/{task_name}",
+                        description=prompt,
+                        source="schedule",
+                        template=task_name,
                     )
+                    logger.info("Scheduled task created: %s/%s", project_name, task_name)
+                else:
+                    # Fallback: direct execution if TaskStore not available
+                    async with (
+                        state.get_semaphore(config.execution.max_concurrent),
+                        state.get_repo_semaphore(project.repo),
+                    ):
+                        await state.executor.run_task(
+                            project,
+                            task_name,
+                            trigger_type="schedule",
+                            variables={
+                                "date": datetime.now(UTC).strftime("%Y-%m-%d"),
+                                "project_name": project_name,
+                            },
+                        )
 
         async def run_daily_digest() -> None:
             for project in project_store.list_projects():
@@ -250,27 +264,16 @@ def create_app(
                         if state_name in ("done", "cancelled", "canceled"):
                             continue
                         logger.info("Polling: found unprocessed agent issue %s", issue_id)
-                        variables = {
-                            "issue_id": issue_id,
-                            "issue_identifier": full.get("identifier", ""),
-                            "issue_title": full.get("title", ""),
-                            "issue_description": full.get("description", ""),
-                            "team_id": project.linear_team_id,
-                        }
-                        # Dispatch as background task — do NOT await inline
-                        async def _run_polled(
-                            p: ProjectConfig = project,
-                            v: dict[str, str] = variables,
-                        ) -> None:
-                            async with (
-                                state.get_semaphore(config.execution.max_concurrent),
-                                state.get_repo_semaphore(p.repo),
-                            ):
-                                await state.executor.run_task(
-                                    p, "issue-resolver",
-                                    trigger_type="linear", variables=v,
-                                )
-                        asyncio.create_task(_run_polled())
+                        if state.task_store and not state.task_store.exists_by_source("linear", issue_id):
+                            state.task_store.create(
+                                project=project.name,
+                                title=full.get("title", "Linear issue"),
+                                description=full.get("description", ""),
+                                source="linear",
+                                source_id=issue_id,
+                                template="issue-resolver",
+                            )
+                            logger.info("Polling: created task for issue %s", issue_id)
                 except Exception:
                     logger.warning("Polling failed for project %s", project.name)
 
@@ -472,20 +475,18 @@ def create_app(
                     for project in state.projects.values():
                         if project.linear_team_id == team_id and "issue-resolver" in project.tasks:
                             state._agent_issue_seen[issue_id] = now
-
-                            async def _run_agent(
-                                p: ProjectConfig = project,
-                                v: dict[str, str] = variables,
-                            ) -> None:
-                                async with (
-                                    state.get_semaphore(config.execution.max_concurrent),
-                                    state.get_repo_semaphore(p.repo),
-                                ):
-                                    await state.executor.run_task(
-                                        p, "issue-resolver", trigger_type="linear", variables=v
-                                    )
-
-                            background_tasks.add_task(_run_agent)
+                            # Create Task instead of running directly
+                            if state.task_store and not state.task_store.exists_by_source("linear", issue_id):
+                                state.task_store.create(
+                                    project=project.name,
+                                    title=variables.get("issue_title", "Linear issue"),
+                                    description=variables.get("issue_description", ""),
+                                    source="linear",
+                                    source_id=issue_id,
+                                    source_url=f"https://linear.app/issue/{variables.get('issue_identifier', '')}",
+                                    template="issue-resolver",
+                                )
+                                logger.info("Created task for Linear issue %s", issue_id)
                             break
 
         return {"status": "processed"}

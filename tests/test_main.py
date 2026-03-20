@@ -464,17 +464,6 @@ tasks:
     )
     state = app.state.app_state
 
-    # Patch run_task to track calls and check agent issue path
-    original_run_task = state.executor.run_task
-    agent_calls = []
-
-    async def tracking_run_task(project, task_name, **kwargs):
-        if kwargs.get("trigger_type") == "linear" and "issue_id" in kwargs.get("variables", {}):
-            agent_calls.append({"task": task_name, "variables": kwargs["variables"]})
-        return await original_run_task(project, task_name, **kwargs)
-
-    state.executor.run_task = tracking_run_task
-
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post("/webhooks/linear", json={
@@ -492,7 +481,11 @@ tasks:
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "processed"
-    # Verify the agent issue detection path was triggered
-    assert len(agent_calls) >= 1
-    assert agent_calls[0]["task"] == "issue-resolver"
-    assert agent_calls[0]["variables"]["issue_id"] == "issue-new-1"
+    # Verify a Task was created in the task_store (new Task-based path)
+    assert state.task_store is not None
+    assert state.task_store.exists_by_source("linear", "issue-new-1")
+    pending = state.task_store.list_pending()
+    assert len(pending) >= 1
+    task = next(t for t in pending if t.source_id == "issue-new-1")
+    assert task.template == "issue-resolver"
+    assert task.source == "linear"
