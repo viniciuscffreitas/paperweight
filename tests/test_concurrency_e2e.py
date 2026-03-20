@@ -21,6 +21,7 @@ from agents.models import ProjectConfig, RunStatus, TaskConfig
 from agents.notifier import Notifier
 from agents.streaming import StreamEvent
 
+pytestmark = pytest.mark.e2e
 
 # ---------------------------------------------------------------------------
 # Helpers

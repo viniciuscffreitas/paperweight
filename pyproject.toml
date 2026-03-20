@@ -46,6 +46,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "PT", "RUF", "ANN"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = ["e2e: marks tests that require git worktree + claude CLI (skipped in CI)"]
 
 [tool.pyright]
 pythonVersion = "3.13"

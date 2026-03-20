@@ -27,6 +27,7 @@ from agents.models import ProjectConfig, RunRecord, RunStatus, TaskConfig, Trigg
 from agents.notifier import Notifier
 from agents.streaming import StreamEvent
 
+pytestmark = pytest.mark.e2e
 
 # ---------------------------------------------------------------------------
 # Helpers: simulate realistic stream-json output from Claude CLI
