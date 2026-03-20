@@ -1,0 +1,16 @@
+{# Single activity event row — rendered by JS, this is the server-side reference #}
+{% set color_map = {'Edit': '#22c55e', 'Write': '#22c55e', 'Bash': '#fbbf24', 'Read': '#818cf8', 'Grep': '#818cf8', 'Glob': '#818cf8'} %}
+{% set color = color_map.get(tool_name, '#c084fc') %}
+<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;font-size:12px;">
+  <div style="width:2px;min-height:20px;background:{{ color }};border-radius:1px;flex-shrink:0;margin-top:2px;"></div>
+  <div style="flex:1;min-width:0;">
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="font-weight:600;color:{{ color }};">{{ tool_name }}</span>
+      <span style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ label }}</span>
+    </div>
+    {% if detail %}
+    <div style="font-size:11px;color:var(--text-disabled);margin-top:2px;">{{ detail }}</div>
+    {% endif %}
+  </div>
+  <span style="font-size:10px;color:var(--text-disabled);flex-shrink:0;">{{ timestamp }}</span>
+</div>

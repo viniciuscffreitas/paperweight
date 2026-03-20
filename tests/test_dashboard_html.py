@@ -813,3 +813,97 @@ def test_hub_tasks_renders_new_view(app_with_dashboard_with_project):
     r = app_with_dashboard_with_project.get("/hub/my-project/tasks")
     assert r.status_code == 200
     assert "stats" in r.text.lower() or "running" in r.text
+
+
+# ---------------------------------------------------------------------------
+# Task 5 — Task Detail View
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def app_with_dashboard_with_project_and_task(tmp_path):
+    """Create a FastAPI app with dashboard routes, a project, and a work item."""
+    from agents.task_store import TaskStore
+
+    app = FastAPI()
+
+    history = HistoryDB(tmp_path / "history.db")
+    project_store = ProjectStore(tmp_path / "projects.db")
+    task_store = TaskStore(tmp_path / "tasks.db")
+    budget_config = BudgetConfig()
+    budget = BudgetManager(config=budget_config, history=history)
+    notifier = Notifier(webhook_url="")
+    exec_config = ExecutionConfig()
+    executor = Executor(
+        config=exec_config,
+        budget=budget,
+        history=history,
+        notifier=notifier,
+        data_dir=tmp_path,
+    )
+
+    project_store.create_project(
+        id="test-project",
+        name="Test Project",
+        repo_path=str(tmp_path),
+    )
+    item = task_store.create(
+        project="test-project",
+        title="My test task",
+        description="A task for testing",
+        source="manual",
+    )
+
+    state = AppState(
+        projects={},
+        executor=executor,
+        history=history,
+        budget=budget,
+        notifier=notifier,
+        github_secret="",
+        linear_secret="",
+        project_store=project_store,
+        task_store=task_store,
+    )
+    config = GlobalConfig()
+    setup_dashboard(app, state, config)
+    client = TestClient(app)
+    client._task_id = item.id  # expose for tests
+    return client
+
+
+def test_task_detail_route_404(app_with_dashboard_with_project):
+    """Task detail returns 404 for non-existent task."""
+    r = app_with_dashboard_with_project.get("/hub/my-project/task/nonexistent")
+    assert r.status_code == 404
+
+
+def test_hub_task_detail_route(app_with_dashboard_with_project_and_task):
+    """Task detail returns 200 and renders task content for an existing task."""
+    task_id = app_with_dashboard_with_project_and_task._task_id
+    r = app_with_dashboard_with_project_and_task.get(
+        f"/hub/test-project/task/{task_id}"
+    )
+    assert r.status_code == 200
+    assert "Back to tasks" in r.text or "back" in r.text.lower()
+
+
+def test_hub_task_detail_shows_title(app_with_dashboard_with_project_and_task):
+    """Task detail renders the task title."""
+    task_id = app_with_dashboard_with_project_and_task._task_id
+    r = app_with_dashboard_with_project_and_task.get(
+        f"/hub/test-project/task/{task_id}"
+    )
+    assert r.status_code == 200
+    assert "My test task" in r.text
+
+
+def test_hub_task_detail_loads_stream_js(app_with_dashboard_with_project_and_task):
+    """Task detail template loads stream.js and task-detail.js."""
+    task_id = app_with_dashboard_with_project_and_task._task_id
+    r = app_with_dashboard_with_project_and_task.get(
+        f"/hub/test-project/task/{task_id}"
+    )
+    assert r.status_code == 200
+    assert b"/static/stream.js" in r.content
+    assert b"/static/task-detail.js" in r.content

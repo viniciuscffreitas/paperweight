@@ -93,6 +93,20 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
             },
         )
 
+    @app.get("/hub/{project_id}/task/{item_id}", response_class=HTMLResponse)
+    async def hub_task_detail(request: Request, project_id: str, item_id: str) -> HTMLResponse:
+        item = state.task_store.get(item_id) if state.task_store else None
+        if not item:
+            return HTMLResponse("<p>Task not found</p>", status_code=404)
+        session = None
+        if item.session_id and hasattr(state, "session_manager") and state.session_manager:
+            session = state.session_manager.get_session(item.session_id)
+        return _TEMPLATES.TemplateResponse(
+            request,
+            "task-detail.html",
+            {"item": item, "session": session, "id": project_id},
+        )
+
     @app.post("/setup/discover", response_class=HTMLResponse)
     async def setup_discover(request: Request) -> HTMLResponse:
         from agents.project_hub_routes import _discover_sources

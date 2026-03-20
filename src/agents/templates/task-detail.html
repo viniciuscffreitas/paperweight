@@ -1,0 +1,97 @@
+{% from "components/macros.html" import status_dot, badge, btn, back_link, tab_bar, divider %}
+
+<!-- Back link -->
+<div style="padding:14px 24px 0;">
+  {{ back_link('Back to tasks', hx_get='/hub/' + id + '/tasks', hx_target='#content-inner') }}
+</div>
+
+<!-- Task header -->
+<div style="padding:16px 24px 0;">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    {{ status_dot(item.status, pulse=(item.status == 'running')) }}
+    <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;
+                 color:{% if item.status == 'running' %}var(--status-running){% elif item.status == 'review' %}var(--status-review){% else %}var(--text-muted){% endif %};">
+      {{ item.status }}
+    </span>
+    <span style="flex:1;"></span>
+    {% if item.model is defined and item.model %}{{ badge(item.model) }}{% endif %}
+    {% if item.cost is defined and item.cost %}<span style="font-size:11px;color:var(--text-muted);">${{ "%.2f"|format(item.cost) }}</span>{% endif %}
+  </div>
+
+  <div style="font-size:20px;font-weight:700;letter-spacing:-0.3px;color:var(--text-primary);margin-bottom:6px;">{{ item.title }}</div>
+
+  <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);margin-bottom:16px;">
+    {% if item.source_id %}{{ badge(item.source_id) }}{% endif %}
+    {% if item.source %}<span>{{ item.source }}</span>{% endif %}
+  </div>
+</div>
+
+<!-- Error display (if failed) -->
+{% if item.status == 'failed' and item.error_message is defined and item.error_message %}
+<div style="margin:0 24px 12px;padding:12px 16px;background:#1f1111;border:1px solid #3a1111;border-radius:8px;">
+  <div style="font-size:12px;color:var(--status-error);">{{ item.error_message }}</div>
+</div>
+{% endif %}
+
+<!-- Tab bar -->
+{{ tab_bar([
+  {'name': 'activity', 'label': 'Activity', 'hx_url': ''},
+  {'name': 'output', 'label': 'Output', 'hx_url': ''},
+  {'name': 'chat', 'label': 'Chat', 'hx_url': ''}
+], 'activity') }}
+
+<!-- Tab content -->
+<div id="task-tab-content" style="flex:1;overflow-y:auto;">
+  <!-- Activity feed (default) -->
+  <div id="activity-feed" style="padding:12px 24px;display:flex;flex-direction:column;gap:2px;">
+    <div id="activity-events"></div>
+    <div id="thinking-indicator" style="display:none;padding:8px 0;">
+      <span style="font-size:11px;color:var(--accent-text);">agent</span>
+      <span style="color:var(--accent-text);font-size:12px;margin-left:6px;" class="pulse">thinking...</span>
+    </div>
+  </div>
+
+  <!-- Output (hidden) -->
+  <div id="output-content" style="display:none;padding:16px 24px;">
+    <div id="output-text" style="font-size:13px;color:var(--text-secondary);line-height:1.7;white-space:pre-wrap;"></div>
+  </div>
+
+  <!-- Chat (hidden) -->
+  <div id="chat-content" style="display:none;flex-direction:column;height:100%;">
+    <div id="chat-messages" style="flex:1;overflow-y:auto;padding:16px 24px;"></div>
+    <div style="display:flex;align-items:center;border-top:1px solid var(--separator-strong);background:var(--bg-chrome);flex-shrink:0;">
+      <span style="color:var(--accent-text);padding:14px 6px 14px 18px;font-size:15px;font-weight:700;">&gt;</span>
+      <input id="chat-input" type="text" placeholder="Send a message..."
+             autocomplete="off"
+             style="flex:1;background:transparent;border:none;color:var(--text-primary);padding:14px 10px;
+                    font-family:inherit;font-size:14px;outline:none;caret-color:var(--accent-text);"
+             onkeydown="if(event.key==='Enter'&&!this.disabled)sendChatPrompt()">
+    </div>
+  </div>
+</div>
+
+<!-- Action bar -->
+<div style="display:flex;align-items:center;gap:8px;padding:12px 24px;border-top:1px solid var(--separator-strong);flex-shrink:0;">
+  {% if item.status == 'running' %}
+    {{ btn('Cancel', variant='danger', onclick='cancelRun()') }}
+  {% endif %}
+  {% if item.status in ('done', 'failed') %}
+    {{ btn('Rerun', variant='ghost', onclick='rerunTask()') }}
+  {% endif %}
+  {% if item.pr_url %}
+    <span style="flex:1;"></span>
+    {{ btn('View PR →', variant='primary', href=item.pr_url) }}
+  {% endif %}
+</div>
+
+<!-- Task detail JS -->
+<script src="/static/stream.js"></script>
+<script src="/static/task-detail.js"></script>
+<script>
+  initTaskDetail({
+    taskId: '{{ item.id }}',
+    sessionId: '{{ session.id if session else '' }}',
+    projectId: '{{ id }}',
+    status: '{{ item.status }}'
+  });
+</script>
