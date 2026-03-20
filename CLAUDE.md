@@ -1,20 +1,29 @@
 # Paperweight — Agent Instructions
 
-## Task Execution
+## Brainstorming Mode (DRAFT tasks)
 
-When you receive a task prompt (especially one saying "Implement this spec"):
+When the prompt says "You are brainstorming" or the task is in DRAFT status:
 
-1. **Read the spec file** referenced in the prompt (it's in `docs/superpowers/specs/`)
-2. **Implement fully** — do NOT stop at writing tests. Complete the full cycle:
-   - RED: write failing tests
-   - GREEN: implement the code to make them pass
-   - REFACTOR: clean up
-   - COMMIT: `git add && git commit` with descriptive message
-3. **Run tests** after implementing: `uv run pytest tests/ -q --tb=short`
+**You are NOT allowed to implement anything.** Your ONLY job is:
+1. Explore the codebase to understand context
+2. Ask the user clarifying questions ONE AT A TIME
+3. Propose 2-3 approaches with trade-offs
+4. Present the design for user approval
+5. When approved, write the spec to `docs/superpowers/specs/YYYY-MM-DD-{slug}-design.md`
+6. PATCH the task status to "ready": `curl -s -X PATCH http://localhost:8080/api/work-items/{TASK_ID} -H "Content-Type: application/json" -d '{"status": "ready"}'`
+
+**NEVER write code, create files, or edit source during brainstorming.**
+**NEVER skip to implementation.** Wait for the user to click Start after the spec is approved.
+
+## Implementation Mode (READY/RUNNING tasks)
+
+When the prompt says "Implement the spec at" or the task is READY/RUNNING:
+
+1. **Read the spec file** (in `docs/superpowers/specs/`)
+2. **Implement fully** — RED → GREEN → REFACTOR → COMMIT
+3. **Run tests**: `uv run pytest tests/ -q --tb=short`
 4. **Run linter**: `uv run ruff check src/ --fix`
 5. **Commit all changes** before finishing
-
-Do NOT just write tests and stop. The task is not done until code is implemented, tests pass, and changes are committed.
 
 ## Time Management
 
@@ -22,32 +31,22 @@ You have a 30-minute timeout per run. Plan accordingly:
 - Commit working code EARLY — don't wait until everything is perfect
 - Use `git add -A && git commit -m "wip: partial implementation"` after each major step
 - It's better to have 3 partial commits than 0 commits at timeout
-- The user can always continue from where you left off
 
 ## Creating Tasks
 
-When the user asks you to create a task, use the REST API:
-
+Use the REST API:
 ```bash
 curl -s -X POST http://localhost:8080/api/work-items \
   -H "Content-Type: application/json" \
   -d '{"project": "paperweight", "title": "TITLE", "description": "DESC", "source": "agent"}'
 ```
 
-**Do NOT modify `projects/*.yaml` to create tasks.** Those files define task TEMPLATES, not individual work items.
+**Do NOT modify `projects/*.yaml` to create tasks.**
 
 ## Project Context
 
 - **paperweight** is a Background Agent Runner for Claude Code
 - Stack: Python 3.13, FastAPI, Jinja2, HTMX, SQLite, APScheduler
 - You are running inside paperweight as an agent session in a git worktree
-- The UI uses a bold-minimal design system with L-chrome layout
-- Specs are in `docs/superpowers/specs/` — READ them before implementing
+- Specs are in `docs/superpowers/specs/`
 - Tests are in `tests/` — run with `uv run pytest tests/ -q`
-
-## Key API Endpoints
-
-- `POST /api/work-items` — create a task (work item)
-- `PATCH /api/work-items/{id}` — update task status/session
-- `POST /api/projects/{name}/agent` — trigger agent with prompt
-- `GET /api/sessions/{id}/events` — get session conversation history

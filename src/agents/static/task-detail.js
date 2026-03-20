@@ -373,19 +373,22 @@ function autoBrainstorm() {
   var titleEl = document.querySelector('[style*="font-size:20px"]');
   var title = titleEl ? titleEl.textContent.trim() : '';
 
-  var prompt = 'You are brainstorming a new feature. The user\'s idea:\n\n"' + title + '"\n\n' +
-    'Follow this workflow:\n' +
-    '1. Read CLAUDE.md for project instructions\n' +
+  var prompt = 'BRAINSTORMING MODE — You are brainstorming, NOT implementing.\n\n' +
+    'The user\'s idea: "' + title + '"\n\n' +
+    'RULES:\n' +
+    '- NEVER write code, create files, or edit source files\n' +
+    '- NEVER skip to implementation\n' +
+    '- ONLY brainstorm, ask questions, and produce a spec document\n\n' +
+    'WORKFLOW:\n' +
+    '1. Read CLAUDE.md (it has detailed brainstorming instructions)\n' +
     '2. Explore the codebase to understand context\n' +
     '3. Ask the user clarifying questions ONE AT A TIME\n' +
     '4. Propose 2-3 approaches with trade-offs\n' +
-    '5. Present the design section by section\n' +
-    '6. When approved, write the spec to docs/superpowers/specs/\n\n' +
-    'After writing the spec, update the task status:\n' +
-    'curl -s -X PATCH http://localhost:8080/api/work-items/' + _taskConfig.taskId + ' -H "Content-Type: application/json" -d \'{"status": "ready"}\'\n\n' +
-    'Update the task title if a better name emerges:\n' +
-    'curl -s -X PATCH http://localhost:8080/api/work-items/' + _taskConfig.taskId + ' -H "Content-Type: application/json" -d \'{"title": "Better Title"}\'\n\n' +
-    'Do NOT implement anything. Only brainstorm and produce the spec.';
+    '5. Present the design for approval\n' +
+    '6. When approved, write spec to docs/superpowers/specs/\n' +
+    '7. PATCH task to ready: curl -s -X PATCH http://localhost:8080/api/work-items/' + _taskConfig.taskId + ' -H "Content-Type: application/json" -d \'{"status": "ready"}\'\n' +
+    '8. Update title: curl -s -X PATCH http://localhost:8080/api/work-items/' + _taskConfig.taskId + ' -H "Content-Type: application/json" -d \'{"title": "Better Title"}\'\n\n' +
+    'STOP after writing the spec. The user will click Start to trigger implementation.';
 
   var modelSelect = document.getElementById('chat-model');
   var model = modelSelect ? modelSelect.value : 'claude-sonnet-4-6';
