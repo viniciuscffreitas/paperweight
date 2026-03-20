@@ -8,6 +8,8 @@ from agents.task_store import TaskStore
 def register_task_routes(app: FastAPI, task_store: TaskStore) -> None:
     @app.post("/api/work-items", status_code=201)
     async def create_work_item(data: dict) -> dict:
+        status_str = data.get("status", "pending")
+        status = TaskStatus(status_str)
         item = task_store.create(
             project=data["project"],
             title=data["title"],
@@ -16,6 +18,7 @@ def register_task_routes(app: FastAPI, task_store: TaskStore) -> None:
             source_id=data.get("source_id", ""),
             source_url=data.get("source_url", ""),
             template=data.get("template"),
+            status=status,
         )
         return item.model_dump(mode="json")
 
@@ -45,6 +48,9 @@ def register_task_routes(app: FastAPI, task_store: TaskStore) -> None:
         session_id = data.get("session_id")
         if session_id:
             task_store.update_session(item_id, session_id)
+        title = data.get("title")
+        if title:
+            task_store.update_title(item_id, title)
         updated = task_store.get(item_id)
         return updated.model_dump(mode="json")
 

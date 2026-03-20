@@ -158,6 +158,14 @@ class TaskStore:
                 (session_id, now, item_id),
             )
 
+    def update_title(self, item_id: str, title: str) -> None:
+        now = datetime.now(UTC).isoformat()
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE work_items SET title = ?, updated_at = ? WHERE id = ?",
+                (title, now, item_id),
+            )
+
     def exists_by_source(self, source: str, source_id: str) -> bool:
         with self._conn() as conn:
             row = conn.execute(

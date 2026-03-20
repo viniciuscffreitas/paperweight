@@ -37,6 +37,11 @@ function initTaskDetail(config) {
   } else {
     showEmptyActivity('No activity recorded');
   }
+
+  // Auto-start brainstorming for draft tasks without a session
+  if (config.status === 'draft' && !config.sessionId) {
+    autoBrainstorm();
+  }
 }
 
 // ── Tab switching ──
@@ -362,4 +367,132 @@ function rerunTask() {
     .then(function() {
       startTask();
     });
+}
+
+function autoBrainstorm() {
+  var titleEl = document.querySelector('[style*="font-size:20px"]');
+  var title = titleEl ? titleEl.textContent.trim() : '';
+
+  var prompt = 'You are brainstorming a new feature. The user\'s idea:\n\n"' + title + '"\n\n' +
+    'Follow this workflow:\n' +
+    '1. Read CLAUDE.md for project instructions\n' +
+    '2. Explore the codebase to understand context\n' +
+    '3. Ask the user clarifying questions ONE AT A TIME\n' +
+    '4. Propose 2-3 approaches with trade-offs\n' +
+    '5. Present the design section by section\n' +
+    '6. When approved, write the spec to docs/superpowers/specs/\n\n' +
+    'After writing the spec, update the task status:\n' +
+    'curl -s -X PATCH http://localhost:8080/api/work-items/' + _taskConfig.taskId + ' -H "Content-Type: application/json" -d \'{"status": "ready"}\'\n\n' +
+    'Update the task title if a better name emerges:\n' +
+    'curl -s -X PATCH http://localhost:8080/api/work-items/' + _taskConfig.taskId + ' -H "Content-Type: application/json" -d \'{"title": "Better Title"}\'\n\n' +
+    'Do NOT implement anything. Only brainstorm and produce the spec.';
+
+  var modelSelect = document.getElementById('chat-model');
+  var model = modelSelect ? modelSelect.value : 'claude-sonnet-4-6';
+
+  // Switch to chat tab
+  var chatTab = document.getElementById('chat-content');
+  var specTab = document.getElementById('spec-content');
+  var activityFeed = document.getElementById('activity-feed');
+  if (chatTab) chatTab.style.display = 'flex';
+  if (specTab) specTab.style.display = 'none';
+  if (activityFeed) activityFeed.style.display = 'none';
+
+  // Activate chat tab button
+  var tabButtons = document.querySelectorAll('[style*="border-bottom:1px solid var(--separator-strong)"] button');
+  tabButtons.forEach(function(b) {
+    var isChat = b.textContent.trim().toLowerCase() === 'chat';
+    b.style.color = isChat ? 'var(--text-primary)' : 'var(--text-muted)';
+    b.style.borderBottom = isChat ? '2px solid var(--accent-text)' : '2px solid transparent';
+  });
+
+  showThinking();
+
+  fetch('/api/projects/' + _taskConfig.projectId + '/agent', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ prompt: prompt, model: model, max_cost_usd: 10.0 })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    _taskConfig.sessionId = data.session_id;
+    _taskConfig.runId = data.run_id;
+
+    // Link session to task
+    fetch('/api/work-items/' + _taskConfig.taskId, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ session_id: data.session_id })
+    });
+
+    // Connect WebSocket for streaming
+    var chatMessages = document.getElementById('chat-messages');
+    hideThinking();
+
+    var streamingContent = null;
+    var streamingText = '';
+    var typewriterQueue = [];
+    var typewriterRunning = false;
+    var renderTimer = null;
+
+    function typewriterTick() {
+      if (typewriterQueue.length === 0) { typewriterRunning = false; return; }
+      typewriterRunning = true;
+      var batch = Math.min(3, typewriterQueue.length);
+      for (var i = 0; i < batch; i++) { streamingText += typewriterQueue.shift(); }
+      streamingContent.textContent = streamingText;
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      if (!renderTimer) {
+        renderTimer = setTimeout(function() {
+          renderTimer = null;
+          if (streamingContent && streamingText && typeof marked !== 'undefined') {
+            streamingContent.innerHTML = marked.parse(streamingText) + '<span class="stream-cursor"></span>';
+            if (typeof addCodeBlockHeaders !== 'undefined') addCodeBlockHeaders(streamingContent);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+          }
+        }, 800);
+      }
+      requestAnimationFrame(typewriterTick);
+    }
+
+    _taskWs = connectRunStream(data.run_id,
+      function(event) {
+        if (event.type === 'assistant' && event.content) {
+          if (!streamingContent) {
+            hideThinking();
+            streamingContent = appendChatMessage(chatMessages, 'agent', '', true);
+          }
+          for (var c = 0; c < event.content.length; c++) {
+            typewriterQueue.push(event.content[c]);
+          }
+          if (!typewriterRunning) requestAnimationFrame(typewriterTick);
+        }
+      },
+      function() {
+        hideThinking();
+        if (renderTimer) clearTimeout(renderTimer);
+        while (typewriterQueue.length > 0) { streamingText += typewriterQueue.shift(); }
+        typewriterRunning = false;
+        if (streamingContent && streamingText) {
+          streamingContent.classList.remove('streaming');
+          if (typeof marked !== 'undefined') {
+            streamingContent.innerHTML = marked.parse(streamingText);
+            if (typeof addCodeBlockHeaders !== 'undefined') addCodeBlockHeaders(streamingContent);
+            if (typeof hljs !== 'undefined') {
+              streamingContent.querySelectorAll('pre code').forEach(function(block) {
+                hljs.highlightElement(block);
+              });
+            }
+          }
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+      },
+      function() { hideThinking(); }
+    );
+  })
+  .catch(function(err) {
+    hideThinking();
+    var chatMessages = document.getElementById('chat-messages');
+    if (chatMessages) appendChatMessage(chatMessages, 'agent', 'Failed to start brainstorming: ' + err.message, false);
+  });
 }

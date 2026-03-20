@@ -1,6 +1,8 @@
 import pytest
-from agents.task_store import TaskStore
+
 from agents.models import TaskStatus
+from agents.task_store import TaskStore
+
 
 @pytest.fixture
 def store(tmp_path):
@@ -57,3 +59,20 @@ def test_update_session(store):
     t = store.create(project="pw", title="T1", description="D", source="manual")
     store.update_session(t.id, "session-123")
     assert store.get(t.id).session_id == "session-123"
+
+def test_create_with_draft_status(store):
+    t = store.create(project="pw", title="Brainstorm idea", description="rough idea",
+                     source="manual", status=TaskStatus.DRAFT)
+    assert t.status == TaskStatus.DRAFT
+    assert store.get(t.id).status == TaskStatus.DRAFT
+
+def test_update_title(store):
+    t = store.create(project="pw", title="Old title", description="D", source="manual")
+    store.update_title(t.id, "New title")
+    assert store.get(t.id).title == "New title"
+
+def test_update_status_to_ready(store):
+    t = store.create(project="pw", title="T1", description="D", source="manual",
+                     status=TaskStatus.DRAFT)
+    store.update_status(t.id, TaskStatus.READY)
+    assert store.get(t.id).status == TaskStatus.READY

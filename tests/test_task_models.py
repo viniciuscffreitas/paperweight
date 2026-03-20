@@ -1,5 +1,13 @@
-from agents.models import TaskTemplate, TaskTemplateRecord, TaskStatus, WorkItem, TaskConfig, TaskRecord
-from datetime import datetime, UTC
+
+from agents.models import (
+    TaskConfig,
+    TaskRecord,
+    TaskStatus,
+    TaskTemplate,
+    TaskTemplateRecord,
+    WorkItem,
+)
+
 
 def test_task_template_is_alias_for_task_config():
     assert TaskTemplate is TaskConfig
@@ -10,10 +18,20 @@ def test_task_template_record_is_alias():
 def test_task_status_values():
     assert TaskStatus.DRAFT == "draft"
     assert TaskStatus.PENDING == "pending"
+    assert TaskStatus.READY == "ready"
     assert TaskStatus.RUNNING == "running"
     assert TaskStatus.REVIEW == "review"
     assert TaskStatus.DONE == "done"
     assert TaskStatus.FAILED == "failed"
+
+def test_task_status_ready_roundtrip():
+    assert TaskStatus("ready") == TaskStatus.READY
+
+def test_task_status_ordering():
+    # draft → ready → running is the brainstorming lifecycle
+    statuses = [s.value for s in TaskStatus]
+    assert statuses.index("draft") < statuses.index("ready")
+    assert statuses.index("ready") < statuses.index("running")
 
 def test_work_item_creation():
     item = WorkItem(

@@ -168,6 +168,7 @@ class NotificationRule(BaseModel):
 class TaskStatus(StrEnum):
     DRAFT = "draft"
     PENDING = "pending"
+    READY = "ready"
     RUNNING = "running"
     REVIEW = "review"
     DONE = "done"

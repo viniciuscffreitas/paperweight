@@ -76,15 +76,13 @@ function closeNewTaskModal() {
 function submitNewTask() {
   var title = document.getElementById('new-task-title').value.trim();
   if (!title) return;
-  var desc = document.getElementById('new-task-desc').value.trim() || title;
   fetch('/api/work-items', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ project: '{{ id }}', title: title, description: desc, source: 'manual' })
-  }).then(function(r) { return r.json(); }).then(function() {
+    body: JSON.stringify({ project: '{{ id }}', title: title, description: title, source: 'manual', status: 'draft' })
+  }).then(function(r) { return r.json(); }).then(function(data) {
     closeNewTaskModal();
-    // Full page reload to show new task
-    window.location.reload();
+    window.location.href = '/hub/{{ id }}/task/' + data.id;
   });
 }
 </script>

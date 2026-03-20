@@ -1,6 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
+
 from agents.task_store import TaskStore
+
 
 @pytest.fixture
 def store(tmp_path):
@@ -9,6 +11,7 @@ def store(tmp_path):
 @pytest.fixture
 def client(store):
     from fastapi import FastAPI
+
     from agents.task_routes import register_task_routes
     app = FastAPI()
     register_task_routes(app, store)
@@ -66,3 +69,36 @@ def test_create_from_session(client):
     data = resp.json()
     assert data["source"] == "agent-tab"
     assert data["session_id"] == "sess-123"
+
+def test_create_task_with_draft_status(client):
+    resp = client.post("/api/work-items", json={
+        "project": "pw", "title": "Brainstorm idea", "description": "rough idea",
+        "source": "manual", "status": "draft",
+    })
+    assert resp.status_code == 201
+    assert resp.json()["status"] == "draft"
+
+def test_create_task_default_status_is_pending(client):
+    resp = client.post("/api/work-items", json={
+        "project": "pw", "title": "T1", "description": "D1",
+    })
+    assert resp.status_code == 201
+    assert resp.json()["status"] == "pending"
+
+def test_patch_updates_title(client):
+    create_resp = client.post("/api/work-items", json={
+        "project": "pw", "title": "Old Title", "description": "D",
+    })
+    item_id = create_resp.json()["id"]
+    resp = client.patch(f"/api/work-items/{item_id}", json={"title": "New Title"})
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "New Title"
+
+def test_patch_status_to_ready(client):
+    create_resp = client.post("/api/work-items", json={
+        "project": "pw", "title": "T1", "description": "D1", "status": "draft",
+    })
+    item_id = create_resp.json()["id"]
+    resp = client.patch(f"/api/work-items/{item_id}", json={"status": "ready"})
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ready"
