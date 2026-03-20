@@ -95,7 +95,7 @@
 <div id="task-tab-content" style="flex:1;overflow-y:auto;">
   <!-- Spec (if available) -->
   {% if spec_content|default('') %}
-  <div id="spec-content" style="padding:24px;display:block;">
+  <div id="spec-content" style="padding:24px;display:block;" data-spec-path="{{ spec_path|default('') }}">
     <div id="spec-rendered" class="chat-msg-content" style="font-size:14px;line-height:1.7;max-width:800px;">{{ spec_content }}</div>
     <script type="text/plain" id="spec-source">{{ spec_content }}</script>
     <script>

@@ -55,6 +55,7 @@ def _find_related_docs(
     # Score each candidate by how many title words match the filename
     best_score = 0
     best_content = ""
+    best_path = ""
     seen: set[str] = set()
     for d in search_dirs:
         if not d.exists() or str(d) in seen:
@@ -67,9 +68,16 @@ def _find_related_docs(
                 try:
                     best_content = f.read_text(encoding="utf-8")
                     best_score = score
+                    # Extract relative path from docs/
+                    parts = f.parts
+                    try:
+                        docs_idx = parts.index("docs")
+                        best_path = "/".join(parts[docs_idx:])
+                    except ValueError:
+                        best_path = f.name
                 except Exception:
                     continue
-    return best_content
+    return best_content, best_path
 
 
 def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None:
@@ -154,7 +162,7 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         project = state.project_store.get_project(project_id) if state.project_store else None
         projects = state.project_store.list_projects() if state.project_store else []
         # Find related spec/plan docs
-        spec_content = _find_related_docs(item, session)
+        spec_content, spec_path = _find_related_docs(item, session)
         return _TEMPLATES.TemplateResponse(
             request,
             "task-detail.html",
@@ -166,6 +174,7 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
                 "selected_project": project_id,
                 "project_name": project["name"] if project else project_id,
                 "spec_content": spec_content,
+                "spec_path": spec_path,
             },
         )
 

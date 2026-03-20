@@ -626,9 +626,12 @@ function startTask() {
   var titleEl = document.querySelector('[style*="font-size:20px"]');
   var taskTitle = titleEl ? titleEl.textContent.trim() : '';
 
+  // Build concise prompt — reference spec file instead of pasting content
+  var specEl = document.getElementById('spec-content');
+  var specPath = specEl ? specEl.getAttribute('data-spec-path') : '';
   var prompt = '';
-  if (specSource && specSource.textContent.trim()) {
-    prompt = 'Implement this spec:\n\n' + specSource.textContent.trim();
+  if (specPath) {
+    prompt = 'Implement the spec at ' + specPath + '. Read the file first, then implement fully: RED tests → GREEN implementation → REFACTOR → COMMIT. Run tests and linter before finishing.';
   } else if (desc) {
     prompt = desc.textContent.trim();
   } else {
