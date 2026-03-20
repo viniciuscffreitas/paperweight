@@ -153,7 +153,12 @@
   </div>
 
   {# ── Title ── #}
-  <div style="font-size:17px;font-weight:600;letter-spacing:-0.3px;color:var(--text-primary);margin-bottom:5px;">{{ item.title }}</div>
+  <div style="font-size:17px;font-weight:600;letter-spacing:-0.3px;color:var(--text-primary);margin-bottom:4px;">{{ item.title }}</div>
+
+  {# ── Description (truncated) ── #}
+  {%- if item.description and item.description != item.title %}
+  <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.description[:100] }}{% if item.description|length > 100 %}...{% endif %}</div>
+  {%- endif %}
 
   {# ── Bottom row: source badge + PR link ── #}
   <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">

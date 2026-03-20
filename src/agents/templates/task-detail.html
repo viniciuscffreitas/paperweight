@@ -45,9 +45,14 @@
 
   <div style="font-size:20px;font-weight:700;letter-spacing:-0.3px;color:var(--text-primary);margin-bottom:6px;">{{ item.title }}</div>
 
+  {% if item.description and item.description != item.title %}
+  <div style="font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px;">{{ item.description }}</div>
+  {% endif %}
+
   <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);margin-bottom:16px;">
     {% if item.source_id %}{{ badge(item.source_id) }}{% endif %}
     {% if item.source %}<span>{{ item.source }}</span>{% endif %}
+    {% if item.created_at %}<span>{{ item.created_at.strftime('%d/%m %H:%M') if item.created_at.strftime is defined else item.created_at[:16] }}</span>{% endif %}
   </div>
 </div>
 
