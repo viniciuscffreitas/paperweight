@@ -163,3 +163,33 @@ class NotificationRule(BaseModel):
     channel_target: str  # channel ID or "dm"
     config: dict = Field(default_factory=dict)
     enabled: bool = True
+
+
+class TaskStatus(StrEnum):
+    DRAFT = "draft"
+    PENDING = "pending"
+    RUNNING = "running"
+    REVIEW = "review"
+    DONE = "done"
+    FAILED = "failed"
+
+
+# Forward-compatible aliases — new code uses TaskTemplate, old code still works
+TaskTemplate = TaskConfig
+TaskTemplateRecord = TaskRecord
+
+
+class WorkItem(BaseModel):
+    id: str
+    project: str
+    template: str | None = None
+    title: str
+    description: str
+    source: str  # "agent-tab" | "linear" | "github" | "manual" | "schedule"
+    source_id: str = ""
+    source_url: str = ""
+    status: TaskStatus = TaskStatus.PENDING
+    session_id: str | None = None
+    pr_url: str | None = None
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
