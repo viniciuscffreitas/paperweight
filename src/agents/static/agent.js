@@ -55,7 +55,7 @@ function loadSessionHistory(sessionId) {
     }
     output.scrollTop = output.scrollHeight;
   })
-  .catch(function() {});
+  .catch(function(err) { console.error('loadSessionHistory error:', err); });
 }
 
 function sendAgentPrompt(projectId) {

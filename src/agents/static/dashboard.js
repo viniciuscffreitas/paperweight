@@ -154,9 +154,10 @@ function openAgentSession(projectId, sessionId) {
                 agentBtn.setAttribute('data-active', 'true');
               }
             }
-            // Ensure agent.js is loaded, then init
+            // Ensure agent.js is loaded, then init with known session
             _ensureAgentJs(function() {
-              initAgentTab();
+              _agentSessionId = sessionId;
+              loadSessionHistory(sessionId);
             });
           });
       }
