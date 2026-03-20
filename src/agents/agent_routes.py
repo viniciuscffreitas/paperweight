@@ -242,6 +242,46 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
             result["pr_url"] = pr_url
         return result
 
+    @app.post("/api/uploads", response_model=None)
+    async def upload_file(data: dict) -> Response | dict:
+        """Accept a base64-encoded image, save to disk, return the file path.
+
+        The path is passed back so the frontend can embed it in the prompt text.
+        The Claude agent can then read the file via its filesystem tools.
+        """
+        import base64
+        import uuid
+
+        file_data = data.get("data", "")
+        if not file_data:
+            return Response(status_code=400, content="data is required")
+
+        mime_type = data.get("mime_type", "image/png")
+        if "jpeg" in mime_type or "jpg" in mime_type:
+            ext = "jpg"
+        elif "gif" in mime_type:
+            ext = "gif"
+        elif "webp" in mime_type:
+            ext = "webp"
+        else:
+            ext = "png"
+
+        # Strip data-URL prefix (data:image/png;base64,...)
+        if "," in file_data:
+            file_data = file_data.split(",", 1)[1]
+
+        uploads_dir = Path("/tmp/paperweight_uploads")
+        uploads_dir.mkdir(parents=True, exist_ok=True)
+
+        filename = f"upload-{uuid.uuid4().hex[:12]}.{ext}"
+        filepath = uploads_dir / filename
+        try:
+            filepath.write_bytes(base64.b64decode(file_data))
+        except Exception:
+            return Response(status_code=400, content="Invalid base64 data")
+
+        return {"path": str(filepath), "filename": filename}
+
     @app.get("/api/sessions/{session_id}/events")
     async def session_events(session_id: str) -> list[dict]:
         """Return all events for all runs in a session, ordered chronologically."""

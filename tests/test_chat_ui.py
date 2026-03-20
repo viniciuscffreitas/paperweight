@@ -239,9 +239,9 @@ def _read_task_detail_js() -> str:
 
 
 def test_js_has_append_chat_message_with_streaming_param():
-    """appendChatMessage must accept isStreaming parameter."""
+    """appendChatMessage must accept isStreaming and optional attachments parameters."""
     js = _read_task_detail_js()
-    assert "function appendChatMessage(container, role, text, isStreaming)" in js
+    assert "function appendChatMessage(container, role, text, isStreaming, attachments)" in js
 
 
 def test_js_has_add_code_block_headers():
