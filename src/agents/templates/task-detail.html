@@ -1,12 +1,32 @@
-{% from "components/macros.html" import status_dot, badge, btn, back_link, tab_bar, divider %}
+{% extends "base.html" %}
+{% from "components/macros.html" import status_dot, badge, btn, back_link, tab_bar %}
 
-<!-- Back link -->
-<div style="padding:14px 24px 0;">
-  {{ back_link('Back to tasks', href='/hub/' + id + '/tasks') }}
-</div>
+{% block mobile_title %}{{ item.title|truncate(30) }}{% endblock %}
 
+{% block topbar %}
+<a href="/hub/{{ id }}/tasks"
+   style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);text-decoration:none;transition:color .15s;"
+   onmouseover="this.style.color='var(--text-primary)'"
+   onmouseout="this.style.color='var(--text-secondary)'">
+  <span style="font-size:16px;">←</span> {{ project_name|default('Tasks') }}
+</a>
+{% endblock %}
+
+{% block topbar_actions %}
+{% if item.status == 'running' %}
+  {{ btn('Cancel', variant='danger', onclick='cancelRun()') }}
+{% endif %}
+{% if item.status in ('done', 'failed') %}
+  {{ btn('Rerun', variant='ghost', onclick='rerunTask()') }}
+{% endif %}
+{% if item.pr_url %}
+  {{ btn('View PR →', variant='primary', href=item.pr_url) }}
+{% endif %}
+{% endblock %}
+
+{% block content %}
 <!-- Task header -->
-<div style="padding:16px 24px 0;">
+<div style="padding:20px 24px 0;">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
     {{ status_dot(item.status, pulse=(item.status == 'running')) }}
     <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;
@@ -70,21 +90,6 @@
   </div>
 </div>
 
-<!-- Action bar -->
-<div style="display:flex;align-items:center;gap:8px;padding:12px 24px;border-top:1px solid var(--separator-strong);flex-shrink:0;">
-  {% if item.status == 'running' %}
-    {{ btn('Cancel', variant='danger', onclick='cancelRun()') }}
-  {% endif %}
-  {% if item.status in ('done', 'failed') %}
-    {{ btn('Rerun', variant='ghost', onclick='rerunTask()') }}
-  {% endif %}
-  {% if item.pr_url %}
-    <span style="flex:1;"></span>
-    {{ btn('View PR →', variant='primary', href=item.pr_url) }}
-  {% endif %}
-</div>
-
-<!-- Task detail JS -->
 <script src="/static/stream.js"></script>
 <script src="/static/task-detail.js"></script>
 <script>
@@ -95,3 +100,4 @@
     status: '{{ item.status }}'
   });
 </script>
+{% endblock %}

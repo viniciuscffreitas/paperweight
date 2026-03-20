@@ -269,18 +269,16 @@ function sendChatPrompt() {
 }
 
 function cancelRun() {
-  // Find active run and cancel it
   fetch('/api/sessions/' + _taskConfig.sessionId + '/events')
     .then(function(r) { return r.json(); })
     .then(function() {
-      // Reload task detail
-      htmx.ajax('GET', '/hub/' + _taskConfig.projectId + '/task/' + _taskConfig.taskId, {target: '#content-inner', swap: 'innerHTML'});
+      window.location.reload();
     });
 }
 
 function rerunTask() {
   fetch('/api/work-items/' + _taskConfig.taskId + '/rerun', { method: 'POST' })
     .then(function() {
-      htmx.ajax('GET', '/hub/' + _taskConfig.projectId + '/task/' + _taskConfig.taskId, {target: '#content-inner', swap: 'innerHTML'});
+      window.location.reload();
     });
 }

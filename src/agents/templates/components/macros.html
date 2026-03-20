@@ -131,12 +131,10 @@
 {%- set bd_var     = '--border-card-running' if is_running else ('--border-card-review' if is_review else '--border-card-neutral') -%}
 {%- set bd_hover   = 'var(--status-running)' if is_running else ('var(--status-review-dot)' if is_review else 'var(--separator-strong)') -%}
 {%- set status_color = 'var(--status-running)' if is_running else ('var(--status-review)' if is_review else 'var(--text-muted)') -%}
-<div hx-get="/hub/{{ project_id }}/task/{{ item.id }}"
-     hx-target="#content-inner"
-     hx-push-url="true"
-     style="background:var({{ bg_var }});border:1px solid var({{ bd_var }});border-radius:var(--card-radius);padding:18px 22px;cursor:pointer;transition:border-color 0.15s;"
-     onmouseover="this.style.borderColor='{{ bd_hover }}'"
-     onmouseout="this.style.borderColor='var({{ bd_var }})'">
+<a href="/hub/{{ project_id }}/task/{{ item.id }}"
+   style="display:block;background:var({{ bg_var }});border:1px solid var({{ bd_var }});border-radius:var(--card-radius);padding:18px 22px;text-decoration:none;transition:border-color 0.15s;"
+   onmouseover="this.style.borderColor='{{ bd_hover }}'"
+   onmouseout="this.style.borderColor='var({{ bd_var }})'">
 
   {# ── Top row: status + duration + model + cost ── #}
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
@@ -171,7 +169,7 @@
        style="font-size:11px;color:var(--accent-text);text-decoration:none;">PR ↗</a>
     {%- endif %}
   </div>
-</div>
+</a>
 {% endmacro %}
 
 
@@ -182,12 +180,10 @@
      project_id  — project identifier used to build HTMX navigation URL
    ─────────────────────────────────────────────────────────────────────── #}
 {% macro task_card_done(item, project_id='') %}
-<div hx-get="/hub/{{ project_id }}/task/{{ item.id }}"
-     hx-target="#content-inner"
-     hx-push-url="true"
-     style="background:var(--bg-card-done);border:1px solid var(--border-card-neutral);border-radius:var(--card-radius);padding:14px 22px;cursor:pointer;opacity:0.35;transition:opacity 0.15s;"
-     onmouseover="this.style.opacity='0.65'"
-     onmouseout="this.style.opacity='0.35'">
+<a href="/hub/{{ project_id }}/task/{{ item.id }}"
+   style="display:block;background:var(--bg-card-done);border:1px solid var(--border-card-neutral);border-radius:var(--card-radius);padding:14px 22px;text-decoration:none;opacity:0.35;transition:opacity 0.15s;"
+   onmouseover="this.style.opacity='0.65'"
+   onmouseout="this.style.opacity='0.35'">
   <div style="display:flex;align-items:center;gap:8px;">
     {{ status_dot('done') }}
     <span style="font-size:15px;font-weight:600;color:var(--text-primary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.title }}</span>
@@ -195,7 +191,7 @@
     <span style="font-size:11px;color:var(--text-disabled);flex-shrink:0;">{{ item.duration }}</span>
     {%- endif %}
   </div>
-</div>
+</a>
 {% endmacro %}
 
 

@@ -96,10 +96,19 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         session = None
         if item.session_id and hasattr(state, "session_manager") and state.session_manager:
             session = state.session_manager.get_session(item.session_id)
+        project = state.project_store.get_project(project_id) if state.project_store else None
+        projects = state.project_store.list_projects() if state.project_store else []
         return _TEMPLATES.TemplateResponse(
             request,
             "task-detail.html",
-            {"item": item, "session": session, "id": project_id},
+            {
+                "item": item,
+                "session": session,
+                "id": project_id,
+                "projects": projects,
+                "selected_project": project_id,
+                "project_name": project["name"] if project else project_id,
+            },
         )
 
     @app.post("/setup/discover", response_class=HTMLResponse)
