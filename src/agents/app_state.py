@@ -10,6 +10,7 @@ from agents.history import HistoryDB
 from agents.models import ProjectConfig
 from agents.notifier import Notifier
 from agents.project_store import ProjectStore
+from agents.session_manager import SessionManager
 
 if TYPE_CHECKING:
     from agents.aggregator import AggregatorService
@@ -33,6 +34,7 @@ class AppState:
         slack_bot_client: "SlackBotClient | None" = None,
         aggregator: "AggregatorService | None" = None,
         broker: "CoordinationBroker | None" = None,
+        session_manager: SessionManager | None = None,
     ) -> None:
         self.projects = projects
         self.executor = executor
@@ -46,6 +48,7 @@ class AppState:
         self.slack_bot_client = slack_bot_client
         self.aggregator = aggregator
         self.broker = broker
+        self.session_manager = session_manager
         self._semaphore: asyncio.Semaphore | None = None
         self._repo_semaphores: dict[str, asyncio.Semaphore] = {}
         self.ws_clients: dict[str, set[WebSocket]] = {}

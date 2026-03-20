@@ -55,6 +55,9 @@ def create_app(
     notifier = Notifier(webhook_url=config.notifications.slack_webhook_url)
     project_store = ProjectStore(data_dir / "project_hub.db")
 
+    from agents.session_manager import SessionManager
+    session_manager = SessionManager(db_path)
+
     from agents.aggregator import AggregatorService
     from agents.discord_notifier import DiscordRunNotifier
     from agents.github_client import GitHubClient
@@ -169,6 +172,7 @@ def create_app(
         slack_bot_client=slack_bot_client,
         aggregator=aggregator,
         broker=broker,
+        session_manager=session_manager,
     )
 
     @asynccontextmanager
@@ -213,9 +217,15 @@ def create_app(
             if deleted:
                 logger.info("Cleaned up %d old events", deleted)
 
+        async def cleanup_sessions() -> None:
+            cleaned = session_manager.cleanup_stale_sessions(30)
+            if cleaned:
+                logger.info("Cleaned up %d stale agent sessions", cleaned)
+
         register_jobs(scheduler, state.projects, scheduled_run)
         scheduler.add_job(run_daily_digest, "cron", hour=9, minute=0, id="daily_digest")
         scheduler.add_job(cleanup_old_events, "cron", hour=3, minute=0, id="event_cleanup")
+        scheduler.add_job(cleanup_sessions, "interval", minutes=10, id="session_cleanup")
         scheduler.start()
         logger.info("Scheduler started with %d jobs", len(scheduler.get_jobs()))
         aggregator_task = asyncio.create_task(aggregator.start(poll_interval_seconds=300))
@@ -282,6 +292,9 @@ def create_app(
         if not cancelled:
             return Response(status_code=404, content="Run not found or not running")
         return {"status": "cancelled"}
+
+    from agents.agent_routes import register_agent_routes
+    register_agent_routes(app, state, config)
 
     # --- Webhook routes ---
 
