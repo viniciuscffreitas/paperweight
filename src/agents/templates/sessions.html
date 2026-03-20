@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "components/macros.html" import section_label, btn %}
+
+{% block mobile_title %}{{ project_name|default('Sessions') }}{% endblock %}
+
+{% block topbar %}
+<span style="font-size:15px;font-weight:600;color:var(--text-primary);">{{ project_name|default('Sessions') }}</span>
+{% endblock %}
+
+{% block topbar_actions %}
+{{ btn('+ New Session', variant='primary', onclick='startNewSession()') }}
+{% endblock %}
+
+{% block content %}
+<div style="flex:1;overflow-y:auto;">
+  {% if sessions %}
+  <div>
+    {% for s in sessions %}
+    {% set session = s %}
+    {% include "partials/session_row.html" %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+              flex:1;padding:48px 24px;text-align:center;">
+    <div style="font-size:15px;color:var(--text-muted);margin-bottom:16px;">No sessions yet</div>
+    {{ btn('+ New Session', variant='primary', onclick='startNewSession()') }}
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function startNewSession() {
+  htmx.ajax('GET', '/hub/{{ id }}/agent', {target: '#content-inner', swap: 'innerHTML'});
+}
+</script>
+{% endblock %}

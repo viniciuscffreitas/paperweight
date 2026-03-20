@@ -1,0 +1,38 @@
+{% from "components/macros.html" import btn, section_label %}
+
+<div style="margin-bottom:4px;">{{ section_label('Step 2 of 2') }}</div>
+<div style="font-size:16px;color:var(--text-primary);margin-bottom:22px;font-weight:700;">Link sources</div>
+
+<form action="/setup/create" method="post">
+  <input type="hidden" name="name" value="{{ name }}">
+  <input type="hidden" name="repo_path" value="{{ repo_path }}">
+
+  {% if sources %}
+  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+    {% for src in sources %}
+    <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;
+                  background:var(--bg-chrome);border:1px solid var(--separator-strong);border-radius:8px;
+                  cursor:pointer;transition:border-color 0.15s;"
+           onmouseover="this.style.borderColor='var(--accent-text)'"
+           onmouseout="this.style.borderColor='var(--separator-strong)'">
+      <input type="checkbox" name="source" value="{{ src.type }}|{{ src.id }}|{{ src.name }}"
+             {% if src.confidence|default('') == 'high' %}checked{% endif %}
+             style="accent-color:var(--accent-text);width:16px;height:16px;">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--text-primary);">{{ src.name }}</div>
+        <div style="font-size:11px;color:var(--text-muted);">{{ src.type }}{% if src.confidence %} · {{ src.confidence }}{% endif %}</div>
+      </div>
+    </label>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px;margin-bottom:20px;">
+    No integrations found. You can add them later.
+  </div>
+  {% endif %}
+
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    {{ btn('← Back', variant='ghost', onclick='closeWizard();setTimeout(openWizard,100)') }}
+    {{ btn('Create project', variant='primary', type='submit') }}
+  </div>
+</form>

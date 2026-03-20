@@ -907,3 +907,20 @@ def test_hub_task_detail_loads_stream_js(app_with_dashboard_with_project_and_tas
     assert r.status_code == 200
     assert b"/static/stream.js" in r.content
     assert b"/static/task-detail.js" in r.content
+
+
+# ---------------------------------------------------------------------------
+# Task 6 — Sessions View & Setup Wizard
+# ---------------------------------------------------------------------------
+
+
+def test_hub_runs_renders_sessions_view(app_with_dashboard_with_project):
+    r = app_with_dashboard_with_project.get("/hub/my-project/runs")
+    assert r.status_code == 200
+    assert "Sessions" in r.text or "sessions" in r.text.lower() or "No sessions" in r.text
+
+
+def test_setup_discover_uses_new_wizard(app_with_dashboard):
+    r = app_with_dashboard.post("/setup/discover", data={"name": "test", "repo_path": "/tmp/test"})
+    assert r.status_code == 200
+    assert "Link sources" in r.text or "Step 2" in r.text

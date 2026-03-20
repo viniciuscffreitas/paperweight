@@ -116,7 +116,7 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         sources = await _discover_sources(name, state) if state.project_store else []
         return _TEMPLATES.TemplateResponse(
             request,
-            "setup/step2.html",
+            "setup/wizard.html",
             {"sources": sources, "name": name, "repo_path": repo_path},
         )
 
@@ -156,16 +156,17 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         sessions = []
         if hasattr(state, "session_manager") and state.session_manager:
             sessions = state.session_manager.list_sessions_with_stats(project_id)
-        task_runs = []
-        try:
-            all_runs = state.history.list_runs_today()
-            task_runs = [r for r in all_runs if r.project == project_id and r.trigger_type != "agent"][:20]
-        except Exception:
-            pass
+        projects = state.project_store.list_projects() if state.project_store else []
         return _TEMPLATES.TemplateResponse(
             request,
-            "hub/runs.html",
-            {"sessions": sessions, "task_runs": task_runs, "id": project_id},
+            "sessions.html",
+            {
+                "projects": projects,
+                "selected_project": project_id,
+                "project_name": project["name"],
+                "id": project_id,
+                "sessions": sessions,
+            },
         )
 
     @app.get("/hub/{project_id}/agent", response_class=HTMLResponse)
