@@ -414,7 +414,9 @@ function sendChatPrompt() {
   var chatMessages = document.getElementById('chat-messages');
   appendChatMessage(chatMessages, 'you', text, false);
 
-  var body = { prompt: text, model: 'claude-sonnet-4-6', max_cost_usd: 2.0 };
+  var modelSelect = document.getElementById('chat-model');
+  var model = modelSelect ? modelSelect.value : 'claude-sonnet-4-6';
+  var body = { prompt: text, model: model, max_cost_usd: 2.0 };
   if (_taskConfig.sessionId) body.session_id = _taskConfig.sessionId;
 
   showThinking();

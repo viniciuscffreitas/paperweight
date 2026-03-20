@@ -119,6 +119,26 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; background: var(--bg-chrome); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; font-size: 14px; line-height: 1.5; }
 
+/* Custom scrollbar — thin, subtle */
+* { scrollbar-width: thin; scrollbar-color: var(--separator-strong) transparent; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--separator-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-disabled); }
+
+/* Model selector */
+.model-select {
+  background: var(--bg-chrome); border: 1px solid var(--separator-strong);
+  color: var(--text-secondary); border-radius: 6px; padding: 4px 8px;
+  font-size: 12px; font-family: inherit; cursor: pointer; outline: none;
+  transition: border-color 0.15s; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23777' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 6px center;
+  padding-right: 22px;
+}
+.model-select:focus { border-color: var(--accent-focus); }
+.model-select:hover { border-color: var(--text-muted); }
+
 /* ---------------------------------------------------------
    Status dots
    --------------------------------------------------------- */
