@@ -1,148 +1,260 @@
 {# ──────────────────────────────────────────────────────────────────────────
-   UI Primitives — import via:
-   {% from "components/macros.html" import btn, input_field, status_dot, section_label, divider %}
+   Component Macros — bold-minimal design system
+   Import: {% from "components/macros.html" import btn, badge, status_dot,
+              input_field, section_label, back_link, divider,
+              task_card, task_card_done, stats_line, tab_bar, sidebar_item %}
    ────────────────────────────────────────────────────────────────────────── #}
 
+
 {# ── btn ──────────────────────────────────────────────────────────────────
-   Variants: primary | ghost | danger | dashed
-   Args: label, variant='primary', onclick='', type='button', aria_label=''
+   Renders a button or anchor with one of four variants.
+   Args:
+     label       — visible text
+     variant     — 'primary' | 'ghost' | 'danger' | 'dashed'  (default: primary)
+     onclick     — optional JS expression for the onclick attribute
+     type        — button type attribute  (default: 'button')
+     aria_label  — optional ARIA label override
+     href        — if set, renders <a> instead of <button>
    ─────────────────────────────────────────────────────────────────────── #}
-{% macro btn(label, variant='primary', onclick='', type='button', aria_label='') %}
+{% macro btn(label, variant='primary', onclick='', type='button', aria_label='', href='') %}
+{%- set _base = "cursor:pointer;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;" -%}
 {%- if variant == 'primary' -%}
-<button type="{{ type }}"
-        {% if onclick %}onclick="{{ onclick }}"{% endif %}
-        {% if aria_label %}aria-label="{{ aria_label }}"{% endif %}
-        style="padding:7px 18px;font-size:11px;color:var(--text-primary);background:var(--accent-bg);
-               border:1px solid var(--accent);border-radius:4px;cursor:pointer;font-family:inherit;
-               letter-spacing:.3px;transition:all .15s;"
-        onmouseover="this.style.background='var(--accent-hover)'"
-        onmouseout="this.style.background='var(--accent-bg)'">{{ label }}</button>
+  {%- set _style = "background:var(--accent-gradient);color:#fff;padding:6px 16px;font-size:13px;font-weight:500;border-radius:8px;border:none;" + _base -%}
 {%- elif variant == 'ghost' -%}
-<button type="{{ type }}"
-        {% if onclick %}onclick="{{ onclick }}"{% endif %}
-        {% if aria_label %}aria-label="{{ aria_label }}"{% endif %}
-        style="padding:7px 14px;font-size:11px;color:var(--text-muted);background:transparent;
-               border:1px solid var(--border-subtle);border-radius:4px;cursor:pointer;font-family:inherit;
-               letter-spacing:.3px;transition:all .15s;"
-        onmouseover="this.style.borderColor='var(--border-default)';this.style.color='var(--text-secondary)'"
-        onmouseout="this.style.borderColor='var(--border-subtle)';this.style.color='var(--text-muted)'">{{ label }}</button>
+  {%- set _style = "background:transparent;color:var(--text-secondary);border:1px solid var(--separator-strong);padding:6px 14px;font-size:13px;border-radius:8px;" + _base -%}
 {%- elif variant == 'danger' -%}
-<button type="{{ type }}"
-        {% if onclick %}onclick="{{ onclick }}"{% endif %}
-        {% if aria_label %}aria-label="{{ aria_label }}"{% endif %}
-        style="padding:7px 14px;font-size:11px;color:var(--status-error);background:transparent;
-               border:1px solid var(--status-error);border-radius:4px;cursor:pointer;font-family:inherit;
-               letter-spacing:.3px;transition:all .15s;"
-        onmouseover="this.style.background='var(--bg-task-error)'"
-        onmouseout="this.style.background='transparent'">{{ label }}</button>
+  {%- set _style = "background:transparent;color:var(--status-error);border:1px solid var(--status-error);padding:6px 14px;font-size:13px;border-radius:8px;" + _base -%}
 {%- elif variant == 'dashed' -%}
+  {%- set _style = "background:transparent;color:var(--text-muted);border:1px dashed var(--separator-strong);padding:6px 14px;font-size:13px;border-radius:8px;" + _base -%}
+{%- endif -%}
+{%- if href -%}
+<a href="{{ href }}"
+   {% if aria_label %}aria-label="{{ aria_label }}"{% endif %}
+   style="text-decoration:none;{{ _style }}">{{ label }}</a>
+{%- else -%}
 <button type="{{ type }}"
         {% if onclick %}onclick="{{ onclick }}"{% endif %}
         {% if aria_label %}aria-label="{{ aria_label }}"{% endif %}
-        style="padding:7px 14px;font-size:11px;color:var(--text-muted);background:transparent;
-               border:1px dashed var(--border-default);border-radius:4px;cursor:pointer;font-family:inherit;
-               letter-spacing:.5px;transition:all .15s;"
-        onmouseover="this.style.color='var(--text-secondary)';this.style.borderColor='var(--border-strong)'"
-        onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border-default)'">{{ label }}</button>
+        style="{{ _style }}">{{ label }}</button>
 {%- endif -%}
 {% endmacro %}
 
 
-{# ── input_field ──────────────────────────────────────────────────────────
-   Args: name, placeholder='', required=false, label=''
+{# ── status_dot ───────────────────────────────────────────────────────────
+   Decorative status indicator dot driven by CSS class rules.
+   Args:
+     status  — 'running' | 'review' | 'done' | 'queued' | 'error' | 'warning'
+     pulse   — if true, adds 'pulse' class for animated glow effect
    ─────────────────────────────────────────────────────────────────────── #}
-{% macro input_field(name, placeholder='', required=false, label='') %}
+{% macro status_dot(status, pulse=false) %}<span class="status-dot {{ status }}{{ ' pulse' if pulse else '' }}" aria-hidden="true"></span>{% endmacro %}
+
+
+{# ── badge ────────────────────────────────────────────────────────────────
+   Renders a small pill badge for identifiers, labels, etc.
+   Args:
+     text   — badge text content
+     color  — optional CSS color value; if set, overrides default muted style
+   ─────────────────────────────────────────────────────────────────────── #}
+{% macro badge(text, color='') %}<span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:6px;background:var(--bg-chrome);border:1px solid {% if color %}{{ color }}30{% else %}var(--separator-strong){% endif %};color:{% if color %}{{ color }}{% else %}var(--text-muted){% endif %};">{{ text }}</span>{% endmacro %}
+
+
+{# ── input_field ──────────────────────────────────────────────────────────
+   Labeled input with focus ring using design system tokens.
+   Args:
+     name         — input name attribute
+     placeholder  — optional placeholder text
+     required     — if true, adds required attribute
+     label        — optional label text rendered above the input
+     type         — input type  (default: 'text')
+   ─────────────────────────────────────────────────────────────────────── #}
+{% macro input_field(name, placeholder='', required=false, label='', type='text') %}
 <div style="margin-bottom:14px;">
   {%- if label %}
-  <label style="display:block;font-size:9px;color:var(--text-secondary);text-transform:uppercase;
-                letter-spacing:1.5px;margin-bottom:6px;">{{ label }}</label>
+  <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">{{ label }}</label>
   {%- endif %}
   <input name="{{ name }}"
+         type="{{ type }}"
          {% if required %}required{% endif %}
          {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
          autocomplete="off"
-         style="width:100%;background:var(--bg-chrome);border:1px solid var(--border-default);border-radius:4px;
-                padding:8px 12px;font-size:13px;color:var(--text-primary);font-family:inherit;
-                outline:none;box-sizing:border-box;transition:border-color .15s;"
-         onfocus="this.style.borderColor='var(--accent)'"
-         onblur="this.style.borderColor='var(--border-default)'">
+         style="width:100%;padding:10px 14px;font-size:13px;background:var(--bg-chrome);border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
+         onfocus="this.style.borderColor='var(--accent-focus)'"
+         onblur="this.style.borderColor='var(--separator-strong)'">
 </div>
 {% endmacro %}
 
 
-{# ── status_dot ───────────────────────────────────────────────────────────
-   Args: status — 'running' | 'success' | 'failure' | 'timeout' | 'cancelled'
-   CSS class drives color via dashboard.css .status-dot.<status> rules
-   ─────────────────────────────────────────────────────────────────────── #}
-{% macro status_dot(status) %}<span class="status-dot {{ status }}" aria-hidden="true"></span>{% endmacro %}
-
-
 {# ── section_label ────────────────────────────────────────────────────────
-   Args: text
+   All-caps section heading used to group related items.
+   Args:
+     text — label text content
    ─────────────────────────────────────────────────────────────────────── #}
-{% macro section_label(text) %}<div style="padding:4px 12px;font-size:9px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;" aria-hidden="true">{{ text }}</div>{% endmacro %}
+{% macro section_label(text) %}<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);padding:4px 0;" aria-hidden="true">{{ text }}</div>{% endmacro %}
+
+
+{# ── back_link ────────────────────────────────────────────────────────────
+   Left-arrow navigation link, optionally HTMX-driven.
+   Args:
+     text       — link text (arrow prepended automatically)
+     href       — destination href  (default: '#')
+     hx_get     — if set, adds hx-get attribute for HTMX navigation
+     hx_target  — hx-target selector used alongside hx_get
+   ─────────────────────────────────────────────────────────────────────── #}
+{% macro back_link(text, href='#', hx_get='', hx_target='') %}<a href="{{ href }}"
+   {% if hx_get %}hx-get="{{ hx_get }}" hx-target="{{ hx_target }}"{% endif %}
+   style="font-size:13px;color:var(--text-secondary);text-decoration:none;">← {{ text }}</a>{% endmacro %}
 
 
 {# ── divider ──────────────────────────────────────────────────────────────
-   Horizontal rule using the subtle border token
+   Full-width horizontal separator using the strong separator token.
    ─────────────────────────────────────────────────────────────────────── #}
-{% macro divider() %}<hr style="border:none;border-top:1px solid var(--border-subtle);margin:0;">{% endmacro %}
+{% macro divider() %}<hr style="border:none;border-top:1px solid var(--separator-strong);margin:0;">{% endmacro %}
 
 
 {# ──────────────────────────────────────────────────────────────────────────
    Composite Macros
    ────────────────────────────────────────────────────────────────────────── #}
 
-{# ── sidebar_item ─────────────────────────────────────────────────────────
-   Args: name, project_id
-   Renders a project list item with HTMX attrs and hover state
-   ─────────────────────────────────────────────────────────────────────── #}
-{% macro sidebar_item(name, project_id) %}<div hx-get="/hub/{{ project_id }}"
-     hx-target="#panel-content"
-     hx-on::after-request="openPanel()"
-     onclick="closeSidebar()"
-     role="button"
-     tabindex="0"
-     aria-label="Abrir projeto {{ name }}"
-     onkeydown="if(event.key==='Enter'||event.key===' '){this.click()}"
-     style="padding:8px 12px;font-size:12px;color:var(--text-secondary);cursor:pointer;border-radius:4px;
-            margin:1px 6px;transition:background .15s;"
-     onmouseover="this.style.background='var(--bg-elevated)';this.style.color='var(--text-primary)'"
-     onmouseout="this.style.background='transparent';this.style.color='var(--text-secondary)'">{{ name }}</div>{% endmacro %}
 
-
-{# ── panel_header ─────────────────────────────────────────────────────────
-   Args: project_name
-   Renders the 44px panel header with title + close button
+{# ── task_card ────────────────────────────────────────────────────────────
+   Full-height card for an active or review task; tinted by status.
+   Args:
+     item        — task object with: id, title, status, source, source_id,
+                   source_url, pr_url, session_id, created_at, updated_at,
+                   and optional: cost, model, duration
+     project_id  — project identifier used to build HTMX navigation URL
    ─────────────────────────────────────────────────────────────────────── #}
-{% macro panel_header(project_name) %}
-<div style="display:flex;align-items:center;justify-content:space-between;
-            padding:0 16px;height:44px;min-height:44px;flex-shrink:0;
-            border-bottom:1px solid var(--border-subtle);">
-  <span style="font-size:13px;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 48px);">{{ project_name }}</span>
-  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-    <button onclick="closePanel()"
-            aria-label="Fechar painel"
-            style="background:transparent;border:1px solid transparent;color:var(--text-muted);cursor:pointer;
-                   padding:4px 8px;font-size:11px;font-family:inherit;
-                   border-radius:3px;transition:color .15s;"
-            onmouseover="this.style.color='var(--text-primary)'"
-            onmouseout="this.style.color='var(--text-muted)'">✕</button>
+{% macro task_card(item, project_id='') %}
+{%- set is_running = item.status == 'running' -%}
+{%- set is_review  = item.status == 'review' -%}
+{%- set bg_var     = '--bg-card-running'  if is_running else ('--bg-card-review' if is_review else '--bg-card-done') -%}
+{%- set bd_var     = '--border-card-running' if is_running else ('--border-card-review' if is_review else '--border-card-neutral') -%}
+{%- set bd_hover   = 'var(--status-running)' if is_running else ('var(--status-review-dot)' if is_review else 'var(--separator-strong)') -%}
+{%- set status_color = 'var(--status-running)' if is_running else ('var(--status-review)' if is_review else 'var(--text-muted)') -%}
+<div hx-get="/hub/{{ project_id }}/task/{{ item.id }}"
+     hx-target="#content-inner"
+     hx-push-url="true"
+     style="background:var({{ bg_var }});border:1px solid var({{ bd_var }});border-radius:var(--card-radius);padding:18px 22px;cursor:pointer;transition:border-color 0.15s;"
+     onmouseover="this.style.borderColor='{{ bd_hover }}'"
+     onmouseout="this.style.borderColor='var({{ bd_var }})'">
+
+  {# ── Top row: status + duration + model + cost ── #}
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    {{ status_dot(item.status, pulse=is_running) }}
+    <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:{{ status_color }};">{{ item.status }}</span>
+    {%- if item.duration is defined and item.duration %}
+    <span style="font-size:11px;color:var(--text-disabled);">{{ item.duration }}</span>
+    {%- endif %}
+    <span style="flex:1;"></span>
+    {%- if item.model is defined and item.model %}
+    {{ badge(item.model) }}
+    {%- endif %}
+    {%- if item.cost is defined and item.cost %}
+    <span style="font-size:11px;color:var(--text-muted);">${{ "%.2f"|format(item.cost) }}</span>
+    {%- endif %}
+  </div>
+
+  {# ── Title ── #}
+  <div style="font-size:17px;font-weight:600;letter-spacing:-0.3px;color:var(--text-primary);margin-bottom:5px;">{{ item.title }}</div>
+
+  {# ── Bottom row: source badge + PR link ── #}
+  <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+    {%- if item.source_id %}
+    {{ badge(item.source_id) }}
+    {%- endif %}
+    {%- if item.source %}
+    <span style="font-size:11px;color:var(--text-muted);">{{ item.source }}</span>
+    {%- endif %}
+    {%- if item.pr_url %}
+    <span style="flex:1;"></span>
+    <a href="{{ item.pr_url }}" target="_blank" onclick="event.stopPropagation()"
+       style="font-size:11px;color:var(--accent-text);text-decoration:none;">PR ↗</a>
+    {%- endif %}
   </div>
 </div>
 {% endmacro %}
 
 
-{# ── tab_bar ──────────────────────────────────────────────────────────────
-   Args: project_id, active_tab='activity'
-   Renders 3 tab buttons: ACTIVITY, TASKS, RUNS
-   Active tab: color=--text-primary, border-bottom=var(--accent), data-active="true"
-   Inactive tab: color=--text-disabled, border-bottom=transparent
+{# ── task_card_done ───────────────────────────────────────────────────────
+   Compact single-row card for completed/archived tasks; dimmed opacity.
+   Args:
+     item        — same task object as task_card
+     project_id  — project identifier used to build HTMX navigation URL
    ─────────────────────────────────────────────────────────────────────── #}
-{% macro tab_bar(project_id, active_tab='activity') %}
-<div style="display:flex;align-items:center;border-bottom:1px solid var(--border-subtle);padding:0 12px;flex-shrink:0;">
+{% macro task_card_done(item, project_id='') %}
+<div hx-get="/hub/{{ project_id }}/task/{{ item.id }}"
+     hx-target="#content-inner"
+     hx-push-url="true"
+     style="background:var(--bg-card-done);border:1px solid var(--border-card-neutral);border-radius:var(--card-radius);padding:14px 22px;cursor:pointer;opacity:0.35;transition:opacity 0.15s;"
+     onmouseover="this.style.opacity='0.65'"
+     onmouseout="this.style.opacity='0.35'">
+  <div style="display:flex;align-items:center;gap:8px;">
+    {{ status_dot('done') }}
+    <span style="font-size:15px;font-weight:600;color:var(--text-primary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.title }}</span>
+    {%- if item.duration is defined and item.duration %}
+    <span style="font-size:11px;color:var(--text-disabled);flex-shrink:0;">{{ item.duration }}</span>
+    {%- endif %}
+  </div>
+</div>
+{% endmacro %}
+
+
+{# ── stats_line ───────────────────────────────────────────────────────────
+   Inline summary bar showing task counts and optional budget.
+   Args:
+     counts        — dict with keys: running, review, queued, done
+     budget_spent  — amount spent so far  (default: 0)
+     budget_total  — total budget cap  (default: 0)
+   ─────────────────────────────────────────────────────────────────────── #}
+{% macro stats_line(counts, budget_spent=0, budget_total=0) %}
+<div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+  {%- set sep -%}<span style="color:var(--text-disabled);">·</span>{%- endset -%}
+  {%- if counts.running is defined %}
+  <span style="color:var(--status-running);font-weight:700;">{{ counts.running }}</span>
+  <span style="color:var(--text-secondary);">running</span>
+  {{ sep }}
+  {%- endif %}
+  {%- if counts.review is defined %}
+  <span style="color:var(--status-review);font-weight:700;">{{ counts.review }}</span>
+  <span style="color:var(--text-secondary);">review</span>
+  {{ sep }}
+  {%- endif %}
+  {%- if counts.queued is defined %}
+  <span style="color:var(--status-queued);font-weight:700;">{{ counts.queued }}</span>
+  <span style="color:var(--text-secondary);">queued</span>
+  {{ sep }}
+  {%- endif %}
+  {%- if counts.done is defined %}
+  <span style="color:var(--text-muted);font-weight:700;">{{ counts.done }}</span>
+  <span style="color:var(--text-secondary);">done</span>
+  {%- endif %}
+  {%- if budget_total %}
+  <span style="flex:1;"></span>
+  <span style="color:var(--text-muted);">${{ "%.2f"|format(budget_spent) }} / ${{ budget_total }}</span>
+  {%- endif %}
+</div>
+{% endmacro %}
+
+
+{# ── tab_bar ──────────────────────────────────────────────────────────────
+   Horizontal tab bar with HTMX navigation and active styling.
+   Supports two calling conventions:
+     New (data-driven): tab_bar(tabs_list, active_tab)
+       tabs_list — list of dicts: [{name, label, hx_url}, ...]
+     Legacy (project-based): tab_bar(project_id, active_tab='activity')
+       project_id — string used to generate /hub/<id>/<tab> URLs
+   Args:
+     tabs        — list of tab dicts OR legacy project_id string
+     active_tab  — name/key of the initially active tab
+     project_id  — unused in new mode; kept for signature compat
+   ─────────────────────────────────────────────────────────────────────── #}
+{% macro tab_bar(tabs, active_tab='activity', project_id='') %}
+{%- if tabs is string -%}
+  {#- Legacy mode: tabs is actually a project_id string -#}
+  {%- set _pid = tabs -%}
+<div style="display:flex;align-items:center;border-bottom:1px solid var(--separator-strong);padding:0 12px;flex-shrink:0;">
   {%- for t in ['activity', 'tasks', 'runs'] -%}
-  <button hx-get="/hub/{{ project_id }}/{{ t }}"
+  <button hx-get="/hub/{{ _pid }}/{{ t }}"
           hx-target="#tab-content"
           onclick="activateTab(this)"
           {% if t == active_tab %}data-active="true"{% endif %}
@@ -156,7 +268,7 @@
   </button>
   {%- endfor -%}
   <span style="flex:1;"></span>
-  <button hx-get="/hub/{{ project_id }}/agent"
+  <button hx-get="/hub/{{ _pid }}/agent"
           hx-target="#tab-content"
           onclick="activateTab(this)"
           style="padding:6px 12px;font-size:10px;letter-spacing:.5px;cursor:pointer;
@@ -168,24 +280,92 @@
     + Nova sessão
   </button>
 </div>
+{%- else -%}
+  {#- New mode: tabs is a list of {name, label, hx_url} dicts -#}
+<div style="display:flex;border-bottom:1px solid var(--separator-strong);padding:0 16px;">
+  {%- for tab in tabs -%}
+  {%- set is_active = tab.name == active_tab -%}
+  <button hx-get="{{ tab.hx_url }}"
+          hx-target="#content-inner"
+          {% if is_active %}data-active="true"{% endif %}
+          style="padding:10px 14px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;cursor:pointer;background:transparent;border:none;font-family:inherit;white-space:nowrap;transition:color .15s;
+                 color:{% if is_active %}var(--text-primary){% else %}var(--text-muted){% endif %};
+                 border-bottom:2px solid {% if is_active %}var(--accent-text){% else %}transparent{% endif %};margin-bottom:-1px;"
+          onmouseover="if(!this.dataset.active)this.style.color='var(--text-secondary)'"
+          onmouseout="if(!this.dataset.active)this.style.color='var(--text-muted)'">{{ tab.label }}</button>
+  {%- endfor -%}
+</div>
+{%- endif -%}
+{% endmacro %}
+
+
+{# ── sidebar_item ─────────────────────────────────────────────────────────
+   Clickable project entry in the left sidebar navigation list.
+   Args:
+     name        — project display name
+     project_id  — project identifier used to build the hx-get URL
+     active      — if true, applies active background highlight
+   ─────────────────────────────────────────────────────────────────────── #}
+{% macro sidebar_item(name, project_id, active=false) %}
+<div hx-get="/hub/{{ project_id }}/tasks"
+     hx-target="#content-inner"
+     hx-push-url="true"
+     role="button"
+     tabindex="0"
+     aria-label="Open {{ name }}"
+     onkeydown="if(event.key==='Enter'||event.key===' '){this.click()}"
+     style="padding:8px 12px;font-size:13px;font-weight:500;border-radius:8px;cursor:pointer;transition:background 0.15s;
+            {% if active %}background:#161616;color:var(--text-primary);{% else %}color:var(--text-muted);{% endif %}"
+     {%- if not active %}
+     onmouseover="this.style.background='var(--bg-content)';this.style.color='var(--text-secondary)'"
+     onmouseout="this.style.background='transparent';this.style.color='var(--text-muted)'"
+     {%- endif %}>{{ name }}</div>
+{% endmacro %}
+
+
+{# ── panel_header ─────────────────────────────────────────────────────────
+   44px panel header with project title and close button.
+   Preserved for backward compatibility with hub/panel.html.
+   Args:
+     project_name — project display name
+   ─────────────────────────────────────────────────────────────────────── #}
+{% macro panel_header(project_name) %}
+<div style="display:flex;align-items:center;justify-content:space-between;
+            padding:0 16px;height:44px;min-height:44px;flex-shrink:0;
+            border-bottom:1px solid var(--separator-strong);">
+  <span style="font-size:13px;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 48px);">{{ project_name }}</span>
+  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+    <button onclick="closePanel()"
+            aria-label="Close panel"
+            style="background:transparent;border:1px solid transparent;color:var(--text-muted);cursor:pointer;
+                   padding:4px 8px;font-size:11px;font-family:inherit;
+                   border-radius:3px;transition:color .15s;"
+            onmouseover="this.style.color='var(--text-primary)'"
+            onmouseout="this.style.color='var(--text-muted)'">✕</button>
+  </div>
+</div>
 {% endmacro %}
 
 
 {# ── list_row ─────────────────────────────────────────────────────────────
-   Call block macro — wraps content in a row with hover + optional divider
+   Call block macro wrapping content in a row with optional divider.
+   Preserved for backward compatibility.
    Usage: {% call list_row() %}content{% endcall %}
-   Args: border=true
+   Args: border — if true, adds border-bottom  (default: true)
    ─────────────────────────────────────────────────────────────────────── #}
 {% macro list_row(border=true) %}<div style="display:flex;align-items:center;gap:8px;padding:6px 4px;
-     {% if border %}border-bottom:1px solid var(--border-subtle);{% endif %}"
-     onmouseover="this.style.background='var(--bg-overlay)'"
+     {% if border %}border-bottom:1px solid var(--separator-strong);{% endif %}"
+     onmouseover="this.style.background='var(--bg-card-done)'"
      onmouseout="this.style.background='transparent'">{{ caller() }}</div>{% endmacro %}
 
 
-{# ── coord_status_bar ───────────────────────────────────────────────── #}
+{# ── coord_status_bar ─────────────────────────────────────────────────────
+   Coordination overlay bar showing live claim/run counters.
+   Preserved from previous design — used by coordination view.
+   ─────────────────────────────────────────────────────────────────────── #}
 {% macro coord_status_bar(active_runs, active_claims, contested, mediating) -%}
 <div style="display:flex;gap:16px;padding:10px 16px;font-size:11px;
-            border-bottom:1px solid var(--border-subtle);flex-shrink:0;">
+            border-bottom:1px solid var(--separator-strong);flex-shrink:0;">
   <span style="color:var(--text-secondary);">
     <span style="color:var(--status-running);font-weight:700;">{{ active_runs }}</span> runs
   </span>
@@ -196,24 +376,26 @@
     <span style="color:var(--status-warning);font-weight:700;">{{ contested }}</span> contested
   </span>
   <span style="color:var(--text-secondary);">
-    <span style="color:var(--accent);font-weight:700;">{{ mediating }}</span> mediating
+    <span style="color:var(--accent-text);font-weight:700;">{{ mediating }}</span> mediating
   </span>
 </div>
 {%- endmacro %}
 
 
-{# ── claim_row ──────────────────────────────────────────────────────── #}
+{# ── claim_row ────────────────────────────────────────────────────────────
+   Single file-claim row for the coordination detail view.
+   ─────────────────────────────────────────────────────────────────────── #}
 {% macro claim_row(file, owner, status, claim_type) -%}
 {% set status_color = {
   'active': 'var(--status-running)' if claim_type == 'hard' else 'var(--text-muted)',
   'contested': 'var(--status-warning)',
-  'mediating': 'var(--accent)',
+  'mediating': 'var(--accent-text)',
   'released': 'var(--status-success)',
 }.get(status, 'var(--text-muted)') %}
 {% set is_pulse = status in ('contested', 'mediating') %}
 <div style="display:flex;align-items:center;gap:10px;padding:8px 16px;font-size:12px;
-            border-bottom:1px solid var(--bg-overlay);transition:background .15s;"
-     onmouseover="this.style.background='var(--bg-elevated)'"
+            border-bottom:1px solid var(--separator-subtle);transition:background .15s;"
+     onmouseover="this.style.background='var(--bg-card-done)'"
      onmouseout="this.style.background='transparent'">
   <span class="status-dot {{ 'live-pulse' if is_pulse else '' }}"
         style="background:{{ status_color }};flex-shrink:0;"
@@ -227,7 +409,9 @@
 {%- endmacro %}
 
 
-{# ── coord_event ────────────────────────────────────────────────────── #}
+{# ── coord_event ──────────────────────────────────────────────────────────
+   Single coordination event log row.
+   ─────────────────────────────────────────────────────────────────────── #}
 {% macro coord_event(timestamp, run_id, event_type, detail) -%}
 {% set type_color = {
   'registered': 'var(--status-running)',
@@ -240,7 +424,7 @@
   'released': 'var(--status-success)',
 }.get(event_type, 'var(--text-muted)') %}
 <div style="display:flex;gap:8px;padding:6px 16px;font-size:11px;
-            border-bottom:1px solid var(--bg-overlay);">
+            border-bottom:1px solid var(--separator-subtle);">
   <span style="color:var(--text-disabled);font-family:monospace;font-size:10px;
                white-space:nowrap;flex-shrink:0;">{{ timestamp }}</span>
   <span style="color:{{ type_color }};white-space:nowrap;flex-shrink:0;">{{ event_type }}</span>
