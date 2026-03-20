@@ -109,16 +109,16 @@ function renderAgentEvent(event, output) {
       if (detail) { detail.textContent = content.substring(0, 500); detail.style.display = 'block'; }
     }
   }
-  else if (type === 'task_completed') {
-    output.innerHTML += '<div style="color:#22c55e;margin:8px 0;padding-left:2px;">' + escapeHtml(content) + '</div>';
+  else if (type === 'task_completed' || type === 'task_failed') {
+    var color = type === 'task_completed' ? '#22c55e' : '#f85149';
+    output.innerHTML += '<div style="color:' + color + ';margin:8px 0;padding-left:2px;">' + escapeHtml(content) + '</div>';
+    // Re-enable input — run is done
+    var input = document.getElementById('agent-input');
+    if (input) { input.disabled = false; input.placeholder = 'Continue the session...'; input.focus(); }
+    // Close WebSocket — no more events expected
+    if (_agentWs) { _agentWs.close(); _agentWs = null; }
   }
-  else if (type === 'task_failed') {
-    output.innerHTML += '<div style="color:#f85149;margin:8px 0;padding-left:2px;">' + escapeHtml(content) + '</div>';
-  }
-  else if (type === 'result' && content) {
-    output.innerHTML += '<div style="color:#c0c4d6;margin:4px 0;padding-left:2px;white-space:pre-wrap;">'
-      + escapeHtml(content.substring(0, 1000)) + '</div>';
-  }
+  // Skip 'result' type — its text content duplicates 'assistant' events
 }
 
 function updateSessionStatus(sessionId) {
