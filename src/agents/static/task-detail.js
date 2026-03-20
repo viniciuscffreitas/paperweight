@@ -241,8 +241,8 @@ function showThinking() {
   var container = document.getElementById('chat-messages');
   if (!container) return;
   _thinkingEl = document.createElement('div');
-  _thinkingEl.className = 'chat-msg';
-  _thinkingEl.innerHTML = '<div class="chat-msg-label agent">agent</div>' +
+  _thinkingEl.className = 'chat-msg agent';
+  _thinkingEl.innerHTML = '<div class="chat-msg-header"><span class="material-icons chat-msg-icon agent" aria-hidden="true">smart_toy</span><div class="chat-msg-label agent">Agent</div></div>' +
     '<div class="thinking-dots"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>';
   container.appendChild(_thinkingEl);
   container.scrollTop = container.scrollHeight;
