@@ -111,6 +111,7 @@ def extract_result_from_line(line: str) -> ClaudeOutput:
         is_error=data.get("is_error", False),
         cost_usd=data.get("total_cost_usd", 0.0),
         num_turns=data.get("num_turns", 0),
+        session_id=data.get("session_id", ""),
     )
 
 

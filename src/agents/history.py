@@ -87,6 +87,11 @@ class HistoryDB:
                 "CREATE INDEX IF NOT EXISTS idx_coordlog_run"
                 " ON coordination_log (run_id, timestamp)"
             )
+            # Migration: add session_id to runs table
+            try:
+                conn.execute("ALTER TABLE runs ADD COLUMN session_id TEXT")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
 
     def _conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
@@ -97,8 +102,9 @@ class HistoryDB:
         with self._conn() as conn:
             conn.execute(
                 """INSERT INTO runs (id, project, task, trigger_type, started_at, finished_at,
-                   status, model, num_turns, cost_usd, pr_url, error_message, output_file)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   status, model, num_turns, cost_usd, pr_url, error_message, output_file,
+                   session_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     run.id,
                     run.project,
@@ -113,6 +119,7 @@ class HistoryDB:
                     run.pr_url,
                     run.error_message,
                     run.output_file,
+                    run.session_id,
                 ),
             )
 
@@ -227,6 +234,11 @@ class HistoryDB:
         return self._row_to_record(row)
 
     def _row_to_record(self, row: sqlite3.Row) -> RunRecord:
+        session_id = None
+        try:
+            session_id = row["session_id"]
+        except (IndexError, KeyError):
+            pass
         return RunRecord(
             id=row["id"],
             project=row["project"],
@@ -241,4 +253,5 @@ class HistoryDB:
             pr_url=row["pr_url"],
             error_message=row["error_message"],
             output_file=row["output_file"],
+            session_id=session_id,
         )

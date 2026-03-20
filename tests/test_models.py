@@ -243,3 +243,31 @@ def test_notification_rule_creation() -> None:
     )
     assert r.enabled is True
     assert r.config == {}
+
+
+def test_trigger_type_agent():
+    from agents.models import TriggerType
+    assert TriggerType.AGENT == "agent"
+    assert TriggerType("agent") == TriggerType.AGENT
+
+
+def test_run_record_session_id_default():
+    from agents.models import RunRecord, RunStatus, TriggerType
+    from datetime import UTC, datetime
+    run = RunRecord(
+        id="test-run", project="test", task="agent",
+        trigger_type=TriggerType.AGENT, started_at=datetime.now(UTC),
+        status=RunStatus.RUNNING, model="sonnet",
+    )
+    assert run.session_id is None
+
+
+def test_run_record_session_id_set():
+    from agents.models import RunRecord, RunStatus, TriggerType
+    from datetime import UTC, datetime
+    run = RunRecord(
+        id="test-run", project="test", task="agent",
+        trigger_type=TriggerType.AGENT, started_at=datetime.now(UTC),
+        status=RunStatus.RUNNING, model="sonnet", session_id="sess-123",
+    )
+    assert run.session_id == "sess-123"

@@ -9,6 +9,7 @@ class TriggerType(StrEnum):
     GITHUB = "github"
     LINEAR = "linear"
     MANUAL = "manual"
+    AGENT = "agent"
 
 
 class RunStatus(StrEnum):
@@ -77,6 +78,7 @@ class RunRecord(BaseModel):
     pr_url: str | None = None
     error_message: str | None = None
     output_file: str | None = None
+    session_id: str | None = None
 
 
 class BudgetStatus(BaseModel):
