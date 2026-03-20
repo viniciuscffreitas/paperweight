@@ -13,6 +13,11 @@
 {% endblock %}
 
 {% block topbar_actions %}
+<select id="chat-model" class="model-select">
+  <option value="claude-sonnet-4-6">Sonnet</option>
+  <option value="claude-haiku-4-5-20251001">Haiku</option>
+  <option value="claude-opus-4-6">Opus</option>
+</select>
 {% if item.status == 'running' %}
   {{ btn('Cancel', variant='danger', onclick='cancelRun()') }}
 {% endif %}
@@ -94,14 +99,7 @@
                   onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!this.disabled){event.preventDefault();sendChatPrompt()}"></textarea>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <select id="chat-model" class="model-select">
-            <option value="claude-sonnet-4-6">Sonnet</option>
-            <option value="claude-haiku-4-5-20251001">Haiku</option>
-            <option value="claude-opus-4-6">Opus</option>
-          </select>
-          <span style="font-size:11px;color:var(--text-disabled);">Shift+Enter for new line</span>
-        </div>
+        <span style="font-size:11px;color:var(--text-disabled);">Shift+Enter for new line</span>
         <div id="chat-send-area">
           <button onclick="sendChatPrompt()" id="chat-send-btn"
                   style="background:var(--accent-gradient);color:#fff;border:none;padding:6px 16px;
