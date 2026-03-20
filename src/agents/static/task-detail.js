@@ -594,11 +594,38 @@ function cancelRun() {
 }
 
 function startTask() {
-  // Start a pending task — same as rerun but for first execution
-  fetch('/api/work-items/' + _taskConfig.taskId + '/rerun', { method: 'POST' })
-    .then(function() {
+  var btn = document.querySelector('[onclick="startTask()"]');
+  if (btn) { btn.textContent = 'Starting...'; btn.style.opacity = '0.6'; btn.disabled = true; }
+
+  // Get task description to use as prompt
+  var desc = document.getElementById('task-description');
+  var prompt = desc ? desc.textContent.trim() : document.querySelector('[style*="font-size:20px"]').textContent.trim();
+
+  var modelSelect = document.getElementById('chat-model');
+  var model = modelSelect ? modelSelect.value : 'claude-sonnet-4-6';
+
+  // Start agent with task description as prompt
+  fetch('/api/projects/' + _taskConfig.projectId + '/agent', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ prompt: prompt, model: model, max_cost_usd: 5.0 })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    // Link session to task
+    _taskConfig.sessionId = data.session_id;
+    fetch('/api/work-items/' + _taskConfig.taskId, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ session_id: data.session_id, status: 'running' })
+    }).then(function() {
       window.location.reload();
     });
+  })
+  .catch(function(err) {
+    if (btn) { btn.textContent = 'Start'; btn.style.opacity = '1'; btn.disabled = false; }
+    alert('Failed to start: ' + err.message);
+  });
 }
 
 function rerunTask() {
