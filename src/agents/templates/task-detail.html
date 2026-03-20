@@ -18,11 +18,12 @@
   <option value="claude-haiku-4-5-20251001">Haiku</option>
   <option value="claude-opus-4-6">Opus</option>
 </select>
-{% if item.status in ('pending', 'draft') %}
+{% set _s = item.status.value if item.status.value is defined else item.status %}
+{% if _s in ('pending', 'draft') %}
   {{ btn('Start', variant='primary', onclick='startTask()') }}
-{% elif item.status == 'running' %}
+{% elif _s == 'running' %}
   {{ btn('Cancel', variant='danger', onclick='cancelRun()') }}
-{% elif item.status in ('done', 'failed') %}
+{% elif _s in ('done', 'failed') %}
   {{ btn('Rerun', variant='ghost', onclick='rerunTask()') }}
 {% endif %}
 {% if item.pr_url %}
@@ -34,10 +35,11 @@
 <!-- Task header -->
 <div style="padding:20px 24px 0;">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-    {{ status_dot(item.status, pulse=(item.status == 'running')) }}
+    {%- set _status = item.status.value if item.status.value is defined else item.status -%}
+    {{ status_dot(_status, pulse=(_status == 'running')) }}
     <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;
-                 color:{% if item.status == 'running' %}var(--status-running){% elif item.status == 'review' %}var(--status-review){% else %}var(--text-muted){% endif %};">
-      {{ item.status }}
+                 color:{% if _status == 'running' %}var(--status-running){% elif _status == 'review' %}var(--status-review){% else %}var(--text-muted){% endif %};">
+      {{ _status }}
     </span>
     <span style="flex:1;"></span>
     {% if item.model is defined and item.model %}{{ badge(item.model) }}{% endif %}

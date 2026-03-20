@@ -125,8 +125,9 @@
      project_id  — project identifier used to build HTMX navigation URL
    ─────────────────────────────────────────────────────────────────────── #}
 {% macro task_card(item, project_id='') %}
-{%- set is_running = item.status == 'running' -%}
-{%- set is_review  = item.status == 'review' -%}
+{%- set _status = item.status.value if item.status.value is defined else item.status -%}
+{%- set is_running = _status == 'running' -%}
+{%- set is_review  = _status == 'review' -%}
 {%- set bg_var     = '--bg-card-running'  if is_running else ('--bg-card-review' if is_review else '--bg-card-done') -%}
 {%- set bd_var     = '--border-card-running' if is_running else ('--border-card-review' if is_review else '--border-card-neutral') -%}
 {%- set bd_hover   = 'var(--status-running)' if is_running else ('var(--status-review-dot)' if is_review else 'var(--separator-strong)') -%}
@@ -139,7 +140,7 @@
   {# ── Top row: status + duration + model + cost ── #}
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
     {{ status_dot(item.status, pulse=is_running) }}
-    <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:{{ status_color }};">{{ item.status }}</span>
+    <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:{{ status_color }};">{{ _status }}</span>
     {%- if item.duration is defined and item.duration %}
     <span style="font-size:11px;color:var(--text-disabled);">{{ item.duration }}</span>
     {%- endif %}

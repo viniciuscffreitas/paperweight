@@ -21,7 +21,7 @@
 <div style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:8px;">
   {% set has_active = false %}
   {% for item in work_items|default([]) %}
-    {% if item.status in ('done',) %}
+    {% if item.status.value|default(item.status) == 'done' %}
       {{ task_card_done(item, project_id=id) }}
     {% else %}
       {% set has_active = true %}
