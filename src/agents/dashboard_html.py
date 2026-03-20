@@ -134,8 +134,12 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
                 "work_items": work_items,
                 "tasks": tasks,
                 "counts": counts,
-                "budget_spent": 0,
-                "budget_total": 0,
+                "budget_spent": sum(
+                    r.cost_usd or 0
+                    for r in state.history.list_runs_today()
+                    if r.project == project_id
+                ),
+                "budget_total": config.budget.daily_limit_usd,
             },
         )
 

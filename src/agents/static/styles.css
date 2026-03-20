@@ -275,6 +275,8 @@ html, body { height: 100%; background: var(--bg-chrome); color: var(--text-prima
   display: block; padding: 16px; font-size: 13px; line-height: 1.5;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; overflow-x: auto;
 }
+/* Override hljs auto-detection for unknown languages */
+.chat-msg-content pre code.hljs:not([class*="language-"]) { background: #0d1117; }
 
 /* Streaming cursor */
 .streaming::after {

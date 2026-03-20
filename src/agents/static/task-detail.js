@@ -385,7 +385,7 @@ function addCodeBlockHeaders(container) {
     header.className = 'code-header';
 
     var langSpan = document.createElement('span');
-    langSpan.textContent = lang || 'code';
+    langSpan.textContent = lang || '';
 
     var copyBtn = document.createElement('button');
     copyBtn.textContent = 'Copy';
@@ -591,6 +591,11 @@ function cancelRun() {
 
   // Close session + reset task status
   var promises = [];
+  if (_taskConfig.runId) {
+    promises.push(
+      fetch('/runs/' + _taskConfig.runId + '/cancel', { method: 'POST' }).catch(function() {})
+    );
+  }
   if (_taskConfig.sessionId) {
     promises.push(
       fetch('/api/sessions/' + _taskConfig.sessionId + '/close', { method: 'POST' }).catch(function() {})
@@ -641,6 +646,7 @@ function startTask() {
   .then(function(r) { return r.json(); })
   .then(function(data) {
     _taskConfig.sessionId = data.session_id;
+    _taskConfig.runId = data.run_id;
     _taskConfig.status = 'running';
 
     // Link session to task
@@ -704,7 +710,8 @@ function startTask() {
         // Add completion indicator
         var done = document.createElement('div');
         done.style.cssText = 'padding:16px 0;text-align:center;color:var(--status-success);font-size:13px;';
-        done.textContent = 'Task completed';
+        done.textContent = 'Task completed — reloading...';
+        setTimeout(function() { window.location.reload(); }, 2000);
         eventsContainer.appendChild(done);
       },
       function() {
@@ -715,7 +722,13 @@ function startTask() {
   })
   .catch(function(err) {
     if (btn) { btn.textContent = 'Start'; btn.style.opacity = '1'; btn.disabled = false; }
-    alert('Failed to start: ' + err.message);
+    var eventsContainer = document.getElementById('activity-events');
+    if (eventsContainer) {
+      var errDiv = document.createElement('div');
+      errDiv.style.cssText = 'padding:16px 0;text-align:center;color:var(--status-error);font-size:13px;';
+      errDiv.textContent = 'Failed to start: ' + err.message;
+      eventsContainer.appendChild(errDiv);
+    }
   });
 }
 
