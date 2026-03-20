@@ -16,6 +16,14 @@ When you receive a task prompt (especially one saying "Implement this spec"):
 
 Do NOT just write tests and stop. The task is not done until code is implemented, tests pass, and changes are committed.
 
+## Time Management
+
+You have a 30-minute timeout per run. Plan accordingly:
+- Commit working code EARLY — don't wait until everything is perfect
+- Use `git add -A && git commit -m "wip: partial implementation"` after each major step
+- It's better to have 3 partial commits than 0 commits at timeout
+- The user can always continue from where you left off
+
 ## Creating Tasks
 
 When the user asks you to create a task, use the REST API:

@@ -235,7 +235,13 @@ def test_task_detail_chat_messages_container(client_with_task):
 
 
 def _read_task_detail_js() -> str:
-    return (_STATIC_DIR / "task-detail.js").read_text()
+    # task-detail.js and chat.js are companion modules that share global scope.
+    # Tests check the combined surface — functions may live in either file.
+    return (
+        (_STATIC_DIR / "task-detail.js").read_text()
+        + "\n"
+        + (_STATIC_DIR / "chat.js").read_text()
+    )
 
 
 def test_js_has_append_chat_message_with_streaming_param():

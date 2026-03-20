@@ -232,7 +232,13 @@ def test_css_has_chat_icon_btn():
 
 
 def _read_js() -> str:
-    return (_STATIC_DIR / "task-detail.js").read_text()
+    # task-detail.js and chat.js are companion modules that share global scope.
+    # Tests check the combined surface — functions may live in either file.
+    return (
+        (_STATIC_DIR / "task-detail.js").read_text()
+        + "\n"
+        + (_STATIC_DIR / "chat.js").read_text()
+    )
 
 
 def test_js_has_init_multimodal():
