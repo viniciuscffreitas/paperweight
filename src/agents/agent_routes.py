@@ -156,6 +156,22 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                     if current and not current.title and prompt:
                         title = _generate_title(prompt)
                         session_manager.update_session(session.id, title=title)
+                    # Auto-update linked work item status
+                    if state.task_store:
+                        from agents.task_store import TaskStatus
+                        items = state.task_store.list_by_project(project_name)
+                        for item in items:
+                            if item.session_id == session.id:
+                                new_status = (
+                                    TaskStatus.DONE
+                                    if result.status.value == "success"
+                                    else TaskStatus.FAILED
+                                )
+                                state.task_store.update_status(
+                                    item.id, new_status,
+                                    pr_url=result.pr_url,
+                                )
+                                break
             finally:
                 session_manager.release_run(session.id)
 
