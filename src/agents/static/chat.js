@@ -173,37 +173,62 @@ function addCodeBlockHeaders(container) {
   });
 }
 
+var _toolGroupEl = null;
+var _toolGroupCount = 0;
+var _toolGroupList = null;
+
+function resetToolGroup() {
+  _toolGroupEl = null;
+  _toolGroupCount = 0;
+  _toolGroupList = null;
+}
+
 function renderToolCallInChat(container, event) {
   var toolName = event.tool_name || 'Tool';
   var label = parseToolLabel(event);
-  if (label.length > 80) label = label.substring(0, 80) + '...';
+  if (label.length > 60) label = label.substring(0, 57) + '...';
 
   var colorMap = {
     'Edit': '#22c55e', 'Write': '#22c55e',
     'Bash': '#fbbf24',
-    'Read': '#818cf8', 'Grep': '#818cf8', 'Glob': '#818cf8'
+    'Read': '#818cf8', 'Grep': '#818cf8', 'Glob': '#818cf8',
+    'Agent': '#c084fc', 'Skill': '#c084fc'
   };
   var color = colorMap[toolName] || '#c084fc';
 
-  var card = document.createElement('div');
-  card.className = 'tool-call';
-  card.style.borderLeftColor = color;
+  // Create or reuse tool group card
+  if (!_toolGroupEl || !container.contains(_toolGroupEl)) {
+    _toolGroupEl = document.createElement('div');
+    _toolGroupEl.className = 'chat-msg agent tool-group';
+    _toolGroupEl.innerHTML =
+      '<div class="tool-group-header" onclick="this.parentElement.classList.toggle(\'expanded\')">' +
+        '<span class="material-icons" style="font-size:14px;color:var(--accent-text);">build</span>' +
+        '<span class="tool-group-summary">Working...</span>' +
+        '<span class="material-icons tool-group-chevron" style="font-size:16px;color:var(--text-muted);transition:transform .15s;">expand_more</span>' +
+      '</div>' +
+      '<div class="tool-group-items"></div>';
+    _toolGroupList = _toolGroupEl.querySelector('.tool-group-items');
+    _toolGroupCount = 0;
+    container.appendChild(_toolGroupEl);
+  }
 
-  var header = document.createElement('div');
-  header.className = 'tool-call-header';
-  header.innerHTML = '<span class="arrow">&#9654;</span>' +
-    '<span class="tool-name" style="color:' + color + ';">' + toolName + '</span>' +
-    '<span class="tool-label">' + label + '</span>';
+  _toolGroupCount++;
 
-  var detail = document.createElement('div');
-  detail.className = 'tool-call-detail';
-  detail.textContent = event.content || '';
+  // Update summary
+  var summary = _toolGroupEl.querySelector('.tool-group-summary');
+  summary.textContent = _toolGroupCount + ' tool' + (_toolGroupCount > 1 ? 's' : '') + ' used';
 
-  header.onclick = function() { card.classList.toggle('expanded'); };
+  // Add tool item
+  var item = document.createElement('div');
+  item.className = 'tool-group-item';
+  item.innerHTML =
+    '<span class="tool-group-dot" style="background:' + color + ';"></span>' +
+    '<span class="tool-group-name" style="color:' + color + ';">' + toolName + '</span>' +
+    '<span class="tool-group-label">' + label + '</span>';
+  _toolGroupList.appendChild(item);
 
-  card.appendChild(header);
-  card.appendChild(detail);
-  container.appendChild(card);
+  // Auto-scroll
+  container.scrollTop = container.scrollHeight;
 }
 
 // ── Chat history ──
