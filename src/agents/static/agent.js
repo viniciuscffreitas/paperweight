@@ -3,15 +3,18 @@
 var _agentSessionId = null;
 var _agentWs = null;
 var _thinkingEl = null;
+var _typewriterQueue = [];
+var _typewriterActive = false;
 
-// Read session ID from data attribute and load history if session exists
-(function() {
+function initAgentTab() {
   var el = document.getElementById('agent-session-status');
   if (el && el.dataset.sessionId) {
     _agentSessionId = el.dataset.sessionId;
     loadSessionHistory(_agentSessionId);
+  } else {
+    _agentSessionId = null;
   }
-})();
+}
 
 function loadSessionHistory(sessionId) {
   fetch('/api/sessions/' + sessionId + '/events')
@@ -20,7 +23,6 @@ function loadSessionHistory(sessionId) {
     if (!events.length) return;
     var output = document.getElementById('agent-output');
     if (!output) return;
-    // Clear placeholder
     var ph = output.querySelector('[style*="font-style:italic"]');
     if (ph) ph.remove();
 
@@ -36,13 +38,14 @@ function loadSessionHistory(sessionId) {
           appendBlock(output, 'div', 'agent', {color:'#3b82f6', fontSize:'10px'});
           lastType = 'agent';
         }
-        renderAgentEvent(ev, output);
+        // History: render instantly (no typewriter)
+        appendBlock(output, 'div', ev.content, {color:'#c8ccd4', margin:'4px 0', paddingLeft:'2px', whiteSpace:'pre-wrap', fontSize:'13px', lineHeight:'1.7'});
       } else if (ev.type === 'tool_use' || ev.type === 'tool_result') {
         if (lastType !== 'agent') {
           appendBlock(output, 'div', 'agent', {color:'#3b82f6', fontSize:'10px'});
           lastType = 'agent';
         }
-        renderAgentEvent(ev, output);
+        renderAgentEvent(ev, output, true);
       } else if (ev.type === 'task_completed' || ev.type === 'task_failed') {
         var clr = ev.type === 'task_completed' ? '#22c55e' : '#f85149';
         var icon = ev.type === 'task_completed' ? '\u2713 ' : '\u2717 ';
@@ -52,7 +55,7 @@ function loadSessionHistory(sessionId) {
     }
     output.scrollTop = output.scrollHeight;
   })
-  .catch(function() {}); // silently fail — session may have no events
+  .catch(function() {});
 }
 
 function sendAgentPrompt(projectId) {
@@ -61,11 +64,9 @@ function sendAgentPrompt(projectId) {
   if (!prompt) return;
 
   var output = document.getElementById('agent-output');
-  // Clear placeholder on first use
   var ph = output.querySelector('[style*="font-style:italic"]');
   if (ph) ph.remove();
 
-  // Render user prompt
   appendBlock(output, 'div', 'you', {color:'#6b7280', fontSize:'10px', marginTop:'14px'});
   appendBlock(output, 'div', prompt, {color:'#e8eaed', marginBottom:'14px', paddingLeft:'2px', fontSize:'13px'});
   output.scrollTop = output.scrollHeight;
@@ -79,7 +80,6 @@ function sendAgentPrompt(projectId) {
   var body = { prompt: prompt, model: model, max_cost_usd: budget };
   if (_agentSessionId) body.session_id = _agentSessionId;
 
-  // Show thinking indicator
   showThinking(output);
 
   fetch('/api/projects/' + projectId + '/agent', {
@@ -134,13 +134,12 @@ function connectAgentStream(runId, output, input) {
   ws.onmessage = function(e) {
     try {
       var event = JSON.parse(e.data);
-      // Remove thinking indicator on first real event
       if (firstEvent && (event.type === 'assistant' || event.type === 'tool_use')) {
         hideThinking();
         appendBlock(output, 'div', 'agent', {color:'#3b82f6', fontSize:'10px'});
         firstEvent = false;
       }
-      renderAgentEvent(event, output);
+      renderAgentEvent(event, output, false);
       output.scrollTop = output.scrollHeight;
     } catch(err) {
       appendBlock(output, 'div', '[erro de stream: ' + err.message + ']',
@@ -162,21 +161,22 @@ function connectAgentStream(runId, output, input) {
   };
 }
 
-function renderAgentEvent(event, output) {
+function renderAgentEvent(event, output, isHistory) {
   var type = event.type;
   var content = event.content || '';
   var toolName = event.tool_name || '';
   var filePath = event.file_path || '';
 
   if (type === 'assistant' && content) {
-    var div = document.createElement('div');
-    div.style.cssText = 'color:#c8ccd4;margin:4px 0;padding-left:2px;white-space:pre-wrap;font-size:13px;line-height:1.7;';
-    div.textContent = content;
-    output.appendChild(div);
+    if (isHistory) {
+      appendBlock(output, 'div', content, {color:'#c8ccd4', margin:'4px 0', paddingLeft:'2px', whiteSpace:'pre-wrap', fontSize:'13px', lineHeight:'1.7'});
+    } else {
+      // Typewriter effect for live streaming
+      typewrite(output, content);
+    }
   }
   else if (type === 'tool_use') {
-    hideThinking(); // in case thinking is still visible
-
+    hideThinking();
     var color = '#a78bfa';
     if (['Edit','Write'].indexOf(toolName) >= 0) color = '#22c55e';
     if (toolName === 'Bash') color = '#f59e0b';
@@ -235,6 +235,7 @@ function renderAgentEvent(event, output) {
   }
   else if (type === 'task_completed' || type === 'task_failed') {
     hideThinking();
+    flushTypewriter(); // finish any pending typewriter
     var clr = type === 'task_completed' ? '#22c55e' : '#f85149';
     var icon = type === 'task_completed' ? '\u2713 ' : '\u2717 ';
     appendBlock(output, 'div', icon + content, {color:clr, margin:'10px 0', paddingLeft:'2px', fontSize:'12px'});
@@ -242,8 +243,50 @@ function renderAgentEvent(event, output) {
     if (input) { input.disabled = false; input.placeholder = 'Continuar a sessão...'; input.focus(); }
     if (_agentWs) { _agentWs.close(); _agentWs = null; }
   }
-  // Skip 'result' type — duplicates 'assistant' content
 }
+
+// ── Typewriter effect ──
+
+function typewrite(output, text) {
+  // Create the target element first
+  var div = document.createElement('div');
+  div.style.cssText = 'color:#c8ccd4;margin:4px 0;padding-left:2px;white-space:pre-wrap;font-size:13px;line-height:1.7;';
+  output.appendChild(div);
+
+  // Queue each character
+  for (var i = 0; i < text.length; i++) {
+    _typewriterQueue.push({ el: div, char: text[i] });
+  }
+  if (!_typewriterActive) drainTypewriter(output);
+}
+
+function drainTypewriter(output) {
+  _typewriterActive = true;
+  var batchSize = 3; // chars per frame for speed
+  function tick() {
+    if (_typewriterQueue.length === 0) {
+      _typewriterActive = false;
+      return;
+    }
+    for (var i = 0; i < batchSize && _typewriterQueue.length > 0; i++) {
+      var item = _typewriterQueue.shift();
+      item.el.textContent += item.char;
+    }
+    output.scrollTop = output.scrollHeight;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function flushTypewriter() {
+  while (_typewriterQueue.length > 0) {
+    var item = _typewriterQueue.shift();
+    item.el.textContent += item.char;
+  }
+  _typewriterActive = false;
+}
+
+// ── UI helpers ──
 
 function updateSessionStatus(sessionId) {
   var el = document.getElementById('agent-session-status');
@@ -270,8 +313,6 @@ function endAgentSession(sessionId) {
     if (o) appendBlock(o, 'div', 'Erro: ' + err.message, {color:'#f85149', margin:'8px 0'});
   });
 }
-
-// ── DOM helpers ──
 
 function appendBlock(parent, tag, text, styles) {
   var el = document.createElement(tag);
