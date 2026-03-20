@@ -16,9 +16,24 @@ function _makeActionBtn(iconName, tooltip, onclick) {
 function initTaskDetail(config) {
   _taskConfig = config;
 
+  // Model selector: changing model clears session to force new one
+  var modelSelect = document.getElementById('chat-model');
+  if (modelSelect) {
+    // Set initial value from session model if available
+    if (config.currentModel) modelSelect.value = config.currentModel;
+    modelSelect.addEventListener('change', function() {
+      _taskConfig.sessionId = '';
+      var chatMessages = document.getElementById('chat-messages');
+      if (chatMessages) {
+        var note = document.createElement('div');
+        note.style.cssText = 'text-align:center;font-size:11px;color:var(--text-disabled);padding:8px 0;';
+        note.textContent = 'Switched to ' + modelSelect.options[modelSelect.selectedIndex].text + ' — new session will start';
+        chatMessages.appendChild(note);
+      }
+    });
+  }
+
   // Set up tab switching
-  var tabButtons = document.querySelectorAll('#task-tab-content ~ div button, div[style*="border-bottom"] button');
-  // Actually, we need to find the tab bar buttons
   setupTabSwitching();
 
   // Load activity if session exists
