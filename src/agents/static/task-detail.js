@@ -435,31 +435,55 @@ function sendChatPrompt() {
   })
   .then(function(data) {
     _taskConfig.sessionId = data.session_id;
-    hideThinking();
+    // Keep thinking visible until first content arrives
 
     var streamingContent = null;
     var streamingText = '';
+    var renderTimer = null;
+
+    function renderMarkdownProgressive() {
+      if (!streamingContent || !streamingText) return;
+      if (typeof marked !== 'undefined') {
+        var html = marked.parse(streamingText);
+        streamingContent.innerHTML = html + '<span class="stream-cursor"></span>';
+        addCodeBlockHeaders(streamingContent);
+        if (typeof hljs !== 'undefined') {
+          streamingContent.querySelectorAll('pre code').forEach(function(block) {
+            if (!block.dataset.highlighted) {
+              hljs.highlightElement(block);
+              block.dataset.highlighted = 'true';
+            }
+          });
+        }
+      } else {
+        streamingContent.textContent = streamingText;
+      }
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
 
     _taskWs = connectRunStream(data.run_id,
       function(event) {
         if (event.type === 'assistant' && event.content) {
           if (!streamingContent) {
+            hideThinking();
             streamingContent = appendChatMessage(chatMessages, 'agent', '', true);
           }
           streamingText += event.content;
-          streamingContent.textContent = streamingText;
-          chatMessages.scrollTop = chatMessages.scrollHeight;
+          // Progressive markdown render (debounced 300ms)
+          if (renderTimer) clearTimeout(renderTimer);
+          renderTimer = setTimeout(renderMarkdownProgressive, 300);
         } else if (event.type === 'tool_use') {
           renderToolCallInChat(chatMessages, event);
-          // Also add to activity feed
           var eventsContainer = document.getElementById('activity-events');
           if (eventsContainer) {
-            renderActivityEvent(eventsContainer, event.tool_name || 'Tool', event.file_path || event.content, '');
+            renderActivityEvent(eventsContainer, event.tool_name || 'Tool', parseToolLabel(event), '');
           }
         }
       },
       function() {
-        // Stream complete — finalize markdown
+        // Stream complete — final markdown render
+        hideThinking();
+        if (renderTimer) clearTimeout(renderTimer);
         if (streamingContent && streamingText) {
           streamingContent.classList.remove('streaming');
           if (typeof marked !== 'undefined') {
