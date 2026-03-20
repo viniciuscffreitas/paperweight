@@ -21,13 +21,21 @@ Two features:
 
 ### What changes
 
-Add a "Run" button to each task card in `hub/tasks.html` (`task_row.html` partial). Clicking it POSTs to the existing `/tasks/{project}/{task}/run` endpoint via HTMX.
+Add a "Run" button to each task card in `hub/tasks.html` (`task_row.html` partial). Clicking it triggers the existing manual run endpoint.
+
+### Route resolution: `project_id` → `project_name`
+
+The hub UI operates on `project_id` (from `project_store` SQLite), but the existing run endpoint `POST /tasks/{project_name}/{task_name}/run` uses `project_name` (from YAML-loaded `state.projects`).
+
+**Assumption**: `project_id` in `project_store` always matches the YAML project name. This is guaranteed by `migration.py` which uses `project_id = config.name` as the key. The `task.name` from `project_store.list_tasks()` matches the YAML task key for the same reason.
+
+Therefore the Run button can POST directly to `/tasks/{project_id}/{task.name}/run` — they are the same value.
 
 ### UI behavior
 
-- Button appears on the right side of each task row (where the ON/OFF badge is)
-- HTMX `hx-post` with `hx-swap="none"` — no DOM replacement
-- On click: button text changes to "Queued" (disabled) for 3 seconds, then reverts
+- Button appears on the right side of each task row, alongside the ON/OFF badge
+- HTMX `hx-post="/tasks/{{ id }}/{{ task.name }}/run"` with `hx-swap="none"` — no DOM replacement
+- On click: button text changes to "Queued" (disabled) for 3 seconds via JS, then reverts
 - The run appears in the RUNS tab
 
 ### Backend
@@ -60,14 +68,14 @@ Session = worktree + Claude Code conversation
 
 ### Data model
 
-New SQLite table `agent_sessions`:
+#### `agent_sessions` table (in `HistoryDB` — same `agents.db`)
 
 ```sql
-CREATE TABLE agent_sessions (
+CREATE TABLE IF NOT EXISTS agent_sessions (
     id TEXT PRIMARY KEY,              -- UUID
-    project TEXT NOT NULL,            -- project name (matches YAML config)
+    project TEXT NOT NULL,            -- project name (matches YAML config key)
     worktree_path TEXT NOT NULL,      -- /tmp/agents/session-<id>
-    claude_session_id TEXT,           -- captured from Claude CLI output
+    claude_session_id TEXT,           -- captured from Claude CLI stream-json output
     model TEXT NOT NULL DEFAULT 'claude-sonnet-4-6',
     max_cost_usd REAL NOT NULL DEFAULT 2.00,
     status TEXT NOT NULL DEFAULT 'active',  -- active | closed
@@ -76,11 +84,38 @@ CREATE TABLE agent_sessions (
 );
 ```
 
-Each run within a session is a normal `RunRecord` with a new optional `session_id` field linking it back.
+The table is created in `HistoryDB._init_db()` alongside the existing `runs`, `run_events`, `file_claims` tables.
+
+#### `RunRecord` changes
+
+Add optional `session_id` field:
+
+```python
+class RunRecord(BaseModel):
+    # ... existing fields ...
+    session_id: str | None = None  # links to agent_sessions.id
+```
+
+`HistoryDB._init_db()` adds: `ALTER TABLE runs ADD COLUMN session_id TEXT` (idempotent via try/except).
+
+#### `TriggerType` enum
+
+Add `AGENT = "agent"` to distinguish ad-hoc agent runs from one-shot manual triggers:
+
+```python
+class TriggerType(StrEnum):
+    SCHEDULE = "schedule"
+    GITHUB = "github"
+    LINEAR = "linear"
+    MANUAL = "manual"
+    AGENT = "agent"
+```
 
 ### Backend
 
 #### New endpoint: `POST /api/projects/{project_name}/agent`
+
+Uses `project_name` to look up `ProjectConfig` from `state.projects` directly (avoids `project_store` indirection). The hub frontend passes `project_id` which equals `project_name` per the migration invariant.
 
 Request body:
 ```json
@@ -104,42 +139,117 @@ Response:
 }
 ```
 
-#### Executor changes
+#### `run_adhoc()` — standalone method on Executor
 
-New method `run_adhoc()` on the Executor class:
+This is a **standalone method**, NOT a wrapper around `run_task()`. Key differences from `run_task()`:
 
-1. If new session:
-   - Create worktree from project's base branch
-   - Build claude command WITHOUT `--no-session-persistence`
-   - Run and capture `session_id` from stream-json output
-2. If resume:
-   - Validate worktree still exists
-   - Build claude command with `--resume <claude_session_id>`
-   - Run in existing worktree
-3. In both cases:
-   - Stream events via existing `broadcast_event` → WebSocket
-   - Create a `RunRecord` linked to the session
-   - Update session's `updated_at` and `claude_session_id`
+1. **No `--no-session-persistence`**: omitted to enable `--resume`
+2. **Worktree lifecycle**: NOT cleaned up on run completion — only on session close
+3. **`--resume` flag**: passed when continuing an existing session
+4. **No task config**: uses an ad-hoc prompt string, not a `TaskConfig`
+5. **Session linking**: creates `RunRecord` with `session_id` and `trigger_type="agent"`
+
+```python
+async def run_adhoc(
+    self,
+    project: ProjectConfig,
+    prompt: str,
+    session: AgentSession,
+    is_resume: bool = False,
+) -> RunRecord:
+    # 1. Build run_id and RunRecord (trigger_type=AGENT, session_id=session.id)
+    # 2. Budget check
+    # 3. If not is_resume: create worktree from project.base_branch
+    #    If is_resume: validate worktree exists
+    # 4. Build claude command:
+    #    - claude -p <prompt> --model <model> --max-budget-usd <cost>
+    #    - --output-format stream-json --verbose --permission-mode auto
+    #    - If is_resume: add --resume <session.claude_session_id>
+    #    - NO --no-session-persistence
+    # 5. Run via _run_claude() (reuses existing streaming infra)
+    # 6. Extract session_id from result (see Session ID capture)
+    # 7. Update session.claude_session_id and session.updated_at
+    # 8. Do NOT clean up worktree (session manages lifecycle)
+    # 9. Return RunRecord
+```
 
 #### Session ID capture
 
-The `stream-json` output format emits a final `result` message containing session metadata. The `RunStream` parser needs to extract `session_id` from this message and expose it.
+The `stream-json` `result` event from Claude CLI contains session metadata. Current fields parsed in `extract_result_from_line()`: `result`, `is_error`, `total_cost_usd`, `num_turns`.
+
+**Spike required**: Before implementation, run a sample `claude -p` WITHOUT `--no-session-persistence` and capture the raw `result` event JSON to identify the exact field name for session ID (likely `session_id` or `conversation_id`). Update `extract_result_from_line()` to extract this field.
+
+The `ClaudeOutput` model gets a new field:
+```python
+class ClaudeOutput(BaseModel):
+    result: str = ""
+    is_error: bool = False
+    cost_usd: float = 0.0
+    num_turns: int = 0
+    session_id: str = ""  # NEW: captured from result event
+```
 
 #### Session manager
 
-New class `SessionManager` (thin layer over SQLite):
-- `create_session(project, model, max_cost_usd) -> AgentSession`
-- `get_session(session_id) -> AgentSession | None`
-- `update_session(session_id, claude_session_id?, status?) -> None`
-- `close_session(session_id) -> None`
-- `cleanup_stale_sessions(timeout_minutes=30) -> int` — called periodically
-- `list_sessions(project) -> list[AgentSession]`
+New class `SessionManager` in `src/agents/session_manager.py` — receives the same `db_path` as `HistoryDB`:
+
+```python
+class SessionManager:
+    def __init__(self, db_path: Path) -> None: ...
+    def create_session(self, project: str, model: str, max_cost_usd: float) -> AgentSession: ...
+    def get_session(self, session_id: str) -> AgentSession | None: ...
+    def update_session(self, session_id: str, **kwargs) -> None: ...
+    def close_session(self, session_id: str) -> None: ...
+    def get_active_session(self, project: str) -> AgentSession | None: ...
+    def cleanup_stale_sessions(self, timeout_minutes: int = 30) -> int: ...
+    def list_sessions(self, project: str) -> list[AgentSession]: ...
+```
+
+#### Concurrency guard
+
+`SessionManager` maintains an in-memory `_running: set[str]` of session IDs with active runs. Before launching a run in `run_adhoc()`:
+
+1. Check `session_id in _running` → if yes, return 409
+2. Add `session_id` to `_running`
+3. In finally block: remove `session_id` from `_running`
+
+This prevents race conditions from near-simultaneous prompts.
+
+#### Stale session cleanup
+
+Register a scheduler job in `main.py` lifespan (alongside existing `cleanup_old_events`):
+
+```python
+scheduler.add_job(
+    cleanup_sessions,
+    "interval",
+    minutes=10,
+    id="session_cleanup",
+)
+```
+
+Where `cleanup_sessions()` calls `session_manager.cleanup_stale_sessions(30)` which:
+1. Finds sessions where `status='active'` and `updated_at < now - 30min`
+2. Removes their worktrees via `git worktree remove`
+3. Sets `status='closed'`
+
+#### Worktree path pattern
+
+Agent session worktrees use the path: `/tmp/agents/session-<session_id>`
+
+This deliberately differs from the run-based pattern (`/tmp/agents/<run_id>`) used by `run_task()` to avoid any collision. The key behavioral difference: `run_task()` cleans up worktree in its `finally` block; `run_adhoc()` does NOT — worktree cleanup is exclusively handled by `close_session()` or `cleanup_stale_sessions()`.
 
 ### Frontend
 
 #### Tab bar
 
-Add `agent` to the tab list in the `tab_bar` macro. New HTMX endpoint: `GET /hub/{project_id}/agent`.
+Modify the `tab_bar` macro in `components/macros.html` to include `'agent'`:
+
+```python
+{%- for t in ['activity', 'tasks', 'runs', 'agent'] -%}
+```
+
+New HTMX endpoint: `GET /hub/{project_id}/agent` in `dashboard_html.py`.
 
 #### Template: `hub/agent.html`
 
@@ -168,12 +278,23 @@ Terminal-embed layout:
 ```
 
 Design tokens:
-- Font: `Ubuntu Mono` (already loaded in base.html)
-- Background: `var(--bg-chrome)` for status bar, darker for terminal area
-- Tool call colors: Read/Grep = `#a78bfa` (purple), Edit/Write = `#22c55e` (green), Bash = `#f59e0b` (amber)
+- Font: `Ubuntu Mono` (loaded via Google Fonts in `base.html`)
+- Background: `var(--bg-chrome)` for status bar, `#0a0c14` for terminal area
+- Tool call colors: Read/Grep/Glob = `#a78bfa` (purple), Edit/Write = `#22c55e` (green), Bash = `#f59e0b` (amber)
 - Diff: red `#f85149` for removals, green `#3fb950` for additions
 - User prompt label: `var(--text-muted)`
 - Agent label: `var(--accent)` (blue)
+
+#### User prompt rendering
+
+User prompts are rendered **client-side** when the user submits — NOT from WebSocket events. When the user types a prompt and hits Enter:
+
+1. JavaScript immediately appends a "you" block to the terminal output
+2. Sends POST to `/api/projects/{project}/agent`
+3. Connects to WebSocket `/ws/runs/{run_id}` from the response
+4. Agent events stream in below the user prompt
+
+This avoids needing a new `StreamEventType` for user messages.
 
 #### Streaming
 
@@ -183,15 +304,18 @@ Reuses existing WebSocket infrastructure:
 3. JavaScript renderer maps event types to terminal blocks:
    - `assistant` → plain text with agent label
    - `tool_use` → collapsible block with tool name + args
-   - `tool_result` with file diffs → syntax-highlighted diff block
-   - `result` → session complete indicator
+   - `tool_result` → content inside parent tool block (expand on click)
+   - `result` → run complete indicator (cost, turns)
+   - `task_started` → status update in status bar
+   - `task_completed` → "Done" indicator + PR link
+   - `task_failed` → error message in red
 
 #### Session state in UI
 
-- Active session: prompt input enabled, "End session" button visible in status bar
-- No session: prompt input shows placeholder "Start a new session...", model/budget selectors visible
-- Between runs (session active, no run in progress): input enabled, previous output visible
-- Run in progress: input disabled, streaming active, blinking cursor
+- **No session**: prompt input shows placeholder "Start a new session...", model/budget selectors visible
+- **Active session, idle**: prompt input enabled, "End session" button visible, previous output visible
+- **Active session, running**: input disabled, streaming active, blinking cursor
+- **Session closed**: output preserved, "New session" button appears
 
 #### Controls
 
@@ -200,40 +324,14 @@ Reuses existing WebSocket infrastructure:
 - **End session**: ghost button in status bar, closes session + cleans worktree
 - **New session**: appears after ending, or when no active session exists
 
-### Streaming event rendering
-
-The existing `StreamEvent` model:
-
-```python
-class StreamEvent(BaseModel):
-    type: str          # assistant, tool_use, tool_result, result, etc.
-    content: str
-    tool_name: str = ""
-    file_path: str = ""
-    timestamp: float
-```
-
-Frontend rendering rules:
-
-| Event type | Rendering |
-|---|---|
-| `assistant` | Plain text block under "agent" label |
-| `tool_use` where `tool_name` in (Read, Grep, Glob) | Collapsed block: `▶ Read path/to/file` |
-| `tool_use` where `tool_name` in (Edit, Write) | Expanded block: `▼ Edit path` + diff |
-| `tool_use` where `tool_name` = Bash | `▶ Bash command...` |
-| `tool_result` | Content inside parent tool block (expand on click) |
-| `result` | Session summary: cost, turns, PR link if any |
-| `task_started` | Status update in status bar |
-| `task_completed` | "Done" indicator + PR link |
-| `task_failed` | Error message in red |
-
 ### Error handling
 
-- **Session not found**: return 404, frontend shows "Session expired"
+- **Session not found (404)**: frontend shows "Session expired" message, prompts new session
 - **Worktree missing**: close session, return error, frontend prompts new session
-- **Budget exceeded**: same as existing — run fails with budget error message
+- **Budget exceeded**: run fails with budget error message, session stays open
 - **Claude timeout**: run marked as timeout, session stays open for retry
-- **Concurrent runs in same session**: reject with 409 — one run at a time per session
+- **Concurrent runs in same session (409)**: frontend shows "A run is already in progress", input stays disabled
+- **Project not found (404)**: project missing from `state.projects`, return error
 
 ### Security
 
@@ -247,9 +345,10 @@ Frontend rendering rules:
 **In scope:**
 - Run button on task cards
 - Agent tab with terminal UI
-- Session management (create, resume, close)
+- Session management (create, resume, close, cleanup)
 - Streaming rendering of tool calls
 - Worktree reuse within sessions
+- Stale session cleanup via scheduler
 
 **Out of scope:**
 - Authentication / multi-user sessions
@@ -257,3 +356,4 @@ Frontend rendering rules:
 - File tree / workspace viewer in the tab
 - Agent-to-agent coordination for ad-hoc sessions
 - Mobile-optimized agent tab layout
+- PR creation from agent tab (uses standard executor PR flow)
