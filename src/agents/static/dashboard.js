@@ -120,6 +120,50 @@ document.addEventListener('DOMContentLoaded', function() {
   _makeSwipeable('projects-sheet-handle', 'projects-sheet', closeProjectsSheet);
 });
 
+// ── Open agent session from dashboard row ──
+function openAgentSession(projectId, sessionId) {
+  var panel = document.getElementById('panel-content');
+  // Load the hub panel first, then switch to agent tab
+  fetch('/hub/' + projectId)
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+      panel.innerHTML = html;
+      if (window.htmx) htmx.process(panel);
+      openPanel();
+      // Now load the agent tab with the session
+      var tabContent = document.getElementById('tab-content');
+      if (tabContent) {
+        fetch('/hub/' + projectId + '/agent?session=' + sessionId)
+          .then(function(r) { return r.text(); })
+          .then(function(agentHtml) {
+            tabContent.innerHTML = agentHtml;
+            if (window.htmx) htmx.process(tabContent);
+            // Activate agent tab visually
+            var tabs = tabContent.previousElementSibling;
+            if (tabs) {
+              var buttons = tabs.querySelectorAll('button');
+              buttons.forEach(function(b) {
+                b.style.color = 'var(--text-muted)';
+                b.style.borderBottomColor = 'transparent';
+                b.removeAttribute('data-active');
+              });
+              var agentBtn = buttons[buttons.length - 1]; // AGENT is last
+              if (agentBtn) {
+                agentBtn.style.color = 'var(--text-primary)';
+                agentBtn.style.borderBottomColor = 'var(--accent)';
+                agentBtn.setAttribute('data-active', 'true');
+              }
+            }
+            // Execute scripts in swapped content
+            var scripts = tabContent.querySelectorAll('script');
+            scripts.forEach(function(s) {
+              if (s.textContent) { eval(s.textContent); }
+            });
+          });
+      }
+    });
+}
+
 // ── Close all on Escape ──
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {

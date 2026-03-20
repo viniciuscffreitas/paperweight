@@ -210,6 +210,7 @@ def build_history_rows(runs: list) -> list[dict]:
                 "duration": duration,
                 "trigger": r.trigger_type,
                 "pr_url": r.pr_url or "",
+                "session_id": r.session_id or "",
             }
         )
     return rows

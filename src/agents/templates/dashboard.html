@@ -42,9 +42,12 @@
     </thead>
     <tbody>
       {% for r in runs %}
-      <tr style="border-bottom:1px solid var(--bg-overlay);cursor:pointer;"
+      <tr style="border-bottom:1px solid var(--bg-overlay);cursor:pointer;transition:background .15s;"
           onmouseover="this.style.background='var(--bg-elevated)'"
-          onmouseout="this.style.background='transparent'">
+          onmouseout="this.style.background='transparent'"
+          {% if r.session_id and r.trigger == 'agent' %}
+          onclick="openAgentSession('{{ r.project }}', '{{ r.session_id }}')"
+          {% endif %}>
         <td style="padding:8px 8px;">
           {{ status_dot(r.raw_status) }}
           <span class="sr-only">{{ r.status }}</span>
@@ -56,7 +59,7 @@
         <td style="padding:8px 8px;color:var(--text-muted);">{{ r.cost }}</td>
         <td class="col-pr" style="padding:8px 8px;">
           {% if r.pr_url %}
-          <a href="{{ r.pr_url }}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:11px;">PR ↗</a>
+          <a href="{{ r.pr_url }}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-size:11px;" onclick="event.stopPropagation()">PR ↗</a>
           {% endif %}
         </td>
       </tr>
