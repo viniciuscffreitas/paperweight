@@ -155,23 +155,23 @@ def test_tab_bar_inactive_tabs_transparent_border(jinja_env):
 
 
 def test_tab_bar_all_buttons_have_activate_tab(jinja_env):
-    """All 3 tab buttons must call activateTab(this)."""
+    """All 4 tab buttons must call activateTab(this)."""
     tmpl = jinja_env.from_string(
         "{% from 'components/macros.html' import tab_bar %}"
         "{{ tab_bar('p1') }}"
     )
     html = tmpl.render()
-    assert html.count("activateTab(this)") == 3
+    assert html.count("activateTab(this)") == 4
 
 
 def test_tab_bar_all_buttons_target_tab_content(jinja_env):
-    """All 3 tab buttons must have hx-target='#tab-content'."""
+    """All 4 tab buttons must have hx-target='#tab-content'."""
     tmpl = jinja_env.from_string(
         "{% from 'components/macros.html' import tab_bar %}"
         "{{ tab_bar('p1') }}"
     )
     html = tmpl.render()
-    assert html.count('hx-target="#tab-content"') == 3
+    assert html.count('hx-target="#tab-content"') == 4
 
 
 def test_tab_bar_hx_get_uses_project_id(jinja_env):
@@ -184,6 +184,7 @@ def test_tab_bar_hx_get_uses_project_id(jinja_env):
     assert 'hx-get="/hub/my-project-42/activity"' in html
     assert 'hx-get="/hub/my-project-42/tasks"' in html
     assert 'hx-get="/hub/my-project-42/runs"' in html
+    assert 'hx-get="/hub/my-project-42/agent"' in html
 
 
 def test_tab_bar_data_active_aware_hover(jinja_env):
@@ -193,11 +194,11 @@ def test_tab_bar_data_active_aware_hover(jinja_env):
         "{{ tab_bar('p1') }}"
     )
     html = tmpl.render()
-    assert html.count("this.dataset.active") >= 4  # 2 handlers × 3 buttons
+    assert html.count("this.dataset.active") >= 4  # 2 handlers × 4 buttons
 
 
 def test_tab_bar_renders_all_tab_labels(jinja_env):
-    """tab_bar must render ACTIVITY, TASKS, and RUNS labels."""
+    """tab_bar must render ACTIVITY, TASKS, RUNS, and AGENT labels."""
     tmpl = jinja_env.from_string(
         "{% from 'components/macros.html' import tab_bar %}"
         "{{ tab_bar('p1') }}"
@@ -206,6 +207,7 @@ def test_tab_bar_renders_all_tab_labels(jinja_env):
     assert "ACTIVITY" in html
     assert "TASKS" in html
     assert "RUNS" in html
+    assert "AGENT" in html
 
 
 def test_tab_bar_uses_no_raw_hex(jinja_env):

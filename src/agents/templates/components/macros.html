@@ -141,7 +141,7 @@
    ─────────────────────────────────────────────────────────────────────── #}
 {% macro tab_bar(project_id, active_tab='activity') %}
 <div style="display:flex;border-bottom:1px solid var(--border-subtle);padding:0 12px;flex-shrink:0;">
-  {%- for t in ['activity', 'tasks', 'runs'] -%}
+  {%- for t in ['activity', 'tasks', 'runs', 'agent'] -%}
   <button hx-get="/hub/{{ project_id }}/{{ t }}"
           hx-target="#tab-content"
           onclick="activateTab(this)"

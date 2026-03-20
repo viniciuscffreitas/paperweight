@@ -427,7 +427,7 @@ def test_panel_tab_activate_js_onclick(app_with_project):
     """Each tab button must call activateTab(this) for runtime active-state switching."""
     resp = app_with_project.get("/hub/p1")
     html = resp.text
-    assert html.count("activateTab(this)") == 3
+    assert html.count("activateTab(this)") == 4
 
 
 def test_panel_close_button_present(app_with_project):
@@ -437,10 +437,10 @@ def test_panel_close_button_present(app_with_project):
 
 
 def test_htmx_targets_preserved(app_with_project):
-    """All three tab buttons must target #tab-content via hx-target."""
+    """All four tab buttons must target #tab-content via hx-target."""
     resp = app_with_project.get("/hub/p1")
     html = resp.text
-    assert html.count('hx-target="#tab-content"') == 3
+    assert html.count('hx-target="#tab-content"') == 4
 
 
 def test_activity_tab_has_data_active_initially(app_with_project):
@@ -453,7 +453,58 @@ def test_inactive_tabs_have_data_active_aware_hover(app_with_project):
     """TASKS and RUNS onmouseout must check dataset.active before resetting color."""
     resp = app_with_project.get("/hub/p1")
     html = resp.text
-    assert html.count("this.dataset.active") >= 4  # onmouseover + onmouseout x 3 buttons
+    assert html.count("this.dataset.active") >= 4  # onmouseover + onmouseout x 4 buttons
+
+
+def test_hub_panel_contains_agent_tab(app_with_project):
+    """Tab bar must contain an AGENT tab button."""
+    resp = app_with_project.get("/hub/p1")
+    assert resp.status_code == 200
+    assert b"AGENT" in resp.content
+
+
+def test_hub_panel_agent_tab_htmx_get(app_with_project):
+    """AGENT tab button must point to /hub/<id>/agent via hx-get."""
+    resp = app_with_project.get("/hub/p1")
+    assert b"/hub/p1/agent" in resp.content
+
+
+def test_hub_agent_returns_200(app_with_project):
+    """GET /hub/<id>/agent returns 200 for existing project."""
+    resp = app_with_project.get("/hub/p1/agent")
+    assert resp.status_code == 200
+
+
+def test_hub_agent_404_for_missing_project(app_with_dashboard):
+    """GET /hub/<id>/agent returns 404 when project does not exist."""
+    resp = app_with_dashboard.get("/hub/nonexistent-xyz/agent")
+    assert resp.status_code == 404
+
+
+def test_hub_agent_contains_terminal_structure(app_with_project):
+    """Agent tab must render the terminal output div and prompt input."""
+    resp = app_with_project.get("/hub/p1/agent")
+    assert b"agent-output" in resp.content
+    assert b"agent-input" in resp.content
+    assert b"agent-model" in resp.content
+
+
+def test_hub_agent_loads_agent_js(app_with_project):
+    """Agent tab must include a <script> tag loading /static/agent.js."""
+    resp = app_with_project.get("/hub/p1/agent")
+    assert b"/static/agent.js" in resp.content
+
+
+def test_hub_agent_no_session_shows_placeholder(app_with_project):
+    """Agent tab with no active session must show the placeholder hint."""
+    resp = app_with_project.get("/hub/p1/agent")
+    assert b"no session" in resp.content
+
+
+def test_hub_agent_session_status_has_data_attribute(app_with_project):
+    """agent-session-status span must carry data-session-id attribute."""
+    resp = app_with_project.get("/hub/p1/agent")
+    assert b"data-session-id=" in resp.content
 
 
 # ---------------------------------------------------------------------------
