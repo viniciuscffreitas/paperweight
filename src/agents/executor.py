@@ -118,6 +118,16 @@ class Executor:
         task = project.tasks[task_name]
         variables = variables or {}
         issue_id = variables.get("issue_id", "")
+
+        # Inject progress_file_path for retry context
+        if issue_id:
+            progress_dir = self.data_dir / "progress"
+            progress_file = progress_dir / f"{issue_id}.txt"
+            variables["progress_file_path"] = str(progress_file)
+            if not progress_file.exists():
+                write_progress_log(progress_dir, issue_id, attempt=1,
+                                   issue_title=variables.get("issue_title", ""),
+                                   issue_description=variables.get("issue_description", ""))
         is_agent_issue = bool(issue_id and self.linear_client)
 
         run_id = generate_run_id(project.name, task_name, issue_id=issue_id)
@@ -217,6 +227,8 @@ class Executor:
                 run.pr_url = pr_url
                 msg = f"done — PR: {pr_url}" if pr_url else "done (no changes)"
                 await self._emit(run_id, "task_completed", msg)
+                if issue_id:
+                    delete_progress_log(self.data_dir / "progress", issue_id)
                 if is_agent_issue:
                     await finalize_agent_success(
                         project, variables, discord_msg_id, run,
@@ -234,6 +246,12 @@ class Executor:
             await self._emit(run_id, "task_failed", run.error_message)
         finally:
             run.finished_at = datetime.now(UTC)
+            if issue_id and run.status in (RunStatus.FAILURE, RunStatus.TIMEOUT):
+                try:
+                    append_progress_log(self.data_dir / "progress", issue_id,
+                                        attempt=1, error=run.error_message or "")
+                except Exception:
+                    logger.warning("Failed to write progress log for %s", issue_id)
             self.history.update_run(
                 run_id=run.id, status=run.status, finished_at=run.finished_at,
                 cost_usd=run.cost_usd, num_turns=run.num_turns, pr_url=run.pr_url,
