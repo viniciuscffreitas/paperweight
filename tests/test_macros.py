@@ -9,6 +9,18 @@ from jinja2 import Environment, FileSystemLoader
 
 _TEMPLATES_DIR = Path(__file__).parent.parent / "src" / "agents" / "templates"
 _MACROS_PATH = _TEMPLATES_DIR / "components" / "macros.html"
+_STATIC_DIR = Path(__file__).parent.parent / "src" / "agents" / "static"
+
+
+def test_styles_css_exists():
+    assert (_STATIC_DIR / "styles.css").exists()
+
+
+def test_styles_has_design_tokens():
+    css = (_STATIC_DIR / "styles.css").read_text()
+    for token in ["--bg-chrome", "--bg-content", "--text-primary", "--text-secondary",
+                   "--status-running", "--accent-text", "--card-radius"]:
+        assert token in css, f"Missing token: {token}"
 
 
 @pytest.fixture

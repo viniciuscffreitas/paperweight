@@ -1,0 +1,133 @@
+/* =========================================================
+   Design Tokens & Base CSS — Bold Minimal System
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   Dark theme (default)
+   --------------------------------------------------------- */
+:root {
+  --bg-chrome: #0c0c0c;
+  --bg-content: #111111;
+  --bg-card-running: #141428;
+  --bg-card-review: #18121e;
+  --bg-card-done: #131313;
+  --border-card-running: #252548;
+  --border-card-review: #2a2035;
+  --border-card-neutral: #1a1a1a;
+
+  --text-primary: #f5f5f5;
+  --text-secondary: #999999;
+  --text-muted: #777777;
+  --text-disabled: #555555;
+
+  --status-running: #818cf8;
+  --status-running-glow: #6366f1;
+  --status-review: #c084fc;
+  --status-review-dot: #a855f7;
+  --status-success: #4ade80;
+  --status-queued: #777777;
+  --status-error: #f87171;
+  --status-warning: #fbbf24;
+
+  --accent-gradient: linear-gradient(135deg, #6366f1, #8b5cf6);
+  --accent-text: #818cf8;
+  --accent-focus: #6366f1;
+
+  --separator-strong: #1a1a1a;
+  --separator-subtle: #141414;
+
+  --card-radius: 14px;
+  --panel-radius: 16px;
+}
+
+/* ---------------------------------------------------------
+   Light theme
+   --------------------------------------------------------- */
+[data-theme="light"] {
+  --bg-chrome: #f0f0f0;
+  --bg-content: #fafafa;
+  --bg-card-running: #eeeeff;
+  --bg-card-review: #f3eef8;
+  --bg-card-done: #f5f5f5;
+  --border-card-running: #c8c8e8;
+  --border-card-review: #d8c8e8;
+  --border-card-neutral: #e0e0e0;
+
+  --text-primary: #111111;
+  --text-secondary: #555555;
+  --text-muted: #777777;
+  --text-disabled: #aaaaaa;
+
+  --status-running: #4f46e5;
+  --status-running-glow: #4f46e5;
+  --status-review: #9333ea;
+  --status-review-dot: #9333ea;
+  --status-success: #16a34a;
+  --status-queued: #777777;
+  --status-error: #dc2626;
+  --status-warning: #d97706;
+
+  --accent-gradient: linear-gradient(135deg, #4f46e5, #7c3aed);
+  --accent-text: #4f46e5;
+  --accent-focus: #4f46e5;
+
+  --separator-strong: #e0e0e0;
+  --separator-subtle: #eeeeee;
+}
+
+/* ---------------------------------------------------------
+   Base resets
+   --------------------------------------------------------- */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; background: var(--bg-chrome); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; font-size: 14px; line-height: 1.5; }
+
+/* ---------------------------------------------------------
+   Status dots
+   --------------------------------------------------------- */
+.status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.status-dot.running { background: var(--status-running-glow); box-shadow: 0 0 10px rgba(99, 102, 241, 0.5); }
+.status-dot.review { background: var(--status-review-dot); }
+.status-dot.success, .status-dot.done { background: var(--status-success); }
+.status-dot.failure, .status-dot.failed, .status-dot.error { background: var(--status-error); }
+.status-dot.timeout { background: var(--status-warning); }
+.status-dot.cancelled, .status-dot.queued, .status-dot.pending { background: var(--status-queued); }
+
+/* ---------------------------------------------------------
+   Animations
+   --------------------------------------------------------- */
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.pulse { animation: pulse 2s ease-in-out infinite; }
+
+@keyframes skeleton-pulse { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.skeleton { background: linear-gradient(90deg, var(--separator-strong) 25%, var(--separator-subtle) 50%, var(--separator-strong) 75%); background-size: 200% 100%; animation: skeleton-pulse 1.5s ease-in-out infinite; border-radius: var(--card-radius); }
+
+/* ---------------------------------------------------------
+   Accessibility
+   --------------------------------------------------------- */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border-width: 0; }
+:focus-visible { outline: 2px solid var(--accent-focus); outline-offset: 2px; border-radius: 3px; }
+@media (prefers-reduced-motion: reduce) { .pulse, .skeleton { animation: none; } .status-dot.running { box-shadow: none; } }
+
+/* ---------------------------------------------------------
+   Mobile (max-width: 767px)
+   --------------------------------------------------------- */
+@media (max-width: 767px) {
+  #sidebar { position: fixed; left: 0; top: 0; height: 100%; z-index: 100; transform: translateX(-200px); transition: transform 0.22s ease; }
+  #sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.5); }
+  #sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 99; }
+  #sidebar-backdrop.open { display: block; }
+  #hamburger { display: flex !important; }
+  #bottom-nav { display: flex !important; }
+  main { padding-bottom: 52px; }
+  #content-panel { border-radius: 0 !important; border: none !important; margin: 0 !important; }
+}
+
+/* ---------------------------------------------------------
+   Desktop (min-width: 768px)
+   --------------------------------------------------------- */
+@media (min-width: 768px) {
+  #sidebar { transform: none !important; }
+  #sidebar-backdrop { display: none !important; }
+  #hamburger { display: none !important; }
+  #bottom-nav { display: none !important; }
+}
