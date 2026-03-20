@@ -597,9 +597,20 @@ function startTask() {
   var btn = document.querySelector('[onclick="startTask()"]');
   if (btn) { btn.textContent = 'Starting...'; btn.style.opacity = '0.6'; btn.disabled = true; }
 
-  // Get task description to use as prompt
+  // Build prompt: include spec content if available
+  var title = document.querySelector('[style*="font-size:20px"]');
   var desc = document.getElementById('task-description');
-  var prompt = desc ? desc.textContent.trim() : document.querySelector('[style*="font-size:20px"]').textContent.trim();
+  var spec = document.getElementById('spec-rendered');
+
+  var prompt = '';
+  if (spec && spec.textContent.trim()) {
+    prompt = '# Task: ' + (title ? title.textContent.trim() : '') + '\n\n';
+    prompt += 'Implement this spec:\n\n' + spec.textContent.trim();
+  } else if (desc) {
+    prompt = desc.textContent.trim();
+  } else if (title) {
+    prompt = title.textContent.trim();
+  }
 
   var modelSelect = document.getElementById('chat-model');
   var model = modelSelect ? modelSelect.value : 'claude-sonnet-4-6';
