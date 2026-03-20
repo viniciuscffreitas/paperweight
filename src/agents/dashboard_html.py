@@ -52,6 +52,9 @@ def _find_related_docs(
     search_dirs.append(_BASE.parent.parent / "docs" / "superpowers" / "specs")
     search_dirs.append(_BASE.parent.parent / "docs" / "superpowers" / "plans")
 
+    # Score each candidate by how many title words match the filename
+    best_score = 0
+    best_content = ""
     seen: set[str] = set()
     for d in search_dirs:
         if not d.exists() or str(d) in seen:
@@ -59,12 +62,14 @@ def _find_related_docs(
         seen.add(str(d))
         for f in sorted(d.glob("*.md"), reverse=True):
             fname = f.stem.lower()
-            if any(w in fname for w in words):
+            score = sum(1 for w in words if w in fname)
+            if score > best_score:
                 try:
-                    return f.read_text(encoding="utf-8")
+                    best_content = f.read_text(encoding="utf-8")
+                    best_score = score
                 except Exception:
                     continue
-    return ""
+    return best_content
 
 
 def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None:
