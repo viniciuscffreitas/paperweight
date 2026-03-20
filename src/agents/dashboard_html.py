@@ -33,15 +33,20 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
     async def dashboard_page(request: Request) -> HTMLResponse:
         projects = state.project_store.list_projects() if state.project_store else []
         runs = []
+        sessions = []
         try:
             from agents.dashboard_formatters import build_history_rows
             runs = build_history_rows(state.history.list_runs_today())
+            # Filter out agent runs (they're shown as sessions)
+            runs = [r for r in runs if r.get("trigger") != "agent"]
         except Exception:
             pass
+        if hasattr(state, "session_manager") and state.session_manager:
+            sessions = state.session_manager.list_sessions_with_stats()
         return _TEMPLATES.TemplateResponse(
             request,
             "dashboard.html",
-            {"projects": projects, "runs": runs},
+            {"projects": projects, "runs": runs, "sessions": sessions},
         )
 
     @app.get("/hub/{project_id}", response_class=HTMLResponse)

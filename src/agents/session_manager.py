@@ -18,11 +18,12 @@ class AgentSession(BaseModel):
     model: str = "claude-sonnet-4-6"
     max_cost_usd: float = 2.00
     status: str = "active"  # active | closed
+    title: str = ""
     created_at: datetime
     updated_at: datetime
 
 
-_ALLOWED_UPDATE_FIELDS = {"claude_session_id", "status", "model", "max_cost_usd"}
+_ALLOWED_UPDATE_FIELDS = {"claude_session_id", "status", "model", "max_cost_usd", "title"}
 
 
 class SessionManager:
@@ -48,11 +49,15 @@ class SessionManager:
                     updated_at TEXT NOT NULL
                 )
             """)
-            # Migration: add running column if missing
-            try:
-                conn.execute("ALTER TABLE agent_sessions ADD COLUMN running INTEGER NOT NULL DEFAULT 0")
-            except sqlite3.OperationalError:
-                pass  # Column already exists
+            # Migrations
+            for migration in [
+                "ALTER TABLE agent_sessions ADD COLUMN running INTEGER NOT NULL DEFAULT 0",
+                "ALTER TABLE agent_sessions ADD COLUMN title TEXT NOT NULL DEFAULT ''",
+            ]:
+                try:
+                    conn.execute(migration)
+                except sqlite3.OperationalError:
+                    pass  # Column already exists
             # Clear stale locks from previous process
             conn.execute("UPDATE agent_sessions SET running = 0 WHERE running = 1")
 
@@ -62,6 +67,11 @@ class SessionManager:
         return conn
 
     def _row_to_session(self, row: sqlite3.Row) -> AgentSession:
+        title = ""
+        try:
+            title = row["title"] or ""
+        except (IndexError, KeyError):
+            pass
         return AgentSession(
             id=row["id"],
             project=row["project"],
@@ -70,6 +80,7 @@ class SessionManager:
             model=row["model"],
             max_cost_usd=row["max_cost_usd"],
             status=row["status"],
+            title=title,
             created_at=datetime.fromisoformat(row["created_at"]),
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
@@ -180,6 +191,43 @@ class SessionManager:
                 (project,),
             ).fetchall()
         return [self._row_to_session(row) for row in rows]
+
+    def list_sessions_with_stats(self, project: str | None = None) -> list[dict]:
+        """List sessions with aggregated run stats for dashboard display."""
+        where = "WHERE s.project = ?" if project else ""
+        params: list[object] = [project] if project else []
+        # Join with runs to get stats — use the SAME db since runs are in agents.db
+        with self._conn() as conn:
+            rows = conn.execute(
+                f"""SELECT s.id, s.project, s.status, s.title, s.model,
+                       s.created_at, s.updated_at,
+                       COUNT(r.id) as run_count,
+                       COALESCE(SUM(r.cost_usd), 0) as total_cost,
+                       MIN(r.started_at) as first_run_at,
+                       MAX(r.finished_at) as last_run_at,
+                       (SELECT task FROM runs WHERE session_id = s.id ORDER BY started_at ASC LIMIT 1) as first_prompt
+                FROM agent_sessions s
+                LEFT JOIN runs r ON r.session_id = s.id
+                {where}
+                GROUP BY s.id
+                ORDER BY s.updated_at DESC""",
+                params,
+            ).fetchall()
+        result = []
+        for row in rows:
+            title = row["title"] or row["first_prompt"] or "Chat sem título"
+            result.append({
+                "id": row["id"],
+                "project": row["project"],
+                "status": row["status"],
+                "title": title,
+                "model": row["model"],
+                "run_count": row["run_count"],
+                "total_cost": row["total_cost"],
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+            })
+        return result
 
     def try_acquire_run(self, session_id: str) -> bool:
         """Atomically acquire the run lock via SQLite UPDATE. Safe across restarts."""

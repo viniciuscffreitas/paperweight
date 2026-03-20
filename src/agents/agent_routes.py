@@ -10,6 +10,34 @@ from agents.executor_utils import generate_run_id
 
 logger = logging.getLogger(__name__)
 
+# Greeting words to strip when generating chat titles
+_GREETINGS = {"oi", "olá", "ola", "hey", "hi", "hello", "e", "ae", "eae", "bom", "boa",
+              "dia", "tarde", "noite", "tudo", "bem", "beleza"}
+
+
+def _generate_title(prompt: str) -> str:
+    """Generate a short contextual title from the first prompt."""
+    # Remove line breaks, normalize whitespace
+    text = " ".join(prompt.split())
+    # Strip common greeting prefixes
+    words = text.split()
+    # Drop leading greeting words (up to 6)
+    start = 0
+    for i, w in enumerate(words[:6]):
+        clean = w.strip("?,!.").lower()
+        if clean in _GREETINGS:
+            start = i + 1
+        else:
+            break
+    meaningful = " ".join(words[start:]) if start < len(words) else text
+    # Capitalize first letter, truncate to 60 chars
+    if not meaningful:
+        meaningful = text
+    title = meaningful[0].upper() + meaningful[1:] if meaningful else "Chat"
+    if len(title) > 60:
+        title = title[:57] + "..."
+    return title
+
 
 def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -> None:
     assert state.session_manager is not None, "session_manager required for agent routes"
@@ -67,7 +95,7 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                     result = await state.executor.run_adhoc(
                         project, prompt, session, is_resume=is_resume, run_id=run_id,
                     )
-                    # Capture session_id directly from ClaudeOutput (already parsed by streaming layer)
+                    # Capture session_id from ClaudeOutput for --resume
                     if result.claude_session_id:
                         session_manager.update_session(
                             session.id, claude_session_id=result.claude_session_id,
@@ -78,6 +106,11 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                             "resume will start a fresh conversation",
                             session.id,
                         )
+                    # Generate title from first prompt if session has no title yet
+                    current = session_manager.get_session(session.id)
+                    if current and not current.title and prompt:
+                        title = _generate_title(prompt)
+                        session_manager.update_session(session.id, title=title)
             finally:
                 session_manager.release_run(session.id)
 

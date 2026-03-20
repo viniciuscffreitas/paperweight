@@ -13,21 +13,73 @@
 
 {% block content %}
 
-<!-- Run history table (overflow-x:auto for horizontal scroll on mobile) -->
 <div style="flex:1;overflow-y:auto;overflow-x:auto;padding:12px;" id="run-history">
   <style>
     @media (max-width: 767px) {
       .col-model, .col-pr { display: none; }
       #run-history table { min-width: 360px; }
     }
-    @media (min-width: 768px) {
-      .live-stream-panel { height: 180px; }
-    }
-    @media (max-width: 767px) {
-      .live-stream-panel { height: 120px; }
-    }
+    @media (min-width: 768px) { .live-stream-panel { height: 180px; } }
+    @media (max-width: 767px) { .live-stream-panel { height: 120px; } }
   </style>
+
+  <!-- Search bar -->
+  <div style="margin-bottom:12px;">
+    <input id="chat-search" type="text" placeholder="Buscar chats..."
+           oninput="filterChats(this.value)"
+           style="width:100%;max-width:400px;background:var(--bg-chrome);border:1px solid var(--border-default);
+                  border-radius:6px;padding:8px 12px;font-size:13px;color:var(--text-primary);
+                  font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
+           onfocus="this.style.borderColor='var(--accent)'"
+           onblur="this.style.borderColor='var(--border-default)'">
+  </div>
+
+  <!-- Agent sessions (chats) -->
+  {% if sessions %}
+  <div style="font-size:9px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1.5px;padding:4px 8px;margin-bottom:4px;">
+    Chats
+  </div>
+  <table id="sessions-table" style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px;">
+    <thead>
+      <tr style="border-bottom:1px solid var(--border-subtle);">
+        <th style="text-align:left;padding:6px 8px;color:var(--text-muted);font-weight:400;font-size:10px;text-transform:uppercase;letter-spacing:1px;width:30px;">●</th>
+        <th style="text-align:left;padding:6px 8px;color:var(--text-muted);font-weight:400;font-size:10px;text-transform:uppercase;letter-spacing:1px;">Chat</th>
+        <th class="col-model" style="text-align:left;padding:6px 8px;color:var(--text-muted);font-weight:400;font-size:10px;text-transform:uppercase;letter-spacing:1px;">Model</th>
+        <th style="text-align:right;padding:6px 8px;color:var(--text-muted);font-weight:400;font-size:10px;text-transform:uppercase;letter-spacing:1px;">Msgs</th>
+        <th style="text-align:right;padding:6px 8px;color:var(--text-muted);font-weight:400;font-size:10px;text-transform:uppercase;letter-spacing:1px;">Cost</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in sessions %}
+      <tr class="chat-row" data-search="{{ s.title|lower }}"
+          style="border-bottom:1px solid var(--bg-overlay);cursor:pointer;transition:background .15s;"
+          onmouseover="this.style.background='var(--bg-elevated)'"
+          onmouseout="this.style.background='transparent'"
+          onclick="openAgentSession('{{ s.project }}', '{{ s.id }}')">
+        <td style="padding:8px 8px;">
+          {% if s.status == 'active' %}
+          <span class="status-dot running" aria-hidden="true"></span>
+          {% else %}
+          <span class="status-dot success" aria-hidden="true"></span>
+          {% endif %}
+        </td>
+        <td style="padding:8px 8px;color:var(--text-primary);max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          {{ s.title }}
+        </td>
+        <td class="col-model" style="padding:8px 8px;color:var(--text-muted);">{{ s.model }}</td>
+        <td style="padding:8px 8px;color:var(--text-muted);text-align:right;">{{ s.run_count }}</td>
+        <td style="padding:8px 8px;color:var(--text-muted);text-align:right;">${{ "%.3f" | format(s.total_cost) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <!-- Non-agent runs (tasks, schedules, webhooks) -->
   {% if runs %}
+  <div style="font-size:9px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1.5px;padding:4px 8px;margin-bottom:4px;">
+    Task Runs
+  </div>
   <table style="width:100%;border-collapse:collapse;font-size:12px;">
     <thead>
       <tr style="border-bottom:1px solid var(--border-subtle);">
@@ -42,16 +94,10 @@
     </thead>
     <tbody>
       {% for r in runs %}
-      <tr style="border-bottom:1px solid var(--bg-overlay);cursor:pointer;transition:background .15s;"
+      <tr style="border-bottom:1px solid var(--bg-overlay);transition:background .15s;"
           onmouseover="this.style.background='var(--bg-elevated)'"
-          onmouseout="this.style.background='transparent'"
-          {% if r.session_id and r.trigger == 'agent' %}
-          onclick="openAgentRun('{{ r.project }}', '{{ r.session_id }}', '{{ r.id }}')"
-          {% endif %}>
-        <td style="padding:8px 8px;">
-          {{ status_dot(r.raw_status) }}
-          <span class="sr-only">{{ r.status }}</span>
-        </td>
+          onmouseout="this.style.background='transparent'">
+        <td style="padding:8px 8px;">{{ status_dot(r.raw_status) }}</td>
         <td style="padding:8px 8px;color:var(--text-secondary);">{{ r.project }}</td>
         <td style="padding:8px 8px;color:var(--text-primary);">{{ r.task }}</td>
         <td class="col-model" style="padding:8px 8px;color:var(--text-muted);">{{ r.model }}</td>
@@ -59,16 +105,18 @@
         <td style="padding:8px 8px;color:var(--text-muted);">{{ r.cost }}</td>
         <td class="col-pr" style="padding:8px 8px;">
           {% if r.pr_url %}
-          <a href="{{ r.pr_url }}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-size:11px;" onclick="event.stopPropagation()">PR ↗</a>
+          <a href="{{ r.pr_url }}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-size:11px;">PR ↗</a>
           {% endif %}
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
-  {% else %}
+  {% endif %}
+
+  {% if not sessions and not runs %}
   <div style="padding:32px;text-align:center;color:var(--text-muted);font-size:13px;font-style:italic;">
-    No runs today
+    Nenhuma atividade hoje
   </div>
   {% endif %}
 </div>
@@ -83,9 +131,17 @@
 </div>
 
 <script>
-  // Connect to global broadcast stream on page load
   document.addEventListener('DOMContentLoaded', function() {
     connectGlobalStream('live-stream-output');
   });
+
+  function filterChats(query) {
+    var q = query.toLowerCase().trim();
+    var rows = document.querySelectorAll('.chat-row');
+    rows.forEach(function(row) {
+      var text = row.getAttribute('data-search') || '';
+      row.style.display = (!q || text.indexOf(q) >= 0) ? '' : 'none';
+    });
+  }
 </script>
 {% endblock %}
