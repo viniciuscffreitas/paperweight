@@ -236,20 +236,6 @@ def extract_result_from_line(line: str) -> ClaudeOutput:
 In `src/agents/history.py`, add to `_init_db()` (after the coordination_log index, around line 89):
 
 ```python
-            # Agent sessions table
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS agent_sessions (
-                    id TEXT PRIMARY KEY,
-                    project TEXT NOT NULL,
-                    worktree_path TEXT NOT NULL,
-                    claude_session_id TEXT,
-                    model TEXT NOT NULL DEFAULT 'claude-sonnet-4-6',
-                    max_cost_usd REAL NOT NULL DEFAULT 2.00,
-                    status TEXT NOT NULL DEFAULT 'active',
-                    created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL
-                )
-            """)
             # Migration: add session_id to runs table
             try:
                 conn.execute("ALTER TABLE runs ADD COLUMN session_id TEXT")
@@ -694,7 +680,7 @@ async def test_run_adhoc_budget_exceeded(adhoc_deps):
     from agents.models import ProjectConfig, TaskConfig, RunStatus
 
     # Exhaust budget
-    executor.budget._config.daily_limit_usd = 0.0
+    executor.budget.config.daily_limit_usd = 0.0
 
     project = ProjectConfig(
         name="paperweight",
@@ -732,8 +718,10 @@ Add the method:
         prompt: str,
         session: "AgentSession",
         is_resume: bool = False,
+        run_id: str = "",
     ) -> RunRecord:
-        run_id = generate_run_id(project.name, "agent")
+        if not run_id:
+            run_id = generate_run_id(project.name, "agent")
         run = RunRecord(
             id=run_id,
             project=project.name,
@@ -1035,6 +1023,11 @@ state = AppState(
         if not state.session_manager.try_acquire_run(session.id):
             return Response(status_code=409, content="A run is already in progress for this session")
 
+        # Generate run_id BEFORE background task so we can return it to the frontend
+        from agents.executor import generate_run_id
+        from agents.models import RunStatus
+        run_id = generate_run_id(project_name, "agent")
+
         async def _run() -> None:
             try:
                 async with (
@@ -1043,15 +1036,16 @@ state = AppState(
                 ):
                     result = await state.executor.run_adhoc(
                         project, prompt, session, is_resume=is_resume,
+                        run_id=run_id,
                     )
-                    if result.cost_usd and not result.is_error:
+                    if result.status == RunStatus.SUCCESS:
                         # Capture session_id from Claude output if available
                         pass  # Will be wired after spike
             finally:
                 state.session_manager.release_run(session.id)
 
         background_tasks.add_task(_run)
-        return {"run_id": f"{project_name}-agent-pending", "session_id": session.id, "status": "running"}
+        return {"run_id": run_id, "session_id": session.id, "status": "running"}
 ```
 
 4. Add close session endpoint:
@@ -1180,7 +1174,9 @@ Create `src/agents/templates/hub/agent.html`:
       <span id="agent-cost" style="color:var(--text-muted);">cost: <span style="color:var(--status-success);">$0.00</span></span>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
-      <span id="agent-session-status" style="color:var(--text-muted);">
+      <span id="agent-session-status"
+            data-session-id="{{ session.id if session else '' }}"
+            style="color:var(--text-muted);">
         {{ 'session: ' + session.id[:8] if session else 'no session' }}
       </span>
       {% if session %}
@@ -1232,12 +1228,11 @@ Create `src/agents/static/agent.js`:
 var _agentSessionId = null;
 var _agentWs = null;
 
-// Detect existing session from DOM
+// Detect existing session from DOM data attribute
 (function() {
   var statusEl = document.getElementById('agent-session-status');
-  if (statusEl && statusEl.textContent.trim().startsWith('session:')) {
-    var match = statusEl.textContent.match(/session:\s*(\w+)/);
-    if (match) _agentSessionId = match[1];
+  if (statusEl && statusEl.dataset.sessionId) {
+    _agentSessionId = statusEl.dataset.sessionId;
   }
 })();
 
