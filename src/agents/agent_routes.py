@@ -10,6 +10,32 @@ from agents.executor_utils import generate_run_id
 
 logger = logging.getLogger(__name__)
 
+
+def _build_session_history(session_id: str, state: AppState) -> str:
+    """Build a conversation summary from session events for model-switch context injection."""
+    runs = state.history.list_runs_by_session(session_id)
+    if not runs:
+        return ""
+    header = "[Previous conversation — you are continuing where another model left off]"
+    lines = [header + "\n"]
+    for run in runs:
+        if run.trigger_type == "agent" and run.task:
+            lines.append(f"User: {run.task}")
+        events = state.history.list_events(run.id)
+        assistant_text = []
+        for ev in events:
+            if ev.get("type") == "assistant" and ev.get("content"):
+                assistant_text.append(ev["content"])
+        if assistant_text:
+            # Truncate long responses to keep prompt size reasonable
+            full = "".join(assistant_text)
+            if len(full) > 500:
+                full = full[:500] + "..."
+            lines.append(f"Assistant: {full}")
+    if len(lines) <= 1:
+        return ""
+    return "\n".join(lines)
+
 # Greeting words to strip when generating chat titles
 _GREETINGS = {"oi", "olá", "ola", "hey", "hi", "hello", "e", "ae", "eae", "bom", "boa",
               "dia", "tarde", "noite", "tudo", "bem", "beleza"}
@@ -74,7 +100,10 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                 return Response(status_code=410, content="Session closed")
             # Concurrency check before anything else
             if not session_manager.try_acquire_run(session.id):
-                return Response(status_code=409, content="A run is already in progress for this session")
+                return Response(
+                    status_code=409,
+                    content="A run is already in progress for this session",
+                )
             # If worktree is gone (stale session), close it and start fresh
             if not Path(session.worktree_path).exists():
                 session_manager.release_run(session.id)
@@ -86,6 +115,10 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                 # Allow model switch mid-session — clear claude_session_id
                 # so executor won't use --resume (API locks model on resume)
                 if model != session.model:
+                    # Inject conversation history into prompt so new model has context
+                    history_context = _build_session_history(session.id, state)
+                    if history_context:
+                        prompt = history_context + "\n\n---\n\n" + prompt
                     session_manager.update_session(
                         session.id, model=model, claude_session_id="",
                     )
