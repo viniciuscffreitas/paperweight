@@ -276,10 +276,15 @@ class Executor:
         if not run_id:
             run_id = generate_run_id(project.name, "agent")
 
+        # Use truncated prompt as task label so it shows in the runs list
+        task_label = prompt[:60].replace("\n", " ").strip()
+        if len(prompt) > 60:
+            task_label += "..."
+
         run = RunRecord(
             id=run_id,
             project=project.name,
-            task="agent",
+            task=task_label,
             trigger_type=TriggerType.AGENT,
             started_at=datetime.now(UTC),
             status=RunStatus.RUNNING,

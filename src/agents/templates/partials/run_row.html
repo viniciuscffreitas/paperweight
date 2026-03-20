@@ -1,11 +1,21 @@
 {% from "components/macros.html" import status_dot, list_row %}
 {% call list_row() %}
   {{ status_dot(run.status) }}
-  <span style="flex:1;font-size:12px;color:var(--text-primary);">{{ run.task }}</span>
+  <span style="flex:1;font-size:12px;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ run.task }}</span>
   {% if run.cost_usd %}
-  <span style="font-size:11px;color:var(--text-muted);">${{ "%.2f" | format(run.cost_usd) }}</span>
+  <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${{ "%.2f" | format(run.cost_usd) }}</span>
   {% endif %}
   {% if run.pr_url %}
-  <a href="{{ run.pr_url }}" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none;">PR ↗</a>
+  <a href="{{ run.pr_url }}" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none;white-space:nowrap;">PR ↗</a>
+  {% endif %}
+  {% if run.session_id and run.trigger_type == 'agent' %}
+  <button hx-get="/hub/{{ run.project }}/agent?session={{ run.session_id }}"
+          hx-target="#tab-content"
+          onclick="activateTab(this.closest('#tab-content').previousElementSibling.querySelector('[data-active]') || this)"
+          style="font-size:10px;color:var(--accent);background:transparent;border:1px solid var(--accent);
+                 border-radius:3px;padding:1px 6px;cursor:pointer;font-family:inherit;white-space:nowrap;
+                 transition:all .15s;"
+          onmouseover="this.style.background='var(--accent)';this.style.color='#fff'"
+          onmouseout="this.style.background='transparent';this.style.color='var(--accent)'">Retomar</button>
   {% endif %}
 {% endcall %}

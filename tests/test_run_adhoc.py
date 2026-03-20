@@ -48,7 +48,7 @@ async def test_run_adhoc_creates_run_record(adhoc_deps):
         tasks={"dummy": TaskConfig(description="x", intent="x")},
     )
     run = await executor.run_adhoc(project, "test prompt", session)
-    assert run.task == "agent"
+    assert run.task == "test prompt"
     assert run.trigger_type == "agent"
     assert run.session_id == "test-sess"
     assert run.project == "paperweight"
