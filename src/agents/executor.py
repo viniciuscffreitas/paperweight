@@ -70,6 +70,36 @@ class Executor:
     async def _noop_event(self, run_id: str, event: object) -> None:
         pass
 
+    async def _check_budget(self, run: RunRecord, max_cost_usd: float) -> RunRecord | None:
+        """Return the failed RunRecord if budget exceeded, None if OK."""
+        if self.budget.can_afford(max_cost_usd):
+            return None
+        run.status = RunStatus.FAILURE
+        run.error_message = (
+            f"Budget exceeded. Need ${max_cost_usd}, "
+            f"remaining: ${self.budget.get_status().remaining_usd:.2f}"
+        )
+        run.finished_at = datetime.now(UTC)
+        self.history.update_run(
+            run_id=run.id, status=run.status, finished_at=run.finished_at,
+            error_message=run.error_message,
+        )
+        await self._emit(run.id, "task_failed", run.error_message)
+        return run
+
+    async def _handle_dry_run(self, run: RunRecord, label: str) -> RunRecord:
+        """Handle dry_run mode — mark success and return immediately."""
+        logger.info("DRY RUN: would execute %s", label)
+        await self._emit(run.id, "dry_run", "dry_run=true — skipping Claude execution")
+        run.status = RunStatus.SUCCESS
+        run.cost_usd = 0.0
+        run.finished_at = datetime.now(UTC)
+        self.history.update_run(
+            run_id=run.id, status=run.status, finished_at=run.finished_at, cost_usd=0.0,
+        )
+        await self._emit(run.id, "task_completed", "done (dry run)")
+        return run
+
     async def _emit(self, run_id: str, event_type: str, content: str = "") -> None:
         from agents.streaming import StreamEvent
 
@@ -122,31 +152,12 @@ class Executor:
                 except Exception:
                     logger.warning("Failed to create Discord message for %s", issue_id)
 
-        if not self.budget.can_afford(task.max_cost_usd):
-            run.status = RunStatus.FAILURE
-            run.error_message = (
-                f"Budget exceeded. Need ${task.max_cost_usd}, "
-                f"remaining: ${self.budget.get_status().remaining_usd:.2f}"
-            )
-            run.finished_at = datetime.now(UTC)
-            self.history.update_run(
-                run_id=run.id, status=run.status, finished_at=run.finished_at,
-                error_message=run.error_message,
-            )
-            await self._emit(run_id, "task_failed", run.error_message)
+        failed = await self._check_budget(run, task.max_cost_usd)
+        if failed:
             await self.notifier.send_run_notification(run)
-            return run
-
+            return failed
         if self.config.dry_run:
-            logger.info("DRY RUN: would execute %s/%s", project.name, task_name)
-            await self._emit(run_id, "dry_run", "dry_run=true — skipping Claude execution")
-            run.status = RunStatus.SUCCESS
-            run.cost_usd = 0.0
-            run.finished_at = datetime.now(UTC)
-            self.history.update_run(
-                run_id=run.id, status=run.status, finished_at=run.finished_at, cost_usd=0.0,
-            )
-            await self._emit(run_id, "task_completed", "done (dry run)")
+            run = await self._handle_dry_run(run, f"{project.name}/{task_name}")
             if is_agent_issue:
                 await finalize_agent_success(
                     project, variables, discord_msg_id, run,
@@ -278,31 +289,11 @@ class Executor:
         self.history.insert_run(run)
         await self._emit(run_id, "task_started", f"{project.name}/agent [agent]")
 
-        if not self.budget.can_afford(session.max_cost_usd):
-            run.status = RunStatus.FAILURE
-            run.error_message = (
-                f"Budget exceeded. Need ${session.max_cost_usd}, "
-                f"remaining: ${self.budget.get_status().remaining_usd:.2f}"
-            )
-            run.finished_at = datetime.now(UTC)
-            self.history.update_run(
-                run_id=run.id, status=run.status, finished_at=run.finished_at,
-                error_message=run.error_message,
-            )
-            await self._emit(run_id, "task_failed", run.error_message)
-            return run
-
+        failed = await self._check_budget(run, session.max_cost_usd)
+        if failed:
+            return failed
         if self.config.dry_run:
-            logger.info("DRY RUN: would execute %s/agent (session=%s)", project.name, session.id)
-            await self._emit(run_id, "dry_run", "dry_run=true — skipping Claude execution")
-            run.status = RunStatus.SUCCESS
-            run.cost_usd = 0.0
-            run.finished_at = datetime.now(UTC)
-            self.history.update_run(
-                run_id=run.id, status=run.status, finished_at=run.finished_at, cost_usd=0.0,
-            )
-            await self._emit(run_id, "task_completed", "done (dry run)")
-            return run
+            return await self._handle_dry_run(run, f"{project.name}/agent (session={session.id})")
 
         worktree_path = Path(session.worktree_path)
         try:
@@ -341,6 +332,8 @@ class Executor:
             run.cost_usd = output.cost_usd
             run.num_turns = output.num_turns
             run.output_file = str(output_file)
+
+            run.claude_session_id = output.session_id or None
 
             if output.is_error:
                 run.status = RunStatus.FAILURE

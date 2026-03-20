@@ -90,8 +90,9 @@ class HistoryDB:
             # Migration: add session_id to runs table
             try:
                 conn.execute("ALTER TABLE runs ADD COLUMN session_id TEXT")
-            except sqlite3.OperationalError:
-                pass  # Column already exists
+            except sqlite3.OperationalError as e:
+                if "duplicate column" not in str(e).lower():
+                    raise
 
     def _conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
@@ -234,11 +235,8 @@ class HistoryDB:
         return self._row_to_record(row)
 
     def _row_to_record(self, row: sqlite3.Row) -> RunRecord:
-        session_id = None
-        try:
-            session_id = row["session_id"]
-        except (IndexError, KeyError):
-            pass
+        # session_id column guaranteed by _init_db migration
+        session_id = row["session_id"]
         return RunRecord(
             id=row["id"],
             project=row["project"],

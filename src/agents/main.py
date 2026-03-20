@@ -56,7 +56,7 @@ def create_app(
     project_store = ProjectStore(data_dir / "project_hub.db")
 
     from agents.session_manager import SessionManager
-    session_manager = SessionManager(db_path)
+    session_manager = SessionManager(db_path, worktree_base=config.execution.worktree_base)
 
     from agents.aggregator import AggregatorService
     from agents.discord_notifier import DiscordRunNotifier
@@ -412,13 +412,19 @@ def create_app(
     @app.websocket("/ws/runs/{run_id}")
     async def ws_run(websocket: WebSocket, run_id: str) -> None:
         await websocket.accept()
+        # Register BEFORE replay so live events are not missed
+        state.ws_clients.setdefault(run_id, set()).add(websocket)
         # Replay cached events so client sees events emitted before connection
         for cached in state.run_events.get(run_id, []):
             try:
                 await websocket.send_text(json_module.dumps(cached))
-            except Exception:
+            except WebSocketDisconnect:
+                state.ws_clients.get(run_id, set()).discard(websocket)
                 return
-        state.ws_clients.setdefault(run_id, set()).add(websocket)
+            except Exception:
+                logger.warning("Failed to replay cached event for run %s", run_id)
+                state.ws_clients.get(run_id, set()).discard(websocket)
+                return
         try:
             while True:
                 await websocket.receive_text()

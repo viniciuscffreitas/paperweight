@@ -1,9 +1,13 @@
+"""Agent session management — SQLite persistence + DB-level concurrency guard."""
+import logging
 import sqlite3
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 
 class AgentSession(BaseModel):
@@ -22,10 +26,10 @@ _ALLOWED_UPDATE_FIELDS = {"claude_session_id", "status", "model", "max_cost_usd"
 
 
 class SessionManager:
-    def __init__(self, db_path: Path) -> None:
+    def __init__(self, db_path: Path, worktree_base: str = "/tmp/agents") -> None:
         self.db_path = db_path
+        self.worktree_base = worktree_base
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._running: set[str] = set()
         self._init_db()
 
     def _init_db(self) -> None:
@@ -39,10 +43,18 @@ class SessionManager:
                     model TEXT NOT NULL,
                     max_cost_usd REAL NOT NULL,
                     status TEXT NOT NULL,
+                    running INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
             """)
+            # Migration: add running column if missing
+            try:
+                conn.execute("ALTER TABLE agent_sessions ADD COLUMN running INTEGER NOT NULL DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+            # Clear stale locks from previous process
+            conn.execute("UPDATE agent_sessions SET running = 0 WHERE running = 1")
 
     def _conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
@@ -70,7 +82,7 @@ class SessionManager:
     ) -> AgentSession:
         session_id = uuid.uuid4().hex[:12]
         now = datetime.now(UTC)
-        worktree_path = f"/tmp/agents/session-{session_id}"
+        worktree_path = str(Path(self.worktree_base) / f"session-{session_id}")
         session = AgentSession(
             id=session_id,
             project=project,
@@ -85,8 +97,8 @@ class SessionManager:
             conn.execute(
                 """INSERT INTO agent_sessions
                    (id, project, worktree_path, claude_session_id, model,
-                    max_cost_usd, status, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    max_cost_usd, status, running, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)""",
                 (
                     session.id,
                     session.project,
@@ -111,7 +123,15 @@ class SessionManager:
         return self._row_to_session(row)
 
     def update_session(self, session_id: str, **kwargs: object) -> None:
+        unknown = set(kwargs) - _ALLOWED_UPDATE_FIELDS
+        if unknown:
+            logger.warning(
+                "update_session called with unknown fields %s for session %s — ignored",
+                unknown, session_id,
+            )
         fields = {k: v for k, v in kwargs.items() if k in _ALLOWED_UPDATE_FIELDS}
+        if not fields:
+            return
         now = datetime.now(UTC).isoformat()
         fields["updated_at"] = now
         set_clause = ", ".join(f"{k} = ?" for k in fields)
@@ -124,8 +144,11 @@ class SessionManager:
             )
 
     def close_session(self, session_id: str) -> None:
-        self.update_session(session_id, status="closed")
-        self._running.discard(session_id)
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE agent_sessions SET status = 'closed', running = 0, updated_at = ? WHERE id = ?",
+                (datetime.now(UTC).isoformat(), session_id),
+            )
 
     def get_active_session(self, project: str) -> AgentSession | None:
         with self._conn() as conn:
@@ -141,24 +164,14 @@ class SessionManager:
 
     def cleanup_stale_sessions(self, timeout_minutes: int = 30) -> int:
         cutoff = (datetime.now(UTC) - timedelta(minutes=timeout_minutes)).isoformat()
+        now = datetime.now(UTC).isoformat()
         with self._conn() as conn:
-            rows = conn.execute(
-                "SELECT id FROM agent_sessions"
+            cursor = conn.execute(
+                "UPDATE agent_sessions SET status = 'closed', running = 0, updated_at = ?"
                 " WHERE status = 'active' AND updated_at < ?",
-                (cutoff,),
-            ).fetchall()
-            stale_ids = [row["id"] for row in rows]
-            if stale_ids:
-                now = datetime.now(UTC).isoformat()
-                placeholders = ",".join("?" * len(stale_ids))
-                conn.execute(
-                    f"UPDATE agent_sessions SET status = 'closed', updated_at = ?"
-                    f" WHERE id IN ({placeholders})",
-                    [now, *stale_ids],
-                )
-        for sid in stale_ids:
-            self._running.discard(sid)
-        return len(stale_ids)
+                (now, cutoff),
+            )
+        return cursor.rowcount
 
     def list_sessions(self, project: str) -> list[AgentSession]:
         with self._conn() as conn:
@@ -169,10 +182,17 @@ class SessionManager:
         return [self._row_to_session(row) for row in rows]
 
     def try_acquire_run(self, session_id: str) -> bool:
-        if session_id in self._running:
-            return False
-        self._running.add(session_id)
-        return True
+        """Atomically acquire the run lock via SQLite UPDATE. Safe across restarts."""
+        with self._conn() as conn:
+            cursor = conn.execute(
+                "UPDATE agent_sessions SET running = 1 WHERE id = ? AND running = 0",
+                (session_id,),
+            )
+            return cursor.rowcount == 1
 
     def release_run(self, session_id: str) -> None:
-        self._running.discard(session_id)
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE agent_sessions SET running = 0 WHERE id = ?",
+                (session_id,),
+            )

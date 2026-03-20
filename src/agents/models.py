@@ -79,6 +79,7 @@ class RunRecord(BaseModel):
     error_message: str | None = None
     output_file: str | None = None
     session_id: str | None = None
+    claude_session_id: str | None = None
 
 
 class BudgetStatus(BaseModel):

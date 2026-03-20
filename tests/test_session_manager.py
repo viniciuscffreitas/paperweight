@@ -25,7 +25,7 @@ def test_create_session(session_mgr: SessionManager) -> None:
     assert session.model == "claude-sonnet-4-6"
     assert session.max_cost_usd == 1.50
     assert session.status == "active"
-    assert session.worktree_path == f"/tmp/agents/session-{session.id}"
+    assert session.worktree_path.endswith(f"session-{session.id}")
     assert session.claude_session_id is None
     assert isinstance(session.created_at, datetime)
     assert isinstance(session.updated_at, datetime)
@@ -64,15 +64,15 @@ def test_close_session(session_mgr: SessionManager) -> None:
         project="proj-c", model="claude-sonnet-4-6", max_cost_usd=2.00
     )
     # Acquire run first so we can verify it's released on close
-    session_mgr.try_acquire_run(session.id)
-    assert session.id in session_mgr._running
+    assert session_mgr.try_acquire_run(session.id) is True
 
     session_mgr.close_session(session.id)
 
     closed = session_mgr.get_session(session.id)
     assert closed is not None
     assert closed.status == "closed"
-    assert session.id not in session_mgr._running
+    # Lock should be released — can acquire again
+    assert session_mgr.try_acquire_run(session.id) is True
 
 
 def test_get_active_session(session_mgr: SessionManager) -> None:
