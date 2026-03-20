@@ -12,14 +12,26 @@ Make **Task** the universal unit of work. Everything is a Task. The Agent Tab is
 
 ## Design
 
+### Naming: Task vs TaskTemplate
+
+The codebase already has `TaskConfig` (YAML-defined execution templates like "issue-resolver") and `TaskRecord` (SQLite project hub copy of the same). These represent **templates** — reusable definitions of what work to do, with what model and budget.
+
+The new `Task` entity represents a **work item** — a concrete instance of work being done. To avoid confusion:
+
+- `TaskConfig` → renamed to `TaskTemplate` (in models.py and YAML references)
+- `TaskRecord` → renamed to `TaskTemplate` (in project_hub SQLite and routes)
+- Existing CRUD routes at `/api/projects/{id}/tasks` → continue working but manage templates
+- New `Task` entity → new table `work_items`, new store class, new routes
+
 ### The Task Entity
 
 A Task represents a unit of work from creation to completion. It is the single concept that ties together conversations, agent runs, PRs, and external issue tracker items.
 
 ```
-Task
+Task (table: work_items)
   id: str (12-char hex)
-  project: str
+  project: str (project name from YAML — matches state.projects keys)
+  template: str | null (name of the TaskTemplate that spawned it, e.g. "issue-resolver")
   title: str
   description: str (the full problem statement / spec)
   source: "agent-tab" | "linear" | "github" | "manual" | "schedule"
@@ -28,15 +40,15 @@ Task
   status: "draft" | "pending" | "running" | "review" | "done" | "failed"
   session_id: str | null (→ AgentSession, for Agent Tab continuity)
   pr_url: str | null
-  context: str (accumulated context: conversation summary, prior attempts, errors)
   created_at: datetime
   updated_at: datetime
 ```
 
 **Relationships:**
-- A Task has zero or many `RunRecord`s (agent execution attempts).
+- A Task has zero or many `RunRecord`s (linked via new `task_id` column on `runs` table).
 - A Task has zero or one `AgentSession` (for interactive work / refinement).
 - A Task may reference an external item via `source` + `source_id`.
+- A Task may reference a `TaskTemplate` via `template` (for budget/model defaults).
 
 ### Task Lifecycle
 
@@ -64,17 +76,42 @@ DRAFT → PENDING → RUNNING → REVIEW → DONE
 
 ### Context Accumulation
 
-Every interaction adds to the Task's context. This is what makes the agent intelligent across attempts:
+Every interaction adds to the Task's context. This is what makes the agent intelligent across attempts.
 
-1. **Conversation context**: When a task originates from Agent Tab brainstorming, the conversation summary becomes the task description. Key decisions, constraints, and requirements discovered during chat are preserved.
+**Storage format:** Context is stored as a JSON array of `TaskContextEntry` objects in a separate `task_context` table (not a text column):
 
-2. **Run context**: Each `RunRecord` contributes: what files were changed, what tools were used, what errors occurred, what the cost was. On retry, the agent receives this context via the prompt (similar to the existing `progress_file_path` mechanism, but richer).
+```
+TaskContextEntry (table: task_context)
+  id: int (autoincrement)
+  task_id: str (FK → work_items.id)
+  type: "conversation" | "run_result" | "run_error" | "review" | "ci_failure" | "user_feedback" | "external"
+  source_run_id: str | null (which run produced this entry)
+  content: str (max 4KB per entry — summarized if needed)
+  timestamp: float
+```
 
-3. **Review context**: If CI fails, the failure output is appended to context. If a human leaves PR review comments, those are captured. If the user opens the Agent Tab and gives feedback ("this approach is wrong, try X instead"), that becomes context.
+**Cap:** Max 50 entries per task. When exceeded, oldest non-error entries are pruned. This prevents unbounded growth while preserving critical failure context.
 
-4. **External context**: If the task came from Linear, the issue description, comments, and status changes are context. If from GitHub, the issue body and comments.
+**What produces context entries:**
 
-The agent prompt for any task always includes: task description + accumulated context from all prior runs + user feedback. The agent never starts from zero on a retry.
+1. **Conversation context** (`type: "conversation"`): When a task is created from Agent Tab, the conversation summary (auto-generated, not raw messages) becomes a context entry. Captures decisions, constraints, and requirements.
+
+2. **Run context** (`type: "run_result"` or `type: "run_error"`): After each run, a mechanical summary is generated: files changed (from `tool_use` events with Edit/Write), final status, cost, error message if any. Not LLM-generated — template-based extraction from `run_events`.
+
+3. **Review context** (`type: "review"` or `type: "ci_failure"`): CI failure output captured from GitHub check runs. PR review comments captured from GitHub webhook events.
+
+4. **User feedback** (`type: "user_feedback"`): When the user gives explicit feedback in the Agent Tab (e.g., "this approach is wrong, try X"), the feedback is captured as a context entry.
+
+5. **External context** (`type: "external"`): Issue description and comments from Linear/GitHub at task creation time.
+
+**Prompt assembly:** When the agent starts working on a task, the prompt is assembled as:
+```
+[Task description]
+[Context entries, newest first, up to 8KB total]
+[Project conventions from CLAUDE.md]
+```
+
+The agent never starts from zero on a retry.
 
 ### How Tasks Are Created
 
@@ -82,7 +119,7 @@ The agent prompt for any task always includes: task description + accumulated co
 
 1. User opens Agent Tab, starts a conversation ("I need to understand why the tests are slow").
 2. Claude investigates, discusses, proposes solutions.
-3. User says "ok, create a task to fix the slow tests" (or clicks a "Create Task" button).
+3. User clicks a **"Create Task"** button in the Agent Tab toolbar. A modal pre-fills title (from `_generate_title`) and description (from the last substantive Claude response). User can edit before confirming.
 4. System creates a Task with:
    - `source: "agent-tab"`
    - `title`: auto-generated from conversation (like current `_generate_title`)
@@ -134,25 +171,30 @@ The agent prompt for any task always includes: task description + accumulated co
 
 When a task reaches `status: "pending"`, the processing loop picks it up:
 
-1. Find next pending task (FIFO, respecting `max_concurrent`).
-2. Create or reuse an `AgentSession` + worktree for the task.
-3. Build the prompt: task description + accumulated context + project conventions (CLAUDE.md).
-4. Execute via `run_adhoc()` (reuses existing executor infrastructure).
-5. On success: create PR, set `status: "review"`, update `pr_url`.
-6. On failure: set `status: "failed"`, append error to `context`.
-7. If source is Linear/GitHub: update the external tracker.
+1. **Claim the task** via atomic `UPDATE work_items SET status = 'running' WHERE id = ? AND status = 'pending'` — check `rowcount == 1` to prevent double-pickup. Same pattern as `session_manager.try_acquire_run()`.
+2. **Create or reuse session:** If the task already has a `session_id` (from prior run or Agent Tab), reuse it (the worktree persists). Otherwise, create a new `AgentSession` and set `task.session_id`.
+3. **Build the prompt:** task description + context entries (newest first, up to 8KB) + project conventions (CLAUDE.md).
+4. **Execute via `run_adhoc()`** (reuses existing executor infrastructure). The `RunRecord` gets `task_id` set to the task's ID.
+5. **Respect concurrency:** The processing loop acquires `state.get_semaphore(max_concurrent)` and `state.get_repo_semaphore(repo)` before executing, same as existing paths.
+6. On success: create PR via `_create_pr()`, set `status: "review"`, update `pr_url`.
+7. On failure: set `status: "failed"`, append `run_error` context entry.
+8. If source is Linear/GitHub: update the external tracker.
+
+**Worktree lifecycle:** The Task owns the worktree via its `AgentSession`. Worktrees are NOT cleaned up after autonomous runs (unlike current `run_task()` behavior). They persist until: (a) task status reaches "done" and session cleanup runs, or (b) the stale session cleanup job fires (30min idle). This enables seamless transition from autonomous to interactive.
 
 ### Task Refinement (Interactive)
 
 When a user opens a task in the Agent Tab:
 
 1. The Agent Tab loads with full task context: description, prior runs, PR, errors.
-2. The existing worktree is still there (session persists).
-3. User can chat with Claude in that worktree context.
-4. Any changes Claude makes build on prior work.
-5. User can: re-submit for autonomous processing, or manually close.
+2. The worktree is still there (session persists across autonomous and interactive runs).
+3. User can chat with Claude in that worktree context — Claude sees all prior changes.
+4. Any new work builds on what the agent already did.
+5. User can: re-queue for autonomous processing ("Re-run" button sets status back to "pending"), or mark as done.
 
 This is the key insight: **the autonomous run and the interactive session share the same worktree and context**. There's no "start over" — you always continue.
+
+**Session reuse on retry:** When a failed task is re-queued as "pending", the processing loop finds the existing `session_id`, reuses the same worktree, and passes `--resume` to Claude. The agent continues from where it left off, with full context of why the previous attempt failed.
 
 ### Dashboard UX Changes
 
@@ -224,25 +266,31 @@ This cleanly separates "finding work" from "doing work". Each source is just a f
 ### What Changes vs What Stays
 
 **New:**
-- `Task` entity in SQLite (new table, new store class)
+- `work_items` table in SQLite + `TaskStore` class
+- `task_context` table in SQLite for context accumulation
+- `task_id` column on `runs` table (FK to work_items)
+- `task_id` column on `agent_sessions` table
 - Task processing loop (replaces direct webhook→run_task dispatch)
-- Dashboard tasks tab shows live Tasks instead of YAML TaskConfigs
-- Agent Tab gains task context (knows which task it's working on)
-- "Create Task" action from Agent Tab conversations
+- Dashboard tasks tab shows live Tasks instead of YAML TaskTemplates
+- Agent Tab gains task context bar (title, status, source, run history)
+- "Create Task" button in Agent Tab toolbar
 - GitHub Issues polling via `gh issue list` (new work finder)
 
 **Modified:**
+- `TaskConfig` → renamed to `TaskTemplate` (models.py, config.py, YAML references)
+- `TaskRecord` → renamed to `TaskTemplate` (project_store.py, project_hub_routes.py)
 - Webhook handlers create Tasks instead of directly calling `run_task()`
 - Scheduler creates Tasks instead of directly calling `run_task()`
 - `run_adhoc()` receives task context in the prompt
-- Agent Tab links sessions to tasks
+- `AgentSession` gains `task_id` column — sessions can be linked to tasks
+- `run_task()` no longer cleans up worktrees for task-linked runs (Task owns lifecycle)
+- Agent Tab passes `task_id` when sending prompts
 
 **Unchanged:**
-- Executor (`run_task`, `run_adhoc`) — same execution engine
+- Executor core (`_run_claude`, `_run_cmd`, `_create_pr`) — same execution engine
 - Streaming (WebSocket, events) — same pipeline
 - PR creation — same `_create_pr()` with rich body
 - CI + auto-review — same GitHub Actions
-- Session management — same `AgentSession` model
 - Budget — same `BudgetManager`
 - Coordination protocol — same (works at run level, not task level)
 
@@ -287,11 +335,42 @@ Task created (description + source context)
 
 The agent never starts from zero. Every interaction, every failure, every piece of feedback accumulates in the task's context. This is what makes paperweight progressively smarter at solving each task.
 
+## Implementation Phases
+
+**Phase 1 — Foundation (Task entity + processing loop)**
+- New `work_items` and `task_context` tables
+- `TaskStore` with CRUD + atomic claim
+- Task processing loop (picks up pending tasks, executes via `run_adhoc`)
+- Manual task creation from dashboard (title + description form)
+- `task_id` FK on `runs` and `agent_sessions` tables
+- Rename `TaskConfig` → `TaskTemplate`, `TaskRecord` → `TaskTemplate`
+
+**Phase 2 — Agent Tab integration**
+- Link sessions to tasks (`task_id` on agent_sessions)
+- Task context bar in Agent Tab (title, status, runs, PR)
+- "Create Task" button in Agent Tab toolbar
+- "Re-run" button for failed tasks
+- Clicking a task in the dashboard opens Agent Tab with full context
+
+**Phase 3 — Source migration**
+- Webhook handlers create Tasks instead of calling `run_task()` directly
+- Scheduler creates Tasks instead of calling `run_task()` directly
+- GitHub Issues polling via `gh issue list --label agent`
+- Linear polling creates Tasks instead of calling `run_task()` directly
+
+**Phase 4 — Context accumulation**
+- `task_context` entries written after each run (mechanical, template-based)
+- Context entries included in agent prompts on retry
+- CI failure capture via GitHub webhook
+- User feedback capture from Agent Tab interactions
+
+Each phase produces working, testable software. Phases 1-2 can ship together. Phases 3-4 build on the foundation.
+
 ## Non-Goals
 
 - **Not replacing Linear/GitHub as issue trackers.** Tasks in paperweight are work items for the agent, not a full project management tool. External trackers remain the source of truth for project planning.
 - **Not building a chat UI.** The Agent Tab already exists. We're adding task awareness to it, not rebuilding it.
-- **Not changing the executor.** The execution engine is solid. We're changing what feeds into it (Tasks) and what captures its output (Task context).
+- **Not rewriting the executor.** The core execution engine (`_run_claude`, `_run_cmd`, `_create_pr`) stays the same. We're changing what feeds into it (Tasks) and what captures its output (Task context). Behavioral changes (worktree lifecycle) are minimal and targeted.
 
 ## Success Criteria
 
