@@ -130,7 +130,7 @@ function openAgentSession(projectId, sessionId) {
       panel.innerHTML = html;
       if (window.htmx) htmx.process(panel);
       openPanel();
-      // Now load the agent tab with the session
+      // Load the agent tab with the session
       var tabContent = document.getElementById('tab-content');
       if (tabContent) {
         fetch('/hub/' + projectId + '/agent?session=' + sessionId)
@@ -147,21 +147,31 @@ function openAgentSession(projectId, sessionId) {
                 b.style.borderBottomColor = 'transparent';
                 b.removeAttribute('data-active');
               });
-              var agentBtn = buttons[buttons.length - 1]; // AGENT is last
+              var agentBtn = buttons[buttons.length - 1];
               if (agentBtn) {
                 agentBtn.style.color = 'var(--text-primary)';
                 agentBtn.style.borderBottomColor = 'var(--accent)';
                 agentBtn.setAttribute('data-active', 'true');
               }
             }
-            // Execute scripts in swapped content
-            var scripts = tabContent.querySelectorAll('script');
-            scripts.forEach(function(s) {
-              if (s.textContent) { eval(s.textContent); }
+            // Ensure agent.js is loaded, then init
+            _ensureAgentJs(function() {
+              initAgentTab();
             });
           });
       }
     });
+}
+
+function _ensureAgentJs(callback) {
+  if (typeof initAgentTab === 'function') {
+    callback();
+    return;
+  }
+  var script = document.createElement('script');
+  script.src = '/static/agent.js';
+  script.onload = callback;
+  document.head.appendChild(script);
 }
 
 // ── Close all on Escape ──
