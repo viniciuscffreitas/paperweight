@@ -83,6 +83,10 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                 session_manager.try_acquire_run(session.id)  # always succeeds for fresh session
                 is_resume = False
             else:
+                # Allow model switch mid-session
+                if model != session.model:
+                    session_manager.update_session(session.id, model=model)
+                    session = session_manager.get_session(session_id)
                 is_resume = True
         else:
             session = session_manager.create_session(project_name, model, max_cost_usd)
