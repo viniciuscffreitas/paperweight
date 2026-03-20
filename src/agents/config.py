@@ -96,7 +96,8 @@ def load_project_configs(projects_dir: Path) -> dict[str, ProjectConfig]:
         raw = yaml.safe_load(yaml_file.read_text())
         if raw.get("name") == "example":
             continue
-        project = ProjectConfig(**raw)
+        resolved = _resolve_dict(raw)
+        project = ProjectConfig(**resolved)
         projects[project.name] = project
     return projects
 

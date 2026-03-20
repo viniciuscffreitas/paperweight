@@ -1,5 +1,5 @@
 name: paperweight
-repo: /Users/vini/Developer/agents
+repo: ${PAPERWEIGHT_REPO_PATH}
 base_branch: main
 branch_prefix: agents/
 notify: slack

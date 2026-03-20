@@ -132,6 +132,7 @@ async def test_run_adhoc_resume_missing_worktree_raises(adhoc_deps, tmp_path):
         repo="/tmp/fake-repo",
         tasks={"dummy": TaskConfig(description="x", intent="x")},
     )
-    # Worktree does NOT exist — should raise RuntimeError
-    with pytest.raises(RuntimeError, match="[Ww]orktree"):
-        await executor.run_adhoc(project, "resume test", session, is_resume=True)
+    # Worktree does NOT exist — should return FAILURE with error message
+    run = await executor.run_adhoc(project, "resume test", session, is_resume=True)
+    assert run.status.value == "failure"
+    assert "orktree" in (run.error_message or "")  # "Worktree not found" or similar

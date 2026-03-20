@@ -354,10 +354,6 @@ class Executor:
             run.status = RunStatus.TIMEOUT
             run.error_message = f"Timed out after {self.config.timeout_minutes} minutes"
             await self._emit(run_id, "task_failed", run.error_message)
-        except RuntimeError:
-            # Re-raise programmer/setup errors (e.g. missing worktree on resume)
-            # so callers receive a clear failure signal without swallowing the cause.
-            raise
         except Exception as e:
             run.status = RunStatus.FAILURE
             run.error_message = str(e)[:500]
