@@ -468,26 +468,36 @@ function sendChatPrompt() {
 
     var streamingContent = null;
     var streamingText = '';
+    var typewriterQueue = [];
+    var typewriterRunning = false;
     var renderTimer = null;
 
-    function renderMarkdownProgressive() {
-      if (!streamingContent || !streamingText) return;
-      if (typeof marked !== 'undefined') {
-        var html = marked.parse(streamingText);
-        streamingContent.innerHTML = html + '<span class="stream-cursor"></span>';
-        addCodeBlockHeaders(streamingContent);
-        if (typeof hljs !== 'undefined') {
-          streamingContent.querySelectorAll('pre code').forEach(function(block) {
-            if (!block.dataset.highlighted) {
-              hljs.highlightElement(block);
-              block.dataset.highlighted = 'true';
-            }
-          });
-        }
-      } else {
-        streamingContent.textContent = streamingText;
+    function typewriterTick() {
+      if (typewriterQueue.length === 0) {
+        typewriterRunning = false;
+        return;
       }
+      typewriterRunning = true;
+      // Process 2-4 chars per frame for natural speed
+      var batch = Math.min(3, typewriterQueue.length);
+      for (var i = 0; i < batch; i++) {
+        streamingText += typewriterQueue.shift();
+      }
+      streamingContent.textContent = streamingText;
+      // Auto-scroll
       chatMessages.scrollTop = chatMessages.scrollHeight;
+      // Schedule markdown render periodically (every 800ms)
+      if (!renderTimer) {
+        renderTimer = setTimeout(function() {
+          renderTimer = null;
+          if (streamingContent && streamingText && typeof marked !== 'undefined') {
+            streamingContent.innerHTML = marked.parse(streamingText) + '<span class="stream-cursor"></span>';
+            addCodeBlockHeaders(streamingContent);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+          }
+        }, 800);
+      }
+      requestAnimationFrame(typewriterTick);
     }
 
     _taskWs = connectRunStream(data.run_id,
@@ -497,10 +507,11 @@ function sendChatPrompt() {
             hideThinking();
             streamingContent = appendChatMessage(chatMessages, 'agent', '', true);
           }
-          streamingText += event.content;
-          // Progressive markdown render (debounced 300ms)
-          if (renderTimer) clearTimeout(renderTimer);
-          renderTimer = setTimeout(renderMarkdownProgressive, 300);
+          // Queue chars for typewriter effect
+          for (var c = 0; c < event.content.length; c++) {
+            typewriterQueue.push(event.content[c]);
+          }
+          if (!typewriterRunning) requestAnimationFrame(typewriterTick);
         } else if (event.type === 'tool_use') {
           renderToolCallInChat(chatMessages, event);
           var eventsContainer = document.getElementById('activity-events');
@@ -510,9 +521,14 @@ function sendChatPrompt() {
         }
       },
       function() {
-        // Stream complete — final markdown render
+        // Stream complete — flush typewriter queue and final markdown render
         hideThinking();
         if (renderTimer) clearTimeout(renderTimer);
+        // Drain remaining typewriter chars
+        while (typewriterQueue.length > 0) {
+          streamingText += typewriterQueue.shift();
+        }
+        typewriterRunning = false;
         if (streamingContent && streamingText) {
           streamingContent.classList.remove('streaming');
           if (typeof marked !== 'undefined') {
@@ -524,6 +540,7 @@ function sendChatPrompt() {
               });
             }
           }
+          chatMessages.scrollTop = chatMessages.scrollHeight;
         }
         input.disabled = false;
         input.focus();
