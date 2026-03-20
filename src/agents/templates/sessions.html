@@ -31,7 +31,7 @@
 
 <script>
 function startNewSession() {
-  htmx.ajax('GET', '/hub/{{ id }}/agent', {target: '#content-inner', swap: 'innerHTML'});
+  window.location.href = '/hub/{{ id }}/agent';
 }
 </script>
 {% endblock %}

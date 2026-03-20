@@ -83,8 +83,8 @@ function submitNewTask() {
     body: JSON.stringify({ project: '{{ id }}', title: title, description: desc, source: 'manual' })
   }).then(function(r) { return r.json(); }).then(function() {
     closeNewTaskModal();
-    // Reload task list via HTMX
-    htmx.ajax('GET', '/hub/{{ id }}/tasks', {target: '#content-inner', swap: 'innerHTML'});
+    // Full page reload to show new task
+    window.location.reload();
   });
 }
 </script>
