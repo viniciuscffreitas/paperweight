@@ -74,14 +74,18 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
 
     @app.get("/hub/{project_id}/tasks", response_class=HTMLResponse)
     async def hub_tasks(request: Request, project_id: str) -> HTMLResponse:
-        project = state.project_store.get_project(project_id) if state.project_store else None
-        if not project:
-            return HTMLResponse("<p>Project not found</p>", status_code=404)
-        tasks = state.project_store.list_tasks(project_id)
+        # Live work items from TaskStore
+        work_items = state.task_store.list_by_project(project_id) if state.task_store else []
+        # Task templates from project_store (existing Run buttons)
+        tasks = []
+        if state.project_store:
+            project = state.project_store.get_project(project_id)
+            if project:
+                tasks = state.project_store.list_tasks(project_id)
         return _TEMPLATES.TemplateResponse(
             request,
             "hub/tasks.html",
-            {"tasks": tasks, "id": project_id},
+            {"work_items": work_items, "tasks": tasks, "id": project_id},
         )
 
     @app.post("/setup/discover", response_class=HTMLResponse)

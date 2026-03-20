@@ -1,11 +1,55 @@
-<div style="padding:16px;display:flex;flex-direction:column;gap:8px;">
+<div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+  {# Inline task creation #}
+  <div style="display:flex;gap:8px">
+    <input id="new-task-title" placeholder="New task..." required
+           style="flex:1;padding:8px 12px;border-radius:6px;border:1px solid var(--border-default);background:var(--bg-elevated);color:var(--text-primary);font-size:13px;font-family:inherit"
+           onkeydown="if(event.key==='Enter'){createWorkItem('{{ id }}')}">
+    <button onclick="createWorkItem('{{ id }}')"
+            style="padding:8px 14px;border-radius:6px;background:var(--accent);color:white;border:none;font-size:12px;cursor:pointer;font-family:inherit;letter-spacing:.3px">Create</button>
+  </div>
+  <script>
+  function createWorkItem(project) {
+    var input = document.getElementById('new-task-title');
+    var title = input.value.trim();
+    if (!title) return;
+    fetch('/api/work-items', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({project: project, title: title, description: title})
+    }).then(function() {
+      input.value = '';
+      htmx.ajax('GET', '/hub/' + project + '/tasks', {target: '#tab-content'});
+    });
+  }
+  </script>
+
+  {# Work items (live tasks) #}
+  {% if work_items %}
+  <div style="display:flex;flex-direction:column;gap:6px">
+    {% for item in work_items %}
+      {% include "partials/work_item_row.html" %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# Divider if both exist #}
+  {% if work_items and tasks %}
+  <div style="border-top:1px solid var(--border-default);margin:4px 0"></div>
+  <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding:0 4px">Templates</div>
+  {% endif %}
+
+  {# Task templates (existing Run buttons) #}
   {% if tasks %}
+  <div style="display:flex;flex-direction:column;gap:6px">
     {% for task in tasks %}
       {% include "partials/task_row.html" %}
     {% endfor %}
-  {% else %}
+  </div>
+  {% endif %}
+
+  {% if not work_items and not tasks %}
   <div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px;font-style:italic;">
-    No tasks yet.
+    No tasks yet. Create one above or connect an integration.
   </div>
   {% endif %}
 </div>
