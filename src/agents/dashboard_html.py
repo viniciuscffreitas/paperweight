@@ -44,15 +44,7 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
 
     @app.get("/hub/{project_id}/activity", response_class=HTMLResponse)
     async def hub_activity(request: Request, project_id: str) -> HTMLResponse:
-        project = state.project_store.get_project(project_id) if state.project_store else None
-        if not project:
-            return HTMLResponse("<p>Project not found</p>", status_code=404)
-        events = state.project_store.list_events(project_id, limit=50)
-        return _TEMPLATES.TemplateResponse(
-            request,
-            "hub/activity.html",
-            {"events": events, "id": project_id},
-        )
+        return RedirectResponse(f"/hub/{project_id}/tasks", status_code=302)
 
     @app.get("/hub/{project_id}/tasks", response_class=HTMLResponse)
     async def hub_tasks(request: Request, project_id: str) -> HTMLResponse:
@@ -187,72 +179,13 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         if task_id and state.task_store:
             task = state.task_store.get(task_id)
             # If task has a session, use it
-            if task and task.session_id and hasattr(state, "session_manager") and state.session_manager:
+            has_sm = hasattr(state, "session_manager") and state.session_manager
+            if task and task.session_id and has_sm:
                 active_session = state.session_manager.get_session(task.session_id)
         return _TEMPLATES.TemplateResponse(
             request,
             "hub/agent.html",
             {"id": project_id, "session": active_session, "focus_run": run or "", "task": task},
-        )
-
-    # --- Coordination routes ---
-
-    @app.get("/coordination", response_class=HTMLResponse)
-    async def coordination_page(request: Request) -> HTMLResponse:
-        if state.broker:
-            snapshot = state.broker.get_coordination_snapshot()
-        else:
-            snapshot = {"claims": [], "mediations": [], "active_runs": 0,
-                        "contested_count": 0, "mediating_count": 0, "timeline": []}
-        projects = state.project_store.list_projects() if state.project_store else []
-        return _TEMPLATES.TemplateResponse(
-            request,
-            "coordination.html",
-            {
-                "projects": projects,
-                "snapshot": snapshot,
-                "current_path": "/coordination",
-            },
-        )
-
-    @app.get("/coordination/claims", response_class=HTMLResponse)
-    async def coordination_claims(request: Request) -> HTMLResponse:
-        claims = []
-        if state.broker:
-            snapshot = state.broker.get_coordination_snapshot()
-            claims = snapshot["claims"]
-        return _TEMPLATES.TemplateResponse(
-            request,
-            "coordination/claims.html",
-            {"claims": claims},
-        )
-
-    @app.get("/coordination/mediations", response_class=HTMLResponse)
-    async def coordination_mediations(request: Request) -> HTMLResponse:
-        mediations = []
-        if state.broker:
-            snapshot = state.broker.get_coordination_snapshot()
-            mediations = snapshot["mediations"]
-        return _TEMPLATES.TemplateResponse(
-            request,
-            "coordination/mediations.html",
-            {"mediations": mediations},
-        )
-
-    @app.get("/coordination/timeline", response_class=HTMLResponse)
-    async def coordination_timeline(request: Request) -> HTMLResponse:
-        timeline = []
-        if state.broker:
-            snapshot = state.broker.get_coordination_snapshot()
-            timeline = snapshot["timeline"]
-            from datetime import UTC, datetime
-            for e in timeline:
-                dt = datetime.fromtimestamp(e["timestamp"], tz=UTC)
-                e["time_str"] = dt.strftime("%H:%M:%S")
-        return _TEMPLATES.TemplateResponse(
-            request,
-            "coordination/timeline.html",
-            {"timeline": timeline},
         )
 
     @app.post("/set-theme")

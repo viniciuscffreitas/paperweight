@@ -3,7 +3,6 @@
 import pytest
 
 
-@pytest.mark.e2e  # float precision flake in CI
 def test_claim_model_defaults():
     from agents.coordination.models import Claim, ClaimStatus, ClaimType
 
@@ -15,7 +14,9 @@ def test_claim_model_defaults():
     )
     assert claim.status == ClaimStatus.ACTIVE
     assert claim.intent == ""
-    assert claim.last_activity == claim.claimed_at
+    # last_activity is set to the same time.time() call as claimed_at —
+    # allow a small tolerance for float precision across two separate calls.
+    assert abs(claim.last_activity - claim.claimed_at) < 0.01
 
 
 def test_claim_type_enum():

@@ -201,83 +201,20 @@ def app_no_coordination(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Chunk 2+3 — Routes, templates, sidebar
+# Chunk 2+3 — Dashboard route smoke tests (coordination routes removed in redesign)
 # ---------------------------------------------------------------------------
 
 
-def test_coordination_page_returns_200(app_with_coordination):
-    resp = app_with_coordination.get("/coordination")
-    assert resp.status_code == 200
-    assert "Coordination" in resp.text
+def test_coordination_routes_removed(app_with_coordination):
+    """Coordination UI routes were removed in the redesign — return 404."""
+    assert app_with_coordination.get("/coordination").status_code == 404
+    assert app_with_coordination.get("/coordination/claims").status_code == 404
+    assert app_with_coordination.get("/coordination/mediations").status_code == 404
+    assert app_with_coordination.get("/coordination/timeline").status_code == 404
 
 
-def test_coordination_page_has_status_bar(app_with_coordination):
-    resp = app_with_coordination.get("/coordination")
-    assert "runs" in resp.text.lower()
-    assert "claims" in resp.text.lower()
-    assert "contested" in resp.text.lower()
-    assert "mediating" in resp.text.lower()
-
-
-def test_coordination_claims_partial(app_with_coordination):
-    resp = app_with_coordination.get("/coordination/claims")
-    assert resp.status_code == 200
-
-
-def test_coordination_mediations_partial(app_with_coordination):
-    resp = app_with_coordination.get("/coordination/mediations")
-    assert resp.status_code == 200
-
-
-def test_coordination_timeline_partial(app_with_coordination):
-    resp = app_with_coordination.get("/coordination/timeline")
-    assert resp.status_code == 200
-
-
-def test_coordination_page_uses_css_tokens(app_with_coordination):
-    resp = app_with_coordination.get("/coordination")
-    html = resp.text
-    # Must use design tokens, not raw hex
-    assert "var(--" in html
-
-
-def test_coordination_link_in_sidebar(app_with_coordination):
+def test_dashboard_uses_design_tokens(app_with_coordination):
+    """Dashboard page uses CSS design tokens."""
     resp = app_with_coordination.get("/dashboard")
-    assert "/coordination" in resp.text
-
-
-# ---------------------------------------------------------------------------
-# Chunk 4 — Empty states, no-broker fallback, accessibility
-# ---------------------------------------------------------------------------
-
-
-def test_coordination_page_no_broker(app_no_coordination):
-    """Coordination page works even without broker (shows empty state)."""
-    resp = app_no_coordination.get("/coordination")
     assert resp.status_code == 200
-    assert "No active claims" in resp.text or "0" in resp.text
-
-
-def test_coordination_claims_empty(app_with_coordination):
-    resp = app_with_coordination.get("/coordination/claims")
-    assert resp.status_code == 200
-    assert "No active claims" in resp.text
-
-
-def test_coordination_mediations_empty(app_with_coordination):
-    resp = app_with_coordination.get("/coordination/mediations")
-    assert resp.status_code == 200
-    assert "No active mediations" in resp.text
-
-
-def test_coordination_timeline_empty(app_with_coordination):
-    resp = app_with_coordination.get("/coordination/timeline")
-    assert resp.status_code == 200
-    assert "No coordination events" in resp.text
-
-
-def test_coordination_page_accessible(app_with_coordination):
-    """WCAG: page must have proper heading text."""
-    resp = app_with_coordination.get("/coordination")
-    assert resp.status_code == 200
-    assert "Coordination" in resp.text
+    assert "var(--" in resp.text
