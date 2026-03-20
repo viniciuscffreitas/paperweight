@@ -23,6 +23,25 @@ def match_github_event(
     return True
 
 
+def is_agent_pr_merge(payload: dict) -> bool:
+    if payload.get("action") != "closed":
+        return False
+    pr = payload.get("pull_request", {})
+    if not pr.get("merged"):
+        return False
+    return pr.get("title", "").startswith("[agents]")
+
+
+def extract_pr_merge_info(payload: dict) -> dict[str, str]:
+    pr = payload.get("pull_request", {})
+    return {
+        "pr_url": pr.get("html_url", ""),
+        "branch": pr.get("head", {}).get("ref", ""),
+        "title": pr.get("title", ""),
+        "body": pr.get("body", ""),
+    }
+
+
 def extract_github_variables(event_type: str, payload: dict) -> dict[str, str]:
     variables: dict[str, str] = {}
     repo = payload.get("repository", {})

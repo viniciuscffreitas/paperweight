@@ -15,13 +15,15 @@ from agents.budget import BudgetManager
 from agents.config import GlobalConfig, load_global_config, load_project_configs
 from agents.executor import Executor
 from agents.history import HistoryDB
-from agents.models import ProjectConfig
+from agents.models import ProjectConfig, RunRecord
 from agents.notifier import Notifier
 from agents.project_store import ProjectStore
 from agents.scheduler import create_scheduler, register_jobs
 from agents.streaming import StreamEvent
 from agents.webhooks.github import (
     extract_github_variables,
+    extract_pr_merge_info,
+    is_agent_pr_merge,
     match_github_event,
     verify_github_signature,
 )
@@ -327,6 +329,28 @@ def create_app(
                             await state.executor.run_task(p, tn, trigger_type="github", variables=v)
 
                     background_tasks.add_task(_run)
+
+        if is_agent_pr_merge(payload):
+            merge_info = extract_pr_merge_info(payload)
+            pr_url = merge_info["pr_url"]
+            run = state.history.find_run_by_pr_url(pr_url)
+            if run and linear_client:
+                async def _mark_done(r: RunRecord = run) -> None:
+                    variables = state.history.get_run_variables(r.id)
+                    if variables:
+                        issue_id = variables.get("issue_id", "")
+                        team_id = variables.get("team_id", "")
+                        if issue_id and team_id and linear_client:
+                            try:
+                                await linear_client.update_status(issue_id, team_id, "Done")
+                                await linear_client.post_comment(
+                                    issue_id, f"✅ PR merged: {pr_url}"
+                                )
+                            except Exception:
+                                logger.warning("Failed to mark issue done for PR %s", pr_url)
+
+                background_tasks.add_task(_mark_done)
+
         return {"status": "processed"}
 
     @app.post("/webhooks/linear", response_model=None)

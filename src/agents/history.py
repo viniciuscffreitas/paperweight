@@ -87,6 +87,14 @@ class HistoryDB:
                 "CREATE INDEX IF NOT EXISTS idx_coordlog_run"
                 " ON coordination_log (run_id, timestamp)"
             )
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS run_variables (
+                    run_id TEXT NOT NULL,
+                    key TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    PRIMARY KEY (run_id, key)
+                )
+            """)
             # Migration: add session_id to runs table
             try:
                 conn.execute("ALTER TABLE runs ADD COLUMN session_id TEXT")
@@ -237,6 +245,31 @@ class HistoryDB:
                 "SELECT * FROM runs WHERE task = 'issue-resolver'"
                 " AND id LIKE ? ORDER BY started_at DESC LIMIT 1",
                 (f"%{issue_id}%",),
+            ).fetchone()
+        if row is None:
+            return None
+        return self._row_to_record(row)
+
+    def store_run_variables(self, run_id: str, variables: dict[str, str]) -> None:
+        with self._conn() as conn:
+            for key, value in variables.items():
+                conn.execute(
+                    "INSERT OR REPLACE INTO run_variables (run_id, key, value) VALUES (?, ?, ?)",
+                    (run_id, key, value),
+                )
+
+    def get_run_variables(self, run_id: str) -> dict[str, str]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT key, value FROM run_variables WHERE run_id = ?", (run_id,)
+            ).fetchall()
+        return {row["key"]: row["value"] for row in rows}
+
+    def find_run_by_pr_url(self, pr_url: str) -> RunRecord | None:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM runs WHERE pr_url = ? ORDER BY started_at DESC LIMIT 1",
+                (pr_url,),
             ).fetchone()
         if row is None:
             return None

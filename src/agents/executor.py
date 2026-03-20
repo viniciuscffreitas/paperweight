@@ -141,6 +141,8 @@ class Executor:
             model=task.model,
         )
         self.history.insert_run(run)
+        if variables:
+            self.history.store_run_variables(run_id, variables)
         await self._emit(run_id, "task_started", f"{project.name}/{task_name} [{trigger_type}]")
 
         # Agent issue — notify Linear + Discord at start
