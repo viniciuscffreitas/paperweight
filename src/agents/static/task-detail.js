@@ -586,11 +586,29 @@ function stopGeneration() {
 }
 
 function cancelRun() {
-  fetch('/api/sessions/' + _taskConfig.sessionId + '/events')
-    .then(function(r) { return r.json(); })
-    .then(function() {
-      window.location.reload();
-    });
+  var btn = document.querySelector('[onclick="cancelRun()"]');
+  if (btn) { btn.textContent = 'Cancelling...'; btn.style.opacity = '0.6'; btn.disabled = true; }
+
+  // Close session + reset task status
+  var promises = [];
+  if (_taskConfig.sessionId) {
+    promises.push(
+      fetch('/api/sessions/' + _taskConfig.sessionId + '/close', { method: 'POST' }).catch(function() {})
+    );
+  }
+  promises.push(
+    fetch('/api/work-items/' + _taskConfig.taskId, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ status: 'pending' })
+    }).catch(function() {})
+  );
+  // Stop WebSocket
+  if (_taskWs) { _taskWs.close(); _taskWs = null; }
+
+  Promise.all(promises).then(function() {
+    window.location.reload();
+  });
 }
 
 function startTask() {
