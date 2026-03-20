@@ -39,6 +39,11 @@ def _generate_title(prompt: str) -> str:
     return title
 
 
+def _should_create_pr(log_output: str) -> bool:
+    """Check if there are commits to push."""
+    return bool(log_output.strip())
+
+
 def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -> None:
     assert state.session_manager is not None, "session_manager required for agent routes"
     session_manager = state.session_manager
@@ -122,22 +127,64 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
         session = session_manager.get_session(session_id)
         if session is None:
             return Response(status_code=404, content="Session not found")
-        session_manager.close_session(session_id)
+
+        pr_url = None
         worktree_path = Path(session.worktree_path)
-        if worktree_path.exists():
+        project = state.projects.get(session.project)
+
+        # If there are commits, push and create a PR before cleaning up
+        if worktree_path.exists() and project:
             try:
-                project = state.projects.get(session.project)
-                if project:
-                    await state.executor._run_cmd(
-                        ["git", "worktree", "remove", "--force", str(worktree_path)],
-                        cwd=project.repo,
+                branch = f"agents/session-{session.id}"
+                log_output = await state.executor._run_cmd(
+                    ["git", "log", f"{project.base_branch}..HEAD", "--oneline"],
+                    cwd=str(worktree_path),
+                )
+                if _should_create_pr(log_output):
+                    from agents.pr_body_builder import build_pr_body
+                    diff_stat = await state.executor._run_cmd(
+                        ["git", "diff", "--stat", f"{project.base_branch}..HEAD"],
+                        cwd=str(worktree_path),
                     )
+                    body = build_pr_body(
+                        project_name=project.name,
+                        task_name=f"session-{session.id[:8]}",
+                        variables={},
+                        diff_stat=diff_stat.strip(),
+                        commit_log=log_output.strip(),
+                    )
+                    await state.executor._run_cmd(
+                        ["git", "push", "-u", "origin", branch],
+                        cwd=str(worktree_path),
+                    )
+                    title = session.title or f"Agent session {session.id[:8]}"
+                    pr_output = await state.executor._run_cmd(
+                        ["gh", "pr", "create", "--title", f"[agents] {title}",
+                         "--body", body, "--base", project.base_branch],
+                        cwd=str(worktree_path),
+                    )
+                    pr_url = pr_output.strip()
+            except Exception:
+                logger.warning("Failed to create PR for session %s", session_id)
+
+        # Clean up
+        session_manager.close_session(session_id)
+        if worktree_path.exists() and project:
+            try:
+                await state.executor._run_cmd(
+                    ["git", "worktree", "remove", "--force", str(worktree_path)],
+                    cwd=project.repo,
+                )
             except Exception:
                 logger.warning(
-                    "Failed to remove worktree %s for session %s — manual cleanup may be needed",
+                    "Failed to remove worktree %s for session %s",
                     worktree_path, session_id,
                 )
-        return {"status": "closed"}
+
+        result: dict[str, str | None] = {"status": "closed"}
+        if pr_url:
+            result["pr_url"] = pr_url
+        return result
 
     @app.get("/api/sessions/{session_id}/events")
     async def session_events(session_id: str) -> list[dict]:
