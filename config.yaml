@@ -1,7 +1,7 @@
 budget:
-  daily_limit_usd: 100.00
-  warning_threshold_usd: 80.00
-  pause_on_limit: false
+  daily_limit_usd: 10.00              # safe default — increase after testing
+  warning_threshold_usd: 7.00
+  pause_on_limit: true                # stop spawning agents when budget is hit
 
 notifications:
   slack_webhook_url: ${SLACK_WEBHOOK_URL}

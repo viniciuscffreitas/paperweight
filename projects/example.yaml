@@ -1,15 +1,51 @@
-name: example
-repo: /tmp/example-repo
-base_branch: main
-branch_prefix: agents/
-notify: none
+# ─── Example Project Configuration ───
+#
+# Copy this file and rename it to your project:
+#   cp projects/example.yaml projects/myapp.yaml
+#
+# Then edit the values below. Paperweight loads all *.yaml files
+# from this directory on startup.
+#
+# Note: this file is skipped by paperweight (name: example is ignored).
+
+name: example                          # unique project name
+repo: /path/to/your/repo              # absolute path to the git repo
+base_branch: main                      # branch to create worktrees from
+branch_prefix: agents/                 # prefix for agent-created branches
+notify: slack                          # slack | discord | none
+
+# Optional: Linear team ID (for webhook matching)
+# Find it: Linear → Team Settings → General → copy the team ID from the URL
+linear_team_id: ""
+
+# Optional: Discord channel ID (for per-project notifications)
+discord_channel_id: ""
 
 tasks:
-  hello:
-    description: "Test task — just says hello"
-    schedule: "0 9 * * *"
-    model: haiku
-    max_cost_usd: 0.10
-    autonomy: pr-only
-    prompt: |
-      Say hello and list the files in this repository.
+  # ─── Issue Resolver ───
+  # Triggered by Linear/GitHub webhooks when an issue gets the "agent" label.
+  issue-resolver:
+    description: "Resolve issues labeled 'agent' automatically"
+    intent: |
+      Resolve the following issue:
+      Title: {{issue_title}}
+      Description: {{issue_description}}
+
+      Follow TDD. Write tests first, then implement. Run tests before committing.
+    trigger:
+      type: linear                     # or: github
+      events: ["Issue.create", "Issue.update"]
+      filter: {}
+    model: sonnet                      # sonnet | haiku | opus
+    max_cost_usd: 5.00                 # hard cap per run
+    autonomy: pr-only                  # pr-only | auto-merge | notify
+
+  # ─── Scheduled Task Example ───
+  # Runs on a cron schedule. No webhook needed.
+  # daily-audit:
+  #   description: "Check for outdated dependencies"
+  #   schedule: "0 6 * * *"            # 6am daily (cron syntax)
+  #   model: haiku
+  #   max_cost_usd: 0.50
+  #   autonomy: pr-only
+  #   intent: "Check for outdated packages. Create a PR with updates if needed."

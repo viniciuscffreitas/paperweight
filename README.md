@@ -142,26 +142,74 @@ Two agents working on the same repo simultaneously. No conflicts. Worktrees are 
 
 ## Quickstart
 
+### 1. Install prerequisites
+
+```bash
+# Claude Code CLI (the engine that does the work)
+npm install -g @anthropic-ai/claude-code
+claude /login
+
+# GitHub CLI (creates PRs after each run)
+# macOS: brew install gh | Linux: https://cli.github.com/
+gh auth login
+
+# Python 3.13+ and uv
+# https://github.com/astral-sh/uv
+```
+
+### 2. Clone and configure
+
 ```bash
 git clone https://github.com/viniciuscffreitas/paperweight
 cd paperweight
 cp .env.example .env
 ```
 
-Edit `.env`:
+Edit `.env` — the only required value is your Claude token:
 ```bash
-CLAUDE_CODE_OAUTH_TOKEN=your-token   # or ANTHROPIC_API_KEY
-SECRET_KEY=any-random-string         # enables auth (optional)
-SLACK_WEBHOOK_URL=https://...        # enables notifications (optional)
+CLAUDE_CODE_OAUTH_TOKEN=your-token   # from: claude /login
 ```
+
+Optional but recommended:
+```bash
+SECRET_KEY=any-random-string         # enables login/auth
+SLACK_WEBHOOK_URL=https://...        # enables notifications
+```
+
+### 3. Run
 
 ```bash
 uv run agents
 ```
 
-Open **`http://localhost:8080`**. Create a project YAML in `projects/`, label a Linear issue with `agent`, and watch it resolve itself.
+Open **`http://localhost:8080`**. Dashboard is live.
 
-> **Prerequisites:** `claude` CLI and `gh` CLI must be installed and authenticated. See [Requirements](#requirements).
+### 4. Add your first project
+
+```bash
+cp projects/example.yaml projects/myapp.yaml
+```
+
+Edit `projects/myapp.yaml`:
+```yaml
+name: myapp
+repo: /path/to/your/repo    # absolute path to a git repo
+base_branch: main
+```
+
+Restart paperweight — your project appears in the sidebar. Click `+ New Task` to test.
+
+### 5. Set up webhooks (optional)
+
+For automatic issue resolution, point your Linear or GitHub webhooks at:
+```
+https://your-host/webhooks/linear
+https://your-host/webhooks/github
+```
+
+Then label any issue with `agent` — paperweight picks it up, Claude resolves it, PR appears.
+
+> **Budget safety:** The default config limits spending to $10/day with auto-pause. Adjust in `config.yaml` after testing.
 
 ---
 
