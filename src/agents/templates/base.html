@@ -43,13 +43,16 @@
       {% for p in projects %}
         {{ sidebar_item(p.name, p.id, active=(selected_project|default('') == p.id)) }}
       {% else %}
-        <div style="padding:12px 12px 4px;">
-          <div style="font-size:12px;color:var(--text-disabled);font-style:italic;">No projects yet</div>
+        <div style="padding:8px 12px;">
+          <span style="font-size:12px;color:var(--text-disabled);font-style:italic;">No projects yet</span>
         </div>
       {% endfor %}
-      <div style="padding:4px 12px 8px;">
-        {{ btn('+ add project', variant='dashed', onclick='openWizard()', aria_label='Add project') }}
-      </div>
+      <a href="#" onclick="event.preventDefault();openWizard()" aria-label="Add project"
+         style="display:block;padding:8px 12px;font-size:13px;font-weight:500;border-radius:8px;
+                text-decoration:none;color:var(--text-disabled);transition:background 0.15s,color 0.15s;"
+         onmouseover="this.style.background='var(--bg-content)';this.style.color='var(--text-secondary)'"
+         onmouseout="this.style.background='transparent';this.style.color='var(--text-disabled)'"
+      >+ add project</a>
     </div>
 
     <div style="padding:12px 16px;">
