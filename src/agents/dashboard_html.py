@@ -168,8 +168,24 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
             session = state.session_manager.get_session(item.session_id)
         project = state.project_store.get_project(project_id) if state.project_store else None
         projects = state.project_store.list_projects() if state.project_store else []
-        # Find related spec/plan docs
-        spec_content, spec_path = _find_related_docs(item, session)
+        # Find spec: use explicit spec_path if set, otherwise fallback to heuristic
+        if item.spec_path:
+            spec_path = item.spec_path
+            # Try worktree first, then main repo
+            for base in (
+                [Path(session.worktree_path)] if session else []
+            ) + [_BASE.parent.parent]:
+                full = base / spec_path
+                if full.exists():
+                    try:
+                        spec_content = full.read_text(encoding="utf-8")
+                    except Exception:
+                        spec_content = ""
+                    break
+            else:
+                spec_content = ""
+        else:
+            spec_content, spec_path = _find_related_docs(item, session)
         return _TEMPLATES.TemplateResponse(
             request,
             "task-detail.html",

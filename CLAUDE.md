@@ -10,7 +10,7 @@ When the prompt says "You are brainstorming" or the task is in DRAFT status:
 3. Propose 2-3 approaches with trade-offs
 4. Present the design for user approval
 5. When approved, write the spec to `docs/superpowers/specs/YYYY-MM-DD-{slug}-design.md`
-6. PATCH the task status to "ready": `curl -s -X PATCH http://localhost:8080/api/work-items/{TASK_ID} -H "Content-Type: application/json" -d '{"status": "ready"}'`
+6. PATCH the task with spec_path AND status: `curl -s -X PATCH http://localhost:8080/api/work-items/{TASK_ID} -H "Content-Type: application/json" -d '{"status": "ready", "spec_path": "docs/superpowers/specs/YYYY-MM-DD-{slug}-design.md"}'`
 
 **NEVER write code, create files, or edit source during brainstorming.**
 **NEVER skip to implementation.** Wait for the user to click Start after the spec is approved.

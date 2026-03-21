@@ -195,5 +195,6 @@ class WorkItem(BaseModel):
     pr_url: str | None = None
     retry_count: int = 0
     next_retry_at: str | None = None
+    spec_path: str | None = None
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)

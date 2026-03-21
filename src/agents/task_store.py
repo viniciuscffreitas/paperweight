@@ -62,6 +62,7 @@ class TaskStore:
             for migration in [
                 "ALTER TABLE work_items ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0",
                 "ALTER TABLE work_items ADD COLUMN next_retry_at TEXT",
+                "ALTER TABLE work_items ADD COLUMN spec_path TEXT",
             ]:
                 with contextlib.suppress(sqlite3.OperationalError):
                     conn.execute(migration)
@@ -73,6 +74,9 @@ class TaskStore:
             retry_count = row["retry_count"] or 0
         with contextlib.suppress(IndexError, KeyError):
             next_retry_at = row["next_retry_at"]
+        spec_path = None
+        with contextlib.suppress(IndexError, KeyError):
+            spec_path = row["spec_path"]
         return WorkItem(
             id=row["id"],
             project=row["project"],
@@ -87,6 +91,7 @@ class TaskStore:
             pr_url=row["pr_url"],
             retry_count=retry_count,
             next_retry_at=next_retry_at,
+            spec_path=spec_path,
             created_at=datetime.fromisoformat(row["created_at"]),
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
@@ -224,6 +229,14 @@ class TaskStore:
             conn.execute(
                 "UPDATE work_items SET session_id = ?, updated_at = ? WHERE id = ?",
                 (session_id, now, item_id),
+            )
+
+    def update_spec_path(self, item_id: str, spec_path: str) -> None:
+        now = datetime.now(UTC).isoformat()
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE work_items SET spec_path = ?, updated_at = ? WHERE id = ?",
+                (spec_path, now, item_id),
             )
 
     def update_title(self, item_id: str, title: str) -> None:

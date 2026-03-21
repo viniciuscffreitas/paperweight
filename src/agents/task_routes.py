@@ -49,6 +49,9 @@ def register_task_routes(app: FastAPI, task_store: TaskStore) -> None:
         title = data.get("title")
         if title:
             task_store.update_title(item_id, title)
+        spec_path = data.get("spec_path")
+        if spec_path is not None:
+            task_store.update_spec_path(item_id, spec_path)
         updated = task_store.get(item_id)
         return updated.model_dump(mode="json")
 
