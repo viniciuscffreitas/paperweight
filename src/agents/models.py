@@ -173,6 +173,7 @@ class TaskStatus(StrEnum):
     REVIEW = "review"
     DONE = "done"
     FAILED = "failed"
+    RETRYING = "retrying"
 
 
 # Forward-compatible aliases — new code uses TaskTemplate, old code still works
@@ -192,5 +193,7 @@ class WorkItem(BaseModel):
     status: TaskStatus = TaskStatus.PENDING
     session_id: str | None = None
     pr_url: str | None = None
+    retry_count: int = 0
+    next_retry_at: str | None = None
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)

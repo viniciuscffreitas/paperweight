@@ -1,6 +1,7 @@
 """Background task processor — claims pending tasks and executes them."""
 import asyncio
 import logging
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from agents.models import RunStatus, TaskStatus
@@ -152,7 +153,22 @@ class TaskProcessor:
                         pr_url=pr_url,
                     )
                 else:
-                    self.task_store.update_status(item.id, TaskStatus.FAILED)
+                    from agents.retry import RetryPolicy, should_retry_error
+                    retry_policy = RetryPolicy()
+                    retry_count = item.retry_count + 1
+                    if (
+                        should_retry_error(result.error_message or "")
+                        and retry_policy.can_retry(retry_count)
+                    ):
+                        delay = retry_policy.delay_for_attempt(retry_count)
+                        next_retry = (datetime.now(UTC) + timedelta(seconds=delay)).isoformat()
+                        self.task_store.mark_for_retry(item.id, retry_count, next_retry)
+                        logger.info(
+                            "Task %s will retry (attempt %d) at %s",
+                            item.id, retry_count, next_retry,
+                        )
+                    else:
+                        self.task_store.update_status(item.id, TaskStatus.FAILED)
         except Exception:
             logger.exception("Task %s failed", item.id)
             self.task_store.update_status(item.id, TaskStatus.FAILED)
@@ -175,6 +191,18 @@ class TaskProcessor:
                         logger.info("Budget exhausted, skipping task %s", item.id)
                         continue
                     if self.task_store.try_claim(item.id):
+                        asyncio.create_task(self.process_one(item))
+
+                now_iso = datetime.now(UTC).isoformat()
+                retryable = self.task_store.list_retryable(
+                    now_iso, limit=self.config.execution.max_concurrent,
+                )
+                for item in retryable:
+                    if not self.state.budget.can_afford(
+                        self.config.execution.default_max_cost_usd,
+                    ):
+                        break
+                    if self.task_store.try_claim_any(item.id):
                         asyncio.create_task(self.process_one(item))
             except Exception:
                 logger.exception("TaskProcessor loop error")

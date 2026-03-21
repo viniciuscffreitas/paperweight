@@ -1,4 +1,5 @@
 """Task (work item) persistence — SQLite CRUD with atomic claim."""
+import contextlib
 import sqlite3
 import uuid
 from datetime import UTC, datetime
@@ -59,8 +60,20 @@ class TaskStore:
                 "CREATE INDEX IF NOT EXISTS idx_task_context_task"
                 " ON task_context (task_id, timestamp)"
             )
+            for migration in [
+                "ALTER TABLE work_items ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0",
+                "ALTER TABLE work_items ADD COLUMN next_retry_at TEXT",
+            ]:
+                with contextlib.suppress(sqlite3.OperationalError):
+                    conn.execute(migration)
 
     def _row_to_item(self, row: sqlite3.Row) -> WorkItem:
+        retry_count = 0
+        next_retry_at = None
+        with contextlib.suppress(IndexError, KeyError):
+            retry_count = row["retry_count"] or 0
+        with contextlib.suppress(IndexError, KeyError):
+            next_retry_at = row["next_retry_at"]
         return WorkItem(
             id=row["id"],
             project=row["project"],
@@ -73,6 +86,8 @@ class TaskStore:
             status=row["status"],
             session_id=row["session_id"],
             pr_url=row["pr_url"],
+            retry_count=retry_count,
+            next_retry_at=next_retry_at,
             created_at=datetime.fromisoformat(row["created_at"]),
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
@@ -132,6 +147,34 @@ class TaskStore:
             cursor = conn.execute(
                 "UPDATE work_items SET status = ?, updated_at = ? WHERE id = ? AND status = ?",
                 (TaskStatus.RUNNING, now, item_id, TaskStatus.PENDING),
+            )
+            return cursor.rowcount == 1
+
+    def list_retryable(self, now_iso: str, limit: int = 5) -> list[WorkItem]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM work_items WHERE status = ? AND next_retry_at <= ?"
+                " ORDER BY next_retry_at ASC LIMIT ?",
+                (TaskStatus.RETRYING, now_iso, limit),
+            ).fetchall()
+        return [self._row_to_item(r) for r in rows]
+
+    def mark_for_retry(self, item_id: str, retry_count: int, next_retry_at: str) -> None:
+        now = datetime.now(UTC).isoformat()
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE work_items SET status = ?, retry_count = ?, next_retry_at = ?,"
+                " updated_at = ? WHERE id = ?",
+                (TaskStatus.RETRYING, retry_count, next_retry_at, now, item_id),
+            )
+
+    def try_claim_any(self, item_id: str) -> bool:
+        now = datetime.now(UTC).isoformat()
+        with self._conn() as conn:
+            cursor = conn.execute(
+                "UPDATE work_items SET status = ?, updated_at = ? WHERE id = ?"
+                " AND status IN (?, ?)",
+                (TaskStatus.RUNNING, now, item_id, TaskStatus.PENDING, TaskStatus.RETRYING),
             )
             return cursor.rowcount == 1
 
