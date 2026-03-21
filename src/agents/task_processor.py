@@ -193,25 +193,49 @@ class TaskProcessor:
                         pr_url=pr_url,
                     )
                 else:
-                    from agents.retry import RetryPolicy, should_retry_error
+                    # Check if agent produced commits despite the error
+                    has_commits = False
+                    try:
+                        worktree = Path(session.worktree_path)
+                        if worktree.exists():
+                            log_output = await self.state.executor._run_cmd(
+                                ["git", "log", f"{project.base_branch}..HEAD", "--oneline"],
+                                cwd=str(worktree),
+                            )
+                            has_commits = bool(log_output.strip())
+                    except Exception:
+                        pass
 
-                    retry_policy = RetryPolicy()
-                    retry_count = item.retry_count + 1
-                    if should_retry_error(result.error_message or "") and retry_policy.can_retry(
-                        retry_count
-                    ):
-                        delay = retry_policy.delay_for_attempt(retry_count)
-                        next_retry = (datetime.now(UTC) + timedelta(seconds=delay)).isoformat()
-                        self.task_store.mark_for_retry(item.id, retry_count, next_retry)
+                    if has_commits:
                         logger.info(
-                            "Task %s will retry (attempt %d) at %s",
+                            "Task %s failed but has commits — marking REVIEW",
                             item.id,
-                            retry_count,
-                            next_retry,
                         )
+                        self.task_store.update_status(item.id, TaskStatus.REVIEW)
                     else:
-                        self.task_store.update_status(item.id, TaskStatus.FAILED)
-                        await self._notify_failure(item, result.error_message or "unknown error")
+                        from agents.retry import RetryPolicy, should_retry_error
+
+                        retry_policy = RetryPolicy()
+                        retry_count = item.retry_count + 1
+                        if should_retry_error(
+                            result.error_message or ""
+                        ) and retry_policy.can_retry(retry_count):
+                            delay = retry_policy.delay_for_attempt(retry_count)
+                            next_retry = (
+                                datetime.now(UTC) + timedelta(seconds=delay)
+                            ).isoformat()
+                            self.task_store.mark_for_retry(item.id, retry_count, next_retry)
+                            logger.info(
+                                "Task %s will retry (attempt %d) at %s",
+                                item.id,
+                                retry_count,
+                                next_retry,
+                            )
+                        else:
+                            self.task_store.update_status(item.id, TaskStatus.FAILED)
+                            await self._notify_failure(
+                                item, result.error_message or "unknown error"
+                            )
         except Exception as exc:
             logger.exception("Task %s failed", item.id)
             self.task_store.update_status(item.id, TaskStatus.FAILED)

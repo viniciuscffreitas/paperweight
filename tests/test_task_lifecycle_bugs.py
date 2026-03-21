@@ -3,12 +3,21 @@
 Bug 1: READY tasks never processed
 Bug 2: Rerun doesn't reset retry_count
 Bug 3: Misclassified retryable errors (command not found, permission denied)
+Bug 4: Tasks FAILED despite agent having committed work
 """
 
 import pytest
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
 
-from agents.models import TaskStatus, WorkItem
+from agents.models import (
+    ProjectConfig,
+    RunRecord,
+    RunStatus,
+    TaskStatus,
+    TriggerType,
+    WorkItem,
+)
 from agents.retry import RetryPolicy, should_retry_error
 from agents.task_store import TaskStore
 from agents.task_processor import TaskProcessor
@@ -281,3 +290,317 @@ class TestCoreLifecyclePreserved:
         count = store.reset_running_to_pending()
         assert count == 1
         assert store.get(t.id).status == TaskStatus.PENDING
+
+
+# ── Shared helpers for Bug 4 ──────────────────────────────────────
+
+
+class _AsyncNullCtx:
+    """Async context manager that does nothing (mock semaphore)."""
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        pass
+
+
+def _make_run(status, error_message=None, claude_session_id=None):
+    """Create a RunRecord with minimal fields for testing."""
+    return RunRecord(
+        id="run-test",
+        project="pw",
+        task="test",
+        trigger_type=TriggerType.AGENT,
+        started_at=datetime.now(UTC),
+        status=status,
+        model="claude-sonnet-4-6",
+        error_message=error_message,
+        claude_session_id=claude_session_id,
+    )
+
+
+@pytest.fixture
+def processor_mocks(tmp_path, store):
+    """Minimal mocks for TaskProcessor.process_one()."""
+    state = MagicMock()
+    state.task_store = store
+    state.get_semaphore = lambda *a: _AsyncNullCtx()
+    state.get_repo_semaphore = lambda *a: _AsyncNullCtx()
+    state.history.list_events.return_value = []
+    state.notifier = AsyncMock()
+    state.notifier.send_text = AsyncMock()
+    state.budget.can_afford.return_value = True
+
+    # Session mock with existing worktree directory
+    worktree_dir = tmp_path / "worktree"
+    worktree_dir.mkdir()
+
+    session = MagicMock()
+    session.id = "sess-test"
+    session.worktree_path = str(worktree_dir)
+    session.model = "claude-sonnet-4-6"
+    session.max_cost_usd = 5.0
+    session.claude_session_id = None
+    session.status = "active"
+
+    state.session_manager.create_session.return_value = session
+    state.session_manager.get_session.return_value = session
+    state.session_manager.try_acquire_run.return_value = True
+
+    # Executor
+    state.executor = AsyncMock()
+    state.executor._run_cmd = AsyncMock(return_value="")
+    state.executor._create_pr = AsyncMock(return_value=None)
+
+    # Project
+    project = ProjectConfig(
+        name="pw",
+        repo=str(tmp_path / "repo"),
+        tasks={},
+    )
+    state.projects = {"pw": project}
+
+    # Config
+    config = MagicMock()
+    config.execution.max_concurrent = 2
+    config.execution.default_model = "claude-sonnet-4-6"
+    config.execution.default_max_cost_usd = 5.0
+
+    return state, config
+
+
+# ── Bug 4: Tasks FAILED despite committed work ────────────────────
+
+
+class TestFailedRunWithCommits:
+    """Bug 4: TaskProcessor marks FAILED despite agent having committed work."""
+
+    @pytest.mark.asyncio
+    async def test_failed_run_with_commits_marks_review(self, store, processor_mocks):
+        """CHANGES: When run fails but worktree has commits → REVIEW."""
+        state, config = processor_mocks
+        item = store.create(project="pw", title="Chat UX", description="D", source="agent")
+
+        state.executor.run_adhoc = AsyncMock(
+            return_value=_make_run(RunStatus.FAILURE, error_message="Budget exceeded")
+        )
+        # Worktree has commits
+        state.executor._run_cmd = AsyncMock(
+            return_value="abc123 feat: Chat UX changes"
+        )
+
+        processor = TaskProcessor(store, state, config)
+        await processor.process_one(item)
+
+        result = store.get(item.id)
+        assert result.status == TaskStatus.REVIEW
+
+    @pytest.mark.asyncio
+    async def test_failed_run_no_commits_marks_failed(self, store, processor_mocks):
+        """MUST NOT CHANGE: Run fails, no commits → FAILED."""
+        state, config = processor_mocks
+        item = store.create(project="pw", title="Broken", description="D", source="agent")
+
+        state.executor.run_adhoc = AsyncMock(
+            return_value=_make_run(RunStatus.FAILURE, error_message="Budget exceeded")
+        )
+        state.executor._run_cmd = AsyncMock(return_value="")
+
+        processor = TaskProcessor(store, state, config)
+        await processor.process_one(item)
+
+        result = store.get(item.id)
+        assert result.status == TaskStatus.FAILED
+
+    @pytest.mark.asyncio
+    async def test_success_with_pr_marks_review(self, store, processor_mocks):
+        """MUST NOT CHANGE: Success + PR → REVIEW."""
+        state, config = processor_mocks
+        item = store.create(project="pw", title="Feature", description="D", source="agent")
+
+        state.executor.run_adhoc = AsyncMock(
+            return_value=_make_run(RunStatus.SUCCESS)
+        )
+        state.executor._create_pr = AsyncMock(
+            return_value="https://github.com/test/pr/1"
+        )
+
+        processor = TaskProcessor(store, state, config)
+        await processor.process_one(item)
+
+        result = store.get(item.id)
+        assert result.status == TaskStatus.REVIEW
+        assert result.pr_url == "https://github.com/test/pr/1"
+
+    @pytest.mark.asyncio
+    async def test_success_no_pr_marks_done(self, store, processor_mocks):
+        """MUST NOT CHANGE: Success + no PR → DONE."""
+        state, config = processor_mocks
+        item = store.create(project="pw", title="Simple", description="D", source="agent")
+
+        state.executor.run_adhoc = AsyncMock(
+            return_value=_make_run(RunStatus.SUCCESS)
+        )
+        state.executor._create_pr = AsyncMock(return_value=None)
+
+        processor = TaskProcessor(store, state, config)
+        await processor.process_one(item)
+
+        result = store.get(item.id)
+        assert result.status == TaskStatus.DONE
+
+    @pytest.mark.asyncio
+    async def test_retry_still_works_on_retryable_no_commits(self, store, processor_mocks):
+        """MUST NOT CHANGE: Retryable error with no commits → RETRYING."""
+        state, config = processor_mocks
+        item = store.create(project="pw", title="Retry me", description="D", source="agent")
+
+        state.executor.run_adhoc = AsyncMock(
+            return_value=_make_run(
+                RunStatus.FAILURE, error_message="Connection refused"
+            )
+        )
+        state.executor._run_cmd = AsyncMock(return_value="")
+
+        processor = TaskProcessor(store, state, config)
+        await processor.process_one(item)
+
+        result = store.get(item.id)
+        assert result.status == TaskStatus.RETRYING
+
+
+# ── Bug 4b: Chat errors auto-failing tasks ─────────────────────────
+
+
+class TestAgentRoutesChatError:
+    """Bug 4b: Interactive chat errors should NOT auto-fail linked tasks."""
+
+    def test_chat_error_does_not_fail_task(self, store, tmp_path):
+        """CHANGES: Chat run error → task status unchanged."""
+        from fastapi import FastAPI
+        from starlette.testclient import TestClient
+
+        from agents.agent_routes import register_agent_routes
+
+        task = store.create(
+            project="pw", title="My Task", description="D", source="agent",
+        )
+        store.update_status(task.id, TaskStatus.RUNNING)
+        store.update_session(task.id, "sess-abc")
+
+        # Worktree directory must exist so route handler keeps the session
+        wt_dir = tmp_path / "wt"
+        wt_dir.mkdir()
+
+        state = MagicMock()
+        state.task_store = store
+        state.session_manager = MagicMock()
+
+        session = MagicMock()
+        session.id = "sess-abc"
+        session.status = "active"
+        session.worktree_path = str(wt_dir)
+        session.model = "claude-sonnet-4-6"
+        session.max_cost_usd = 5.0
+        session.claude_session_id = "cs-123"
+        session.title = "My Task"
+
+        state.session_manager.get_session.return_value = session
+        state.session_manager.try_acquire_run.return_value = True
+
+        state.executor = AsyncMock()
+        state.executor.run_adhoc = AsyncMock(
+            return_value=_make_run(
+                RunStatus.FAILURE,
+                error_message="some error",
+                claude_session_id="cs-123",
+            )
+        )
+        state.get_semaphore = lambda *a: _AsyncNullCtx()
+        state.get_repo_semaphore = lambda *a: _AsyncNullCtx()
+
+        project = ProjectConfig(
+            name="pw", repo=str(tmp_path / "repo"), tasks={},
+        )
+        state.projects = {"pw": project}
+
+        config = MagicMock()
+        config.execution.max_concurrent = 2
+
+        app = FastAPI()
+        register_agent_routes(app, state, config)
+
+        client = TestClient(app)
+        resp = client.post(
+            "/api/projects/pw/agent",
+            json={"prompt": "hello", "session_id": "sess-abc"},
+        )
+        assert resp.status_code == 202
+
+        got = store.get(task.id)
+        assert got.status == TaskStatus.RUNNING  # NOT FAILED
+
+    def test_chat_success_does_not_mark_done(self, store, tmp_path):
+        """MUST NOT CHANGE: Chat success → task status unchanged."""
+        from fastapi import FastAPI
+        from starlette.testclient import TestClient
+
+        from agents.agent_routes import register_agent_routes
+
+        task = store.create(
+            project="pw", title="My Task", description="D", source="agent",
+        )
+        store.update_status(task.id, TaskStatus.RUNNING)
+        store.update_session(task.id, "sess-def")
+
+        # Worktree directory must exist so route handler keeps the session
+        wt_dir = tmp_path / "wt"
+        wt_dir.mkdir()
+
+        state = MagicMock()
+        state.task_store = store
+        state.session_manager = MagicMock()
+
+        session = MagicMock()
+        session.id = "sess-def"
+        session.status = "active"
+        session.worktree_path = str(wt_dir)
+        session.model = "claude-sonnet-4-6"
+        session.max_cost_usd = 5.0
+        session.claude_session_id = "cs-456"
+        session.title = "My Task"
+
+        state.session_manager.get_session.return_value = session
+        state.session_manager.try_acquire_run.return_value = True
+
+        state.executor = AsyncMock()
+        state.executor.run_adhoc = AsyncMock(
+            return_value=_make_run(
+                RunStatus.SUCCESS,
+                claude_session_id="cs-456",
+            )
+        )
+        state.get_semaphore = lambda *a: _AsyncNullCtx()
+        state.get_repo_semaphore = lambda *a: _AsyncNullCtx()
+
+        project = ProjectConfig(
+            name="pw", repo=str(tmp_path / "repo"), tasks={},
+        )
+        state.projects = {"pw": project}
+
+        config = MagicMock()
+        config.execution.max_concurrent = 2
+
+        app = FastAPI()
+        register_agent_routes(app, state, config)
+
+        client = TestClient(app)
+        resp = client.post(
+            "/api/projects/pw/agent",
+            json={"prompt": "do things", "session_id": "sess-def"},
+        )
+        assert resp.status_code == 202
+
+        got = store.get(task.id)
+        assert got.status == TaskStatus.RUNNING  # NOT DONE
