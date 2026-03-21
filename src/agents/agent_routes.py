@@ -215,6 +215,20 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                                 break
             finally:
                 session_manager.release_run(session.id)
+                # Bug #19: if task is still 'running', executor died unexpectedly
+                if state.task_store:
+                    from agents.task_store import TaskStatus
+
+                    items = state.task_store.list_by_project(project_name)
+                    for item in items:
+                        if (
+                            item.session_id == session.id
+                            and item.status == TaskStatus.RUNNING
+                        ):
+                            state.task_store.update_status(
+                                item.id, TaskStatus.FAILED,
+                            )
+                            break
 
         background_tasks.add_task(_run)
         return {"run_id": run_id, "session_id": session.id, "status": "running"}

@@ -247,6 +247,17 @@ class TaskStore:
                 (title, now, item_id),
             )
 
+    def reset_running_to_pending(self) -> int:
+        """Reset orphaned 'running' tasks back to 'pending' (e.g. after crash)."""
+        now = datetime.now(UTC).isoformat()
+        with self._conn() as conn:
+            cursor = conn.execute(
+                "UPDATE work_items SET status = ?, updated_at = ?"
+                " WHERE status = ?",
+                (TaskStatus.PENDING, now, TaskStatus.RUNNING),
+            )
+        return cursor.rowcount
+
     def exists_by_source(self, source: str, source_id: str) -> bool:
         with self._conn() as conn:
             row = conn.execute(

@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from agents.models import RunStatus, TaskStatus
@@ -87,6 +88,18 @@ class TaskProcessor:
             if session is None or session.status != "active":
                 session = session_manager.create_session(item.project, model, max_cost)
                 self.task_store.update_session(item.id, session.id)
+            elif not Path(session.worktree_path).exists():
+                # Bug #21: stale worktree — close old session, create fresh
+                session_manager.close_session(session.id)
+                session = session_manager.create_session(item.project, model, max_cost)
+                self.task_store.update_session(item.id, session.id)
+            else:
+                # Bug #21: sync session settings with current task
+                if session.model != model or session.max_cost_usd != max_cost:
+                    session_manager.update_session(
+                        session.id, model=model, max_cost_usd=max_cost,
+                    )
+                    session = session_manager.get_session(session.id)
             if not session_manager.try_acquire_run(session.id):
                 logger.warning("Task %s: session %s locked, will retry", item.id, item.session_id)
                 # Release claim — set back to pending
@@ -127,8 +140,6 @@ class TaskProcessor:
                 if result.status == RunStatus.SUCCESS:
                     pr_url = None
                     try:
-                        from pathlib import Path
-
                         worktree = Path(session.worktree_path)
                         if worktree.exists():
                             branch = f"agents/session-{session.id}"

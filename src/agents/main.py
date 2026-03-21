@@ -201,6 +201,11 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         history.mark_running_as_cancelled()
 
+        # Reset orphaned work items left as 'running' from a previous crash
+        reset_count = task_store.reset_running_to_pending()
+        if reset_count:
+            logger.info("Reset %d orphaned running task(s) to pending", reset_count)
+
         from agents.discovery import auto_discover_project_ids
 
         await auto_discover_project_ids(
