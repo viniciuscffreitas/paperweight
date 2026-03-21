@@ -8,30 +8,18 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import BackgroundTasks, FastAPI, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi import BackgroundTasks, FastAPI, Response, WebSocket, WebSocketDisconnect
 
 from agents.app_state import AppState
 from agents.budget import BudgetManager
 from agents.config import GlobalConfig, load_global_config, load_project_configs
 from agents.executor import Executor
 from agents.history import HistoryDB
-from agents.models import ProjectConfig, RunRecord, RunStatus
+from agents.models import ProjectConfig, RunStatus
 from agents.notifier import Notifier
 from agents.project_store import ProjectStore
 from agents.scheduler import create_scheduler, register_jobs
 from agents.streaming import StreamEvent
-from agents.webhooks.github import (
-    extract_github_variables,
-    extract_pr_merge_info,
-    is_agent_pr_merge,
-    match_github_event,
-    verify_github_signature,
-)
-from agents.webhooks.linear import (
-    extract_linear_variables,
-    match_linear_event,
-    verify_linear_signature,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -302,6 +290,7 @@ def create_app(
             cleanup_run_artifacts_job, "cron", hour=4, minute=0, id="artifact_cleanup"
         )
         scheduler.start()
+        app.state.scheduler = scheduler
         logger.info("Scheduler started with %d jobs", len(scheduler.get_jobs()))
         aggregator_task = asyncio.create_task(aggregator.start(poll_interval_seconds=300))
         if broker:
@@ -347,8 +336,43 @@ def create_app(
     # --- Core routes ---
 
     @app.get("/health")
-    async def health() -> dict[str, str]:
-        return {"status": "ok"}
+    async def health() -> Response:
+        components: dict[str, str] = {}
+        overall = "ok"
+
+        # DB check
+        try:
+            history.total_cost_today()
+            components["db"] = "ok"
+        except Exception as e:
+            components["db"] = f"error: {e}"
+            overall = "degraded"
+
+        # Disk check (data dir writable)
+        try:
+            probe = data_dir / ".health_probe"
+            probe.write_text("ok")
+            probe.unlink()
+            components["disk"] = "ok"
+        except Exception:
+            components["disk"] = "error: data dir not writable"
+            overall = "degraded"
+
+        # Scheduler check
+        try:
+            sched = getattr(app.state, "scheduler", None)
+            job_count = len(sched.get_jobs()) if sched else 0
+            components["scheduler"] = f"ok ({job_count} jobs)"
+        except Exception:
+            components["scheduler"] = "error"
+            overall = "degraded"
+
+        status_code = 200 if overall == "ok" else 503
+        return Response(
+            content=json_module.dumps({"status": overall, "components": components}),
+            status_code=status_code,
+            media_type="application/json",
+        )
 
     @app.get("/status")
     async def status() -> dict[str, Any]:
@@ -402,134 +426,8 @@ def create_app(
 
     # --- Webhook routes ---
 
-    @app.post("/webhooks/github", response_model=None)
-    async def github_webhook(
-        request: Request,
-        background_tasks: BackgroundTasks,
-    ) -> Response | dict[str, str]:
-        body = await request.body()
-        signature = request.headers.get("X-Hub-Signature-256", "")
-        if not verify_github_signature(body, signature, state.github_secret):
-            return Response(status_code=401, content="Invalid signature")
-        event_type = request.headers.get("X-GitHub-Event", "")
-        payload = await request.json()
-        action = payload.get("action")
-        for project in state.projects.values():
-            for task_name, task in project.tasks.items():
-                if match_github_event(event_type, action, payload, task):
-                    variables = extract_github_variables(event_type, payload)
-
-                    async def _run(
-                        p: ProjectConfig = project,
-                        tn: str = task_name,
-                        v: dict[str, str] = variables,
-                    ) -> None:
-                        async with (
-                            state.get_semaphore(config.execution.max_concurrent),
-                            state.get_repo_semaphore(p.repo),
-                        ):
-                            await state.executor.run_task(p, tn, trigger_type="github", variables=v)
-
-                    background_tasks.add_task(_run)
-
-        if is_agent_pr_merge(payload):
-            merge_info = extract_pr_merge_info(payload)
-            pr_url = merge_info["pr_url"]
-            run = state.history.find_run_by_pr_url(pr_url)
-            if run and linear_client:
-                async def _mark_done(r: RunRecord = run) -> None:
-                    variables = state.history.get_run_variables(r.id)
-                    if variables:
-                        issue_id = variables.get("issue_id", "")
-                        team_id = variables.get("team_id", "")
-                        if issue_id and team_id and linear_client:
-                            try:
-                                await linear_client.update_status(issue_id, team_id, "Done")
-                                await linear_client.post_comment(
-                                    issue_id, f"✅ PR merged: {pr_url}"
-                                )
-                            except Exception:
-                                logger.warning("Failed to mark issue done for PR %s", pr_url)
-
-                background_tasks.add_task(_mark_done)
-
-        return {"status": "processed"}
-
-    @app.post("/webhooks/linear", response_model=None)
-    async def linear_webhook(
-        request: Request,
-        background_tasks: BackgroundTasks,
-    ) -> Response | dict[str, str]:
-        body = await request.body()
-        signature = request.headers.get("Linear-Signature", "")
-        if state.linear_secret and not verify_linear_signature(
-            body, signature, state.linear_secret
-        ):
-            return Response(status_code=401, content="Invalid signature")
-        payload = await request.json()
-        event_type = payload.get("type", "")
-        action = payload.get("action", "")
-        for project in state.projects.values():
-            for task_name, task in project.tasks.items():
-                if match_linear_event(event_type, action, payload, task):
-                    variables = extract_linear_variables(payload)
-
-                    async def _run(
-                        p: ProjectConfig = project,
-                        tn: str = task_name,
-                        v: dict[str, str] = variables,
-                    ) -> None:
-                        async with (
-                            state.get_semaphore(config.execution.max_concurrent),
-                            state.get_repo_semaphore(p.repo),
-                        ):
-                            await state.executor.run_task(p, tn, trigger_type="linear", variables=v)
-
-                    background_tasks.add_task(_run)
-
-        import time as _time
-
-        from agents.webhooks.linear import extract_agent_issue_variables, match_agent_issue
-
-        if match_agent_issue(payload):
-            variables = extract_agent_issue_variables(payload)
-            issue_id = variables.get("issue_id", "")
-            team_id = variables.get("team_id", "")
-            now = _time.time()
-            last_seen = state._agent_issue_seen.get(issue_id, 0)
-            if now - last_seen < 120:
-                logger.info(
-                    "Cooldown: skipping agent issue %s (seen %.0fs ago)",
-                    issue_id,
-                    now - last_seen,
-                )
-            else:
-                existing = state.history.find_run_by_issue_id(issue_id)
-                if existing and existing.status in ("running", "success"):
-                    logger.info(
-                        "Dedup: skipping agent issue %s — already %s",
-                        issue_id,
-                        existing.status,
-                    )
-                else:
-                    for project in state.projects.values():
-                        if project.linear_team_id == team_id and "issue-resolver" in project.tasks:
-                            state._agent_issue_seen[issue_id] = now
-                            # Create Task instead of running directly
-                            if state.task_store and not state.task_store.exists_by_source("linear", issue_id):
-                                state.task_store.create(
-                                    project=project.name,
-                                    title=variables.get("issue_title", "Linear issue"),
-                                    description=variables.get("issue_description", ""),
-                                    source="linear",
-                                    source_id=issue_id,
-                                    source_url=f"https://linear.app/issue/{variables.get('issue_identifier', '')}",
-                                    template="issue-resolver",
-                                )
-                                logger.info("Created task for Linear issue %s", issue_id)
-                            break
-
-        return {"status": "processed"}
+    from agents.webhook_routes import register_webhook_routes
+    register_webhook_routes(app, state, config, linear_client)
 
     # --- WebSocket routes ---
 
