@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import BackgroundTasks, FastAPI, Response, WebSocket, WebSocketDisconnect
+from fastapi import BackgroundTasks, FastAPI, Request, Response, WebSocket, WebSocketDisconnect
 
 from agents.app_state import AppState
 from agents.budget import BudgetManager
@@ -345,6 +345,19 @@ def create_app(
 
     from agents.auth_middleware import register_auth_middleware
     register_auth_middleware(app)
+
+    from agents.rate_limit import RateLimiter
+    _rate_limiter = RateLimiter(max_requests=120, window_seconds=60)
+
+    @app.middleware("http")
+    async def rate_limit_middleware(request: Request, call_next):
+        path = request.url.path
+        if path.startswith("/ws/") or path == "/health" or path.startswith("/static/"):
+            return await call_next(request)
+        client_ip = request.client.host if request.client else "unknown"
+        if not _rate_limiter.is_allowed(client_ip):
+            return Response(status_code=429, content="Too many requests")
+        return await call_next(request)
 
     # --- Core routes ---
 
