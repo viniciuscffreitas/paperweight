@@ -177,25 +177,9 @@ async def test_create_pr_auto_merge_failure_still_returns_url(tmp_path):
 @pytest.mark.asyncio
 async def test_finalize_agent_success_posts_linear_comment(tmp_path):
     """After successful agent run, comments on Linear issue."""
-    from agents.budget import BudgetManager
-    from agents.config import BudgetConfig, ExecutionConfig
-    from agents.executor import Executor
-    from agents.history import HistoryDB
     from agents.models import ProjectConfig, RunRecord, RunStatus, TaskConfig, TriggerType
-    from agents.notifier import Notifier
 
-    db = HistoryDB(tmp_path / "test.db")
-    budget = BudgetManager(config=BudgetConfig(), history=db)
-    notifier = Notifier(webhook_url="")
     linear_client = AsyncMock()
-    executor = Executor(
-        config=ExecutionConfig(worktree_base=str(tmp_path / "wt")),
-        budget=budget,
-        history=db,
-        notifier=notifier,
-        data_dir=tmp_path / "data",
-        linear_client=linear_client,
-    )
 
     project = ProjectConfig(
         name="test",
@@ -213,7 +197,9 @@ async def test_finalize_agent_success_posts_linear_comment(tmp_path):
         pr_url="https://github.com/org/repo/pull/42",
     )
 
-    await executor._finalize_agent_success(
+    from agents.executor_notifications import finalize_agent_success
+
+    await finalize_agent_success(
         project,
         variables={
             "issue_id": "iss-1",
@@ -223,6 +209,8 @@ async def test_finalize_agent_success_posts_linear_comment(tmp_path):
         },
         discord_msg_id="",
         run=run,
+        linear_client=linear_client,
+        discord_notifier=None,
     )
 
     linear_client.post_comment.assert_called_once()
@@ -236,25 +224,9 @@ async def test_finalize_agent_success_posts_linear_comment(tmp_path):
 @pytest.mark.asyncio
 async def test_fail_agent_run_posts_failure_comment(tmp_path):
     """After failed agent run, comments failure on Linear issue."""
-    from agents.budget import BudgetManager
-    from agents.config import BudgetConfig, ExecutionConfig
-    from agents.executor import Executor
-    from agents.history import HistoryDB
     from agents.models import ProjectConfig, RunRecord, RunStatus, TaskConfig, TriggerType
-    from agents.notifier import Notifier
 
-    db = HistoryDB(tmp_path / "test.db")
-    budget = BudgetManager(config=BudgetConfig(), history=db)
-    notifier = Notifier(webhook_url="")
     linear_client = AsyncMock()
-    executor = Executor(
-        config=ExecutionConfig(worktree_base=str(tmp_path / "wt")),
-        budget=budget,
-        history=db,
-        notifier=notifier,
-        data_dir=tmp_path / "data",
-        linear_client=linear_client,
-    )
 
     project = ProjectConfig(
         name="test",
@@ -272,7 +244,9 @@ async def test_fail_agent_run_posts_failure_comment(tmp_path):
         error_message="Claude timed out",
     )
 
-    await executor._fail_agent_run(
+    from agents.executor_notifications import fail_agent_run
+
+    await fail_agent_run(
         project,
         variables={
             "issue_id": "iss-1",
@@ -284,6 +258,8 @@ async def test_fail_agent_run_posts_failure_comment(tmp_path):
         run=run,
         attempt=1,
         max_attempts=1,
+        linear_client=linear_client,
+        discord_notifier=None,
     )
 
     linear_client.post_comment.assert_called_once()

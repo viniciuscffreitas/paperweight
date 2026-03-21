@@ -8,7 +8,12 @@ from typing import TYPE_CHECKING
 
 from agents.budget import BudgetManager
 from agents.config import ExecutionConfig, build_prompt
+from agents.executor_git import create_pr as _create_pr_fn
 from agents.executor_notifications import fail_agent_run, finalize_agent_success
+from agents.executor_process import cancel_run as _cancel_run_fn
+from agents.executor_process import run_claude as _run_claude_fn
+from agents.executor_process import run_cmd as _run_cmd_fn
+from agents.executor_process import shutdown as _shutdown_fn
 from agents.executor_utils import (
     ClaudeOutput,
     generate_branch_name,
@@ -475,64 +480,11 @@ class Executor:
 
         return run
 
-    # ------------------------------------------------------------------
-    # Compatibility shims — delegate to standalone notification helpers
-    # ------------------------------------------------------------------
-
-    async def _finalize_agent_success(
-        self,
-        project: ProjectConfig,
-        variables: dict[str, str],
-        discord_msg_id: str,
-        run: RunRecord,
-    ) -> None:
-        await finalize_agent_success(
-            project,
-            variables,
-            discord_msg_id,
-            run,
-            self.linear_client,
-            self.discord_notifier,
-        )
-
-    async def _fail_agent_run(
-        self,
-        project: ProjectConfig,
-        variables: dict[str, str],
-        discord_msg_id: str,
-        run: RunRecord,
-        attempt: int,
-        max_attempts: int,
-    ) -> None:
-        await fail_agent_run(
-            project,
-            variables,
-            discord_msg_id,
-            run,
-            attempt,
-            max_attempts,
-            self.linear_client,
-            self.discord_notifier,
-        )
-
     async def cancel_run(self, run_id: str) -> bool:
-        proc = self._running_processes.get(run_id)
-        if proc is None:
-            return False
-        proc.terminate()
-        return True
+        return await _cancel_run_fn(self._running_processes, run_id)
 
     async def shutdown(self) -> None:
-        for run_id, proc in self._running_processes.items():
-            logger.info("Terminating process for run %s", run_id)
-            proc.terminate()
-        for _run_id, proc in self._running_processes.items():
-            try:
-                await asyncio.wait_for(proc.wait(), timeout=30)
-            except TimeoutError:
-                proc.kill()
-        self.history.mark_running_as_cancelled()
-        self._running_processes.clear()
+        await _shutdown_fn(self._running_processes, self.history)
 
     async def _run_claude(
         self,
@@ -542,46 +494,12 @@ class Executor:
         timeout: int,
         env: dict[str, str] | None = None,
     ) -> tuple[ClaudeOutput, str]:
-        import os as _os
-
-        from agents.streaming import RunStream
-
-        # Ensure ~/.local/bin is in PATH for claude/gh CLIs
-        run_env = env or {**_os.environ}
-        path = run_env.get("PATH", "")
-        home = _os.path.expanduser("~")
-        local_bin = f"{home}/.local/bin"
-        if local_bin not in path:
-            run_env["PATH"] = f"{local_bin}:{path}"
-
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=cwd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=run_env,
+        return await _run_claude_fn(
+            cmd, cwd, run_id, timeout, env, self._running_processes, self.on_stream_event
         )
-        self._running_processes[run_id] = proc
-        stream = RunStream(run_id=run_id, on_event=self.on_stream_event)
-        try:
-            result = await asyncio.wait_for(stream.process_stream(proc), timeout=timeout)
-            return result, stream.get_raw_output()
-        except TimeoutError:
-            proc.terminate()
-            raise
 
     async def _run_cmd(self, cmd: list[str], cwd: str) -> str:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=cwd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await proc.communicate()
-        if proc.returncode != 0:
-            msg = f"Command failed: {' '.join(cmd)}\n{stderr.decode()}"
-            raise RuntimeError(msg)
-        return stdout.decode()
+        return await _run_cmd_fn(cmd, cwd)
 
     async def _create_pr(
         self,
@@ -593,49 +511,6 @@ class Executor:
         variables: dict[str, str] | None = None,
         cost_usd: float = 0.0,
     ) -> str | None:
-        log_output = await self._run_cmd(
-            ["git", "log", f"{project.base_branch}..HEAD", "--oneline"],
-            cwd=cwd,
+        return await _create_pr_fn(
+            self._run_cmd, cwd, project, task_name, branch, autonomy, variables, cost_usd
         )
-        if not log_output.strip():
-            return None
-
-        diff_stat = await self._run_cmd(
-            ["git", "diff", "--stat", f"{project.base_branch}..HEAD"],
-            cwd=cwd,
-        )
-
-        from agents.pr_body_builder import build_pr_body
-
-        body = build_pr_body(
-            project_name=project.name,
-            task_name=task_name,
-            variables=variables or {},
-            diff_stat=diff_stat.strip(),
-            commit_log=log_output.strip(),
-            cost_usd=cost_usd,
-        )
-
-        await self._run_cmd(["git", "push", "-u", "origin", branch], cwd=cwd)
-        pr_cmd = [
-            "gh",
-            "pr",
-            "create",
-            "--title",
-            f"[agents] {project.name}/{task_name}",
-            "--body",
-            body,
-            "--base",
-            project.base_branch,
-        ]
-        pr_output = await self._run_cmd(pr_cmd, cwd=cwd)
-        pr_url = pr_output.strip()
-        if autonomy == "auto-merge":
-            try:
-                await self._run_cmd(
-                    ["gh", "pr", "merge", "--auto", "--squash", pr_url],
-                    cwd=cwd,
-                )
-            except RuntimeError:
-                logger.warning("Failed to enable auto-merge for %s", pr_url)
-        return pr_url
