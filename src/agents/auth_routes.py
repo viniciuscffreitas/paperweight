@@ -278,3 +278,26 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
             from agents.config_writer import write_config_values
             write_config_values(config_path, updates)
         return RedirectResponse("/settings?saved=config", status_code=303)
+
+    @app.post("/settings/integrations", response_class=HTMLResponse)
+    async def settings_save_integrations(request: Request) -> Response:
+        user = getattr(request.state, "user", None)
+        if user is None or not user.is_admin:
+            return RedirectResponse("/settings", status_code=303)
+        config_path = getattr(request.app.state, "config_path", None)
+        if not config_path:
+            return RedirectResponse("/settings?error=config", status_code=303)
+        form = await request.form()
+        updates: dict = {}
+        for key, value in form.items():
+            val = str(value).strip()
+            if not val:
+                continue  # skip empty — keep current value
+            parts = key.split(".")
+            if len(parts) == 2:
+                section, field = parts
+                updates.setdefault(section, {})[field] = val
+        if updates:
+            from agents.config_writer import write_config_values
+            write_config_values(config_path, updates, force=True)
+        return RedirectResponse("/settings?saved=integrations", status_code=303)

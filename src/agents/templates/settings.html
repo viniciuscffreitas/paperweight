@@ -23,7 +23,12 @@
   {% elif saved == "config" %}
   <div style="padding:10px 14px;margin-bottom:20px;font-size:13px;color:var(--status-success);
               background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);border-radius:8px;">
-    Configuration saved.
+    Configuration saved. Restart required to apply.
+  </div>
+  {% elif saved == "integrations" %}
+  <div style="padding:10px 14px;margin-bottom:20px;font-size:13px;color:var(--status-success);
+              background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);border-radius:8px;">
+    Integrations saved. Restart required to apply.
   </div>
   {% endif %}
 
@@ -235,28 +240,46 @@
     </button>
   </form>
 
-  {# Integrations status (read-only) #}
-  {% if integrations_status %}
+  {# Integrations — editable #}
   <hr style="border:none;border-top:1px solid var(--separator-strong);margin:28px 0 24px;">
 
   <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:16px;">
     Integrations
   </div>
 
-  <div style="display:grid;gap:8px;">
-    {% for key, connected in integrations_status.items() %}
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;
-                background:var(--bg-chrome);border:1px solid var(--separator-strong);border-radius:8px;">
-      <span style="font-size:13px;color:var(--text-secondary);">{{ key }}</span>
-      {% if connected %}
-      <span style="font-size:11px;font-weight:600;color:var(--status-success);">Connected</span>
-      {% else %}
-      <span style="font-size:11px;font-weight:600;color:var(--text-disabled);">Not set</span>
-      {% endif %}
+  <form method="post" action="/settings/integrations">
+    <div style="display:grid;gap:12px;margin-bottom:14px;">
+      {% set integ = config.get('integrations', {}) %}
+      {% for key in ['linear_api_key', 'github_token', 'slack_bot_token', 'discord_bot_token'] %}
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);">
+            {{ key }}
+          </label>
+          {% if integrations_status.get(key) %}
+          <span style="font-size:10px;font-weight:600;color:var(--status-success);">Connected</span>
+          {% endif %}
+        </div>
+        <input name="integrations.{{ key }}" type="password" autocomplete="off"
+               placeholder="{% if integrations_status.get(key) %}••••••••{% else %}not set{% endif %}"
+               style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-chrome);
+                      border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                      font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
+               onfocus="this.style.borderColor='var(--accent-focus)'"
+               onblur="this.style.borderColor='var(--separator-strong)'">
+      </div>
+      {% endfor %}
     </div>
-    {% endfor %}
-  </div>
-  {% endif %}
+    <div style="font-size:11px;color:var(--text-disabled);margin-bottom:14px;">
+      Leave empty to keep current value. Requires restart to take effect.
+    </div>
+    <button type="submit"
+            style="background:var(--accent-gradient);color:#fff;padding:6px 16px;font-size:13px;
+                   font-weight:500;border-radius:8px;border:none;cursor:pointer;font-family:inherit;
+                   transition:all .15s;display:inline-flex;align-items:center;">
+      Save Integrations
+    </button>
+  </form>
 
   {% endif %}{# end is_admin #}
 

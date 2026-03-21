@@ -48,3 +48,25 @@ def test_write_config_values_blocks_env_var_overwrite(tmp_path: Path):
     write_config_values(cfg, {"integrations": {"linear_api_key": "hacked-value"}})
     raw = read_raw_config(cfg)
     assert raw["integrations"]["linear_api_key"] == "${LINEAR_API_KEY}"
+
+
+def test_write_config_values_force_overwrites_env_vars(tmp_path: Path):
+    """With force=True, env var fields CAN be overwritten."""
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text("integrations:\n  linear_api_key: ${LINEAR_API_KEY}\n")
+    write_config_values(
+        cfg, {"integrations": {"linear_api_key": "sk-lin-real-key"}}, force=True
+    )
+    raw = read_raw_config(cfg)
+    assert raw["integrations"]["linear_api_key"] == "sk-lin-real-key"
+
+
+def test_write_config_values_force_empty_clears(tmp_path: Path):
+    """With force=True, empty string replaces env var reference."""
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text("integrations:\n  linear_api_key: ${LINEAR_API_KEY}\n")
+    write_config_values(
+        cfg, {"integrations": {"linear_api_key": ""}}, force=True
+    )
+    raw = read_raw_config(cfg)
+    assert raw["integrations"]["linear_api_key"] == ""

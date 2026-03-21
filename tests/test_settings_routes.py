@@ -211,3 +211,43 @@ def test_post_config_rejected_for_non_admin(client: TestClient) -> None:
     )
     assert resp.status_code == 303
     assert "/settings" in resp.headers["location"]
+
+
+# ---------------------------------------------------------------------------
+# POST /settings/integrations — admin integration save
+# ---------------------------------------------------------------------------
+
+
+def test_post_integrations_saves_token(
+    admin_client: TestClient, config_path: Path
+) -> None:
+    resp = admin_client.post(
+        "/settings/integrations",
+        data={"integrations.linear_api_key": "sk-lin-new"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303
+    assert "saved=integrations" in resp.headers["location"]
+    from agents.config_writer import read_raw_config
+
+    raw = read_raw_config(config_path)
+    assert raw["integrations"]["linear_api_key"] == "sk-lin-new"
+
+
+def test_post_integrations_rejected_for_non_admin(client: TestClient) -> None:
+    resp = client.post(
+        "/settings/integrations",
+        data={"integrations.linear_api_key": "sk-lin-hack"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303
+    assert "/settings" in resp.headers["location"]
+
+
+def test_get_settings_shows_integration_forms_for_admin(
+    admin_client: TestClient,
+) -> None:
+    resp = admin_client.get("/settings")
+    assert resp.status_code == 200
+    assert "linear_api_key" in resp.text
+    assert "github_token" in resp.text

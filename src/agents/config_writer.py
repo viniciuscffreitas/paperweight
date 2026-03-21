@@ -42,9 +42,16 @@ def _strip_env_vars(current: dict, updates: dict) -> dict:
     return clean
 
 
-def write_config_values(path: Path, updates: dict) -> None:
-    """Update specific values in config.yaml, preserving structure and env vars."""
+def write_config_values(
+    path: Path, updates: dict, *, force: bool = False
+) -> None:
+    """Update specific values in config.yaml.
+
+    By default, env var references (${FOO}) are preserved and cannot be
+    overwritten.  Pass force=True to allow overwriting them (used by the
+    integrations settings form).
+    """
     current = read_raw_config(path)
-    safe_updates = _strip_env_vars(current, updates)
+    safe_updates = updates if force else _strip_env_vars(current, updates)
     merged = _deep_merge(current, safe_updates)
     path.write_text(yaml.dump(merged, default_flow_style=False, sort_keys=False))
