@@ -170,14 +170,16 @@ def register_webhook_routes(
                     for project in state.projects.values():
                         if project.linear_team_id == team_id and "issue-resolver" in project.tasks:
                             state._agent_issue_seen[issue_id] = now
-                            if state.task_store and not state.task_store.exists_by_source("linear", issue_id):
-                                state.task_store.create(
+                            store = state.task_store
+                            if store and not store.exists_by_source("linear", issue_id):
+                                ident = variables.get("issue_identifier", "")
+                                store.create(
                                     project=project.name,
                                     title=variables.get("issue_title", "Linear issue"),
                                     description=variables.get("issue_description", ""),
                                     source="linear",
                                     source_id=issue_id,
-                                    source_url=f"https://linear.app/issue/{variables.get('issue_identifier', '')}",
+                                    source_url=f"https://linear.app/issue/{ident}",
                                     template="issue-resolver",
                                 )
                                 logger.info("Created task for Linear issue %s", issue_id)

@@ -123,7 +123,8 @@ class NotificationEngine:
         total_cost = sum(r.cost_usd or 0 for r in overnight_runs)
 
         lines = ["📋 Overnight Summary\n"]
-        lines.append(f"  {len(overnight_runs)} runs | {len(successes)} succeeded | {len(failures)} failed")
+        n, s, f = len(overnight_runs), len(successes), len(failures)
+        lines.append(f"  {n} runs | {s} succeeded | {f} failed")
         lines.append(f"  Cost: ${total_cost:.2f}")
 
         if prs:
