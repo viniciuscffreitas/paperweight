@@ -1,4 +1,14 @@
-"""MediatorSpawner — builds mediator prompts and coordinates mediation runs."""
+"""MediatorSpawner — builds mediator prompts and coordinates mediation runs.
+
+What works:
+- build_coordination_preamble(): injected into agent prompts by executor.py
+- build_mediator_prompt(): constructs the mediator task prompt
+
+What is NOT YET IMPLEMENTED:
+- Actually spawning a mediator agent to run the prompt
+- Rebasing or merging worktrees after mediation completes
+- Notifying the contesting agents when mediation is done
+"""
 from __future__ import annotations
 
 COORDINATION_PREAMBLE = """## Coordinated Mode — Paperweight Protocol
