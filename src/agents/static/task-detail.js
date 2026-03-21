@@ -268,10 +268,11 @@ function startTask() {
   var prompt = '';
   if (specPath) {
     prompt = 'Implement the spec at ' + specPath + '. Read the file first, then implement fully: RED tests → GREEN implementation → REFACTOR → COMMIT. Run tests and linter before finishing.';
-  } else if (desc) {
-    prompt = desc.textContent.trim();
   } else {
-    prompt = taskTitle;
+    // No spec found in template — tell agent to search for it
+    var specHint = 'Look for the spec in docs/superpowers/specs/ (file matching "' + taskTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 40) + '"). ';
+    var taskDesc = desc ? desc.textContent.trim() : taskTitle;
+    prompt = specHint + 'If found, implement it. If not, implement based on this description:\n\n' + taskDesc;
   }
 
   var modelSelect = document.getElementById('chat-model');
