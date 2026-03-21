@@ -1,8 +1,9 @@
 """Tests for GitHub OAuth integration."""
 
 import os
+import sqlite3
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,7 +11,6 @@ from fastapi.testclient import TestClient
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-oauth-tests")
 
 from agents.auth import AuthDB
-
 
 # ---------------------------------------------------------------------------
 # AuthDB: GitHub user methods
@@ -65,7 +65,7 @@ def test_github_user_session_roundtrip(db: AuthDB) -> None:
 
 def test_github_id_unique(db: AuthDB) -> None:
     db.create_github_user(github_id="same-id", username="userX")
-    with pytest.raises(Exception):
+    with pytest.raises(sqlite3.IntegrityError):
         db.create_github_user(github_id="same-id", username="userY")
 
 
@@ -134,7 +134,7 @@ def test_github_oauth_redirect(tmp_path: Path) -> None:
 
 def test_github_oauth_callback_new_user(tmp_path: Path) -> None:
     """Callback with valid code creates a new user and sets session cookie."""
-    app, auth_db = _make_app_with_oauth(tmp_path)
+    app, _ = _make_app_with_oauth(tmp_path)
     client = TestClient(app, follow_redirects=False)
 
     token_payload = {"access_token": "gho_fake", "token_type": "bearer"}

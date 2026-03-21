@@ -240,14 +240,19 @@ def _read_task_detail_js() -> str:
     # task-detail.js and chat.js are companion modules that share global scope.
     # Tests check the combined surface — functions may live in either file.
     return (
-        (_STATIC_DIR / "task-detail.js").read_text() + "\n" + (_STATIC_DIR / "chat.js").read_text() + "\n" + (_STATIC_DIR / "chat-multimodal.js").read_text()
+        (_STATIC_DIR / "task-detail.js").read_text()
+        + "\n"
+        + (_STATIC_DIR / "chat.js").read_text()
+        + "\n"
+        + (_STATIC_DIR / "chat-multimodal.js").read_text()
     )
 
 
 def test_js_has_append_chat_message_with_streaming_param():
     """appendChatMessage must accept isStreaming and optional attachments parameters."""
     js = _read_task_detail_js()
-    assert "function appendChatMessage(container, role, text, isStreaming, attachments, timestamp)" in js
+    sig = "function appendChatMessage(container, role, text, isStreaming, attachments, timestamp)"
+    assert sig in js
 
 
 def test_js_has_add_code_block_headers():

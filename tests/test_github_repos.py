@@ -11,7 +11,6 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-for-oauth-tests")
 
 from agents.auth import AuthDB
 
-
 # -----------------------------------------------------------------------
 # Token storage on User
 # -----------------------------------------------------------------------
@@ -129,7 +128,7 @@ def test_oauth_callback_updates_token_on_relogin(tmp_path: Path) -> None:
             return_value=user_payload,
         ),
     ):
-        resp = client.get("/auth/github/callback?code=abc123")
+        client.get("/auth/github/callback?code=abc123")
 
     user = auth_db.find_user_by_github_id("42")
     assert user.github_token == "gho_new_token"

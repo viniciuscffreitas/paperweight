@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -171,7 +171,9 @@ async def test_resume_session_with_existing_worktree_runs_claude(tmp_path):
 
     await executor.run_adhoc(project, "do something", session, is_resume=True)
 
-    worktree_adds = [c for c in run_cmd_calls if len(c) >= 3 and c[:3] == ["git", "worktree", "add"]]
+    worktree_adds = [
+        c for c in run_cmd_calls if len(c) >= 3 and c[:3] == ["git", "worktree", "add"]
+    ]
     assert worktree_adds == [], "is_resume=True must not call git worktree add"
     assert claude_called, "Claude must be invoked for resume sessions"
 
