@@ -149,25 +149,50 @@
       Execution
     </div>
 
+    {% set exec = config.get('execution', {}) %}
     <div style="display:grid;gap:12px;margin-bottom:24px;">
       <div>
         <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">
           Default Model
         </label>
-        <input name="execution.default_model" type="text"
-               value="{{ config.get('execution', {}).get('default_model', '') }}"
-               style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-chrome);
-                      border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
-                      font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
-               onfocus="this.style.borderColor='var(--accent-focus)'"
-               onblur="this.style.borderColor='var(--separator-strong)'">
+        <select name="execution.default_model"
+                style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-chrome);
+                       border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                       font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;
+                       cursor:pointer;-webkit-appearance:none;appearance:none;
+                       background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path d=%22M3 5l3 3 3-3%22 fill=%22%23888%22/></svg>');
+                       background-repeat:no-repeat;background-position:right 12px center;"
+                onfocus="this.style.borderColor='var(--accent-focus)'"
+                onblur="this.style.borderColor='var(--separator-strong)'">
+          {% for m in ['sonnet', 'opus', 'haiku'] %}
+          <option value="{{ m }}" {% if exec.get('default_model') == m %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">
+          Default Autonomy
+        </label>
+        <select name="execution.default_autonomy"
+                style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-chrome);
+                       border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                       font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;
+                       cursor:pointer;-webkit-appearance:none;appearance:none;
+                       background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path d=%22M3 5l3 3 3-3%22 fill=%22%23888%22/></svg>');
+                       background-repeat:no-repeat;background-position:right 12px center;"
+                onfocus="this.style.borderColor='var(--accent-focus)'"
+                onblur="this.style.borderColor='var(--separator-strong)'">
+          {% for a in ['pr-only', 'full', 'yolo'] %}
+          <option value="{{ a }}" {% if exec.get('default_autonomy') == a %}selected{% endif %}>{{ a }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div>
         <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">
           Max Concurrent
         </label>
         <input name="execution.max_concurrent" type="number" min="1"
-               value="{{ config.get('execution', {}).get('max_concurrent', '') }}"
+               value="{{ exec.get('max_concurrent', '') }}"
                style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-chrome);
                       border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
                       font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
@@ -179,7 +204,7 @@
           Timeout (minutes)
         </label>
         <input name="execution.timeout_minutes" type="number" min="1"
-               value="{{ config.get('execution', {}).get('timeout_minutes', '') }}"
+               value="{{ exec.get('timeout_minutes', '') }}"
                style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-chrome);
                       border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
                       font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
@@ -191,12 +216,21 @@
           Default Max Cost (USD)
         </label>
         <input name="execution.default_max_cost_usd" type="number" step="0.01" min="0"
-               value="{{ config.get('execution', {}).get('default_max_cost_usd', '') }}"
+               value="{{ exec.get('default_max_cost_usd', '') }}"
                style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-chrome);
                       border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
                       font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
                onfocus="this.style.borderColor='var(--accent-focus)'"
                onblur="this.style.borderColor='var(--separator-strong)'">
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:4px 0;">
+        <input type="hidden" name="execution.dry_run" value="false">
+        <input name="execution.dry_run" type="checkbox" id="dry-run" value="true"
+               {% if exec.get('dry_run') %}checked{% endif %}
+               style="width:16px;height:16px;accent-color:var(--accent-text);cursor:pointer;">
+        <label for="dry-run" style="font-size:13px;color:var(--text-secondary);cursor:pointer;">
+          Dry run <span style="font-size:11px;color:var(--text-disabled);">— simulate without executing</span>
+        </label>
       </div>
     </div>
 
@@ -205,13 +239,14 @@
       Budget
     </div>
 
+    {% set bgt = config.get('budget', {}) %}
     <div style="display:grid;gap:12px;margin-bottom:28px;">
       <div>
         <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">
           Daily Limit (USD)
         </label>
         <input name="budget.daily_limit_usd" type="number" step="0.01" min="0"
-               value="{{ config.get('budget', {}).get('daily_limit_usd', '') }}"
+               value="{{ bgt.get('daily_limit_usd', '') }}"
                style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-chrome);
                       border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
                       font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
@@ -223,12 +258,21 @@
           Warning Threshold (USD)
         </label>
         <input name="budget.warning_threshold_usd" type="number" step="0.01" min="0"
-               value="{{ config.get('budget', {}).get('warning_threshold_usd', '') }}"
+               value="{{ bgt.get('warning_threshold_usd', '') }}"
                style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-chrome);
                       border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
                       font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
                onfocus="this.style.borderColor='var(--accent-focus)'"
                onblur="this.style.borderColor='var(--separator-strong)'">
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:4px 0;">
+        <input type="hidden" name="budget.pause_on_limit" value="false">
+        <input name="budget.pause_on_limit" type="checkbox" id="pause-on-limit" value="true"
+               {% if bgt.get('pause_on_limit') %}checked{% endif %}
+               style="width:16px;height:16px;accent-color:var(--accent-text);cursor:pointer;">
+        <label for="pause-on-limit" style="font-size:13px;color:var(--text-secondary);cursor:pointer;">
+          Pause on limit <span style="font-size:11px;color:var(--text-disabled);">— stop agents when daily budget is hit</span>
+        </label>
       </div>
     </div>
 
