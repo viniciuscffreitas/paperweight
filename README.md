@@ -7,7 +7,7 @@
 *A lean background agent runner for Claude Code — like [Paperclip](https://github.com/paperclipai/paperclip), but without the org charts.*
 
 [![Python](https://img.shields.io/badge/python-3.13+-blue.svg)](https://python.org)
-[![Tests](https://img.shields.io/badge/tests-719-brightgreen.svg)](#running-tests)
+[![Tests](https://img.shields.io/badge/tests-789-brightgreen.svg)](#running-tests)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/powered%20by-Claude%20Code-orange.svg)](https://claude.ai/code)
 
@@ -145,13 +145,23 @@ Two agents working on the same repo simultaneously. No conflicts. Worktrees are 
 ```bash
 git clone https://github.com/viniciuscffreitas/paperweight
 cd paperweight
-cp .env.example .env   # set SECRET_KEY and optionally ANTHROPIC_API_KEY
+cp .env.example .env
+```
+
+Edit `.env`:
+```bash
+CLAUDE_CODE_OAUTH_TOKEN=your-token   # or ANTHROPIC_API_KEY
+SECRET_KEY=any-random-string         # enables auth (optional)
+SLACK_WEBHOOK_URL=https://...        # enables notifications (optional)
+```
+
+```bash
 uv run agents
 ```
 
-Open **`http://localhost:8080`** — you'll be prompted to log in. First-time setup walks you through creating an account.
+Open **`http://localhost:8080`**. Create a project YAML in `projects/`, label a Linear issue with `agent`, and watch it resolve itself.
 
-That's it.
+> **Prerequisites:** `claude` CLI and `gh` CLI must be installed and authenticated. See [Requirements](#requirements).
 
 ---
 
@@ -423,42 +433,30 @@ bash ~/.claude/devflow/install.sh
 
 ## API
 
-paperweight exposes a REST API for manual triggering and monitoring:
-
 ```bash
-# Trigger a task manually
-POST /tasks/{project_name}/{task_name}/run
+# Core
+POST /tasks/{project}/{task}/run    # Trigger a task
+POST /runs/{run_id}/cancel          # Cancel a running task
+GET  /status                        # Budget + runs + projects
+GET  /health                        # Deep check (db, disk, scheduler)
+GET  /api/metrics                   # 7-day trends (cost, success rate, duration)
 
-# Cancel a running task
-POST /runs/{run_id}/cancel
+# WebSocket
+WS   /ws/runs/{run_id}             # Stream events for a run
+WS   /ws/runs                      # Stream all events
 
-# Full status (budget + today's runs + projects)
-GET /status
-
-# Budget status
-GET /status/budget
-
-# Health check
-GET /health
-
-# WebSocket — stream events for a specific run
-WS /ws/runs/{run_id}
-
-# WebSocket — stream all events (global feed)
-WS /ws/runs
-
-# Work items (tasks)
+# Work items
 GET  /api/work-items?project={id}
 POST /api/work-items
 PATCH /api/work-items/{id}
 
-# Agent sessions
+# Agent chat
 POST /api/projects/{project_id}/agent
-GET  /api/sessions/{session_id}/events
 POST /api/sessions/{session_id}/message
 
-# File uploads (images for multimodal chat)
-POST /api/uploads
+# Webhooks
+POST /webhooks/linear              # Linear issue events
+POST /webhooks/github              # GitHub push/PR/issue events
 ```
 
 ---
@@ -483,8 +481,9 @@ ngrok http 8080
 ### GitHub
 
 1. In repo Settings → Webhooks → add `https://your-host/webhooks/github`
-2. Select: `push`, `pull_request`
+2. Select: `push`, `pull_request`, `issues`
 3. Set secret in `.env` as `GITHUB_WEBHOOK_SECRET`
+4. Label issues with `agent` to trigger runs (same as Linear)
 
 ### No webhooks? No problem
 
@@ -495,9 +494,8 @@ Scheduled tasks (`schedule: "0 6 * * *"`) and manual triggers (`POST /tasks/{pro
 ## Running tests
 
 ```bash
-uv run python -m pytest tests/ -v
-# 719 tests across executor, streaming, budget, webhooks, scheduler,
-# project hub, auth, chat, multimodal, coordination, brainstorming
+uv run pytest tests/ -q
+# 789 tests, ~13s
 ```
 
 ---
@@ -516,22 +514,44 @@ uv run python -m pytest tests/ -v
 
 ---
 
+## Where paperweight sits: the 5 levels of AI agent autonomy
+
+Borrowed from the [SAE self-driving framework](https://arxiv.org/abs/2506.12469) adapted for AI agents:
+
+| Level | Role | Description | Example |
+|-------|------|-------------|---------|
+| L1 | Operator | You type every command | Regular Claude Code |
+| L2 | Collaborator | You and the agent share control | Claude Code + devflow |
+| L3 | Consultant | Agent leads, asks you when stuck | Brainstorming mode |
+| **L4** | **Approver** | **Agent works alone, you review PRs** | **paperweight today** |
+| L5 | Observer | Fully autonomous, you just monitor | Coming soon |
+
+paperweight is at **L4**. The agent resolves issues, writes tests, and opens PRs — you review and merge. Working toward L5 for low-risk tasks (dependency updates, lint fixes) while keeping L4 for business logic.
+
+---
+
 ## Roadmap
 
-- [ ] Multi-model support (Gemini, GPT-4o) via provider config
-- [ ] Retry logic with exponential backoff
-- [ ] Run diffing — show what changed across attempts
-- [ ] Email + PagerDuty notifications
-- [ ] Docker image + Hetzner one-click deploy
+- [ ] GitHub OAuth — login, repo discovery, automatic webhook setup
+- [ ] Repo health scanner — daily Claude session that finds problems and creates tasks
+- [ ] PCP mediator — resolve merge conflicts between concurrent agents
+- [ ] Docker image + one-click deploy
 - [ ] Admin dashboard: invite management, user list, global budget view
+- [x] Retry with exponential backoff (3x, transient failures)
+- [x] Deep health check (`/health` — db, disk, scheduler, returns 503 if degraded)
+- [x] Metrics API + dashboard widget (7d trends: cost, success rate, duration)
+- [x] Rate limiting (120 req/min per IP)
+- [x] Automated cleanup (run artifacts, orphan worktrees, old events)
+- [x] Overnight digest (Slack summary of runs/PRs/failures)
+- [x] GitHub Issues trigger (label `agent` → work item)
+- [x] Structured JSON logging (`LOG_FORMAT=json`)
+- [x] DB schema version tracking
+- [x] CI pipeline (lint + test + type check)
 - [x] Authentication — login, register, invite codes, encrypted API keys
 - [x] Brainstorming lifecycle — draft → ready → running → done
 - [x] Chat — WhatsApp layout, streaming, markdown, code blocks, multimodal
-- [x] Task-centric UI — Spec / Activity / Output / Chat tabs per task
-- [x] Model selector — Sonnet / Haiku / Opus switchable mid-session
-- [x] Spec finder — auto-discovers related `.md` docs from your repo
+- [x] Task-centric UI — Spec / Activity / Output / Chat tabs
 - [x] Bold-minimal UI — L-chrome layout, HTMX + Jinja2, dark/light themes
-- [x] Web UI for project + task management (without editing YAML)
 
 ---
 
