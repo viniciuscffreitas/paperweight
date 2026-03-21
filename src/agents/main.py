@@ -242,6 +242,10 @@ def create_app(
         async def run_daily_digest() -> None:
             for project in project_store.list_projects():
                 await notification_engine.send_digest(project["id"])
+            # Overnight run summary
+            overnight = notification_engine.build_overnight_digest(history, hours=12)
+            if overnight:
+                await notifier.send_text(overnight)
 
         async def cleanup_old_events() -> None:
             deleted = project_store.cleanup_old_events(days=90)

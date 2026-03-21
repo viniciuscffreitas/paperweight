@@ -106,6 +106,39 @@ class NotificationEngine:
             except Exception:
                 logger.exception("Failed to send alert for %s", project_id)
 
+    def build_overnight_digest(self, history: object, hours: int = 12) -> str:
+        """Build a summary of what happened in the last N hours."""
+        from datetime import UTC, datetime, timedelta
+
+        cutoff = datetime.now(UTC) - timedelta(hours=hours)
+        runs_today = history.list_runs_today()
+        overnight_runs = [r for r in runs_today if r.started_at >= cutoff]
+
+        if not overnight_runs:
+            return ""
+
+        successes = [r for r in overnight_runs if r.status == "success"]
+        failures = [r for r in overnight_runs if r.status in ("failure", "timeout")]
+        prs = [r for r in overnight_runs if r.pr_url]
+        total_cost = sum(r.cost_usd or 0 for r in overnight_runs)
+
+        lines = ["📋 Overnight Summary\n"]
+        lines.append(f"  {len(overnight_runs)} runs | {len(successes)} succeeded | {len(failures)} failed")
+        lines.append(f"  Cost: ${total_cost:.2f}")
+
+        if prs:
+            lines.append(f"\n  PRs created ({len(prs)}):")
+            for r in prs:
+                lines.append(f"    → {r.pr_url}")
+
+        if failures:
+            lines.append(f"\n  Failures ({len(failures)}):")
+            for r in failures[:5]:
+                error = (r.error_message or "unknown")[:80]
+                lines.append(f"    ✗ {r.project}/{r.task}: {error}")
+
+        return "\n".join(lines)
+
     async def process_new_events(self, project_id: str) -> None:
         urgent = self.check_urgent_events(project_id)
         for event in urgent:
