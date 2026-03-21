@@ -166,8 +166,10 @@ class AuthDB:
         # Migration: add github_id to existing databases that predate this column.
         # Runs in a separate connection so any OperationalError doesn't taint the
         # table-creation transaction above.
+        # SQLite does NOT support ADD COLUMN with UNIQUE constraint —
+        # add the column plain, then create a unique index separately.
         for col_migration in [
-            "ALTER TABLE users ADD COLUMN github_id TEXT UNIQUE",
+            "ALTER TABLE users ADD COLUMN github_id TEXT",
             "ALTER TABLE users ADD COLUMN github_token_enc TEXT NOT NULL DEFAULT ''",
         ]:
             try:
@@ -175,6 +177,14 @@ class AuthDB:
                     mconn.execute(col_migration)
             except Exception:
                 pass  # Column already present
+        try:
+            with self._conn() as mconn:
+                mconn.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS"
+                    " idx_users_github_id ON users (github_id)"
+                )
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
     # Users
