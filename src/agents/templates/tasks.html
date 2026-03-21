@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/macros.html" import stats_line, task_card, task_card_done, btn, metrics_widget %}
+{% from "components/macros.html" import stats_line, task_card, task_card_done, btn %}
 
 {% block mobile_title %}{{ project_name|default('Tasks') }}{% endblock %}
 
@@ -12,12 +12,9 @@
 {% endblock %}
 
 {% block content %}
-{% if metrics %}
-  {{ metrics_widget(metrics) }}
-{% endif %}
-<!-- Stats line -->
+<!-- Stats line + 7d metrics -->
 <div style="padding:14px 24px;border-bottom:1px solid var(--separator-subtle);">
-  {{ stats_line(counts|default({'running':0,'review':0,'queued':0,'done':0}), budget_spent|default(0), budget_total|default(0)) }}
+  {{ stats_line(counts|default({'running':0,'review':0,'queued':0,'done':0}), budget_spent|default(0), budget_total|default(0), metrics=metrics|default(none)) }}
 </div>
 
 <!-- Task cards -->

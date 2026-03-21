@@ -202,15 +202,16 @@
 
 
 {# ── stats_line ───────────────────────────────────────────────────────────
-   Inline summary bar showing task counts and optional budget.
+   Inline summary bar showing task counts, budget, and optional 7d metrics.
    Args:
      counts        — dict with keys: running, review, queued, done
      budget_spent  — amount spent so far  (default: 0)
      budget_total  — total budget cap  (default: 0)
+     metrics       — optional dict from collect_metrics (7d trends)
    ─────────────────────────────────────────────────────────────────────── #}
-{% macro stats_line(counts, budget_spent=0, budget_total=0) %}
+{% macro stats_line(counts, budget_spent=0, budget_total=0, metrics=none) %}
+{%- set sep -%}<span style="color:var(--text-disabled);">·</span>{%- endset -%}
 <div style="display:flex;align-items:center;gap:6px;font-size:12px;">
-  {%- set sep -%}<span style="color:var(--text-disabled);">·</span>{%- endset -%}
   {%- if counts.running is defined %}
   <span style="color:var(--status-running);font-weight:700;">{{ counts.running }}</span>
   <span style="color:var(--text-secondary);">running</span>
@@ -235,6 +236,19 @@
   <span style="color:var(--text-muted);">${{ "%.2f"|format(budget_spent) }} / ${{ budget_total }}</span>
   {%- endif %}
 </div>
+{%- if metrics %}
+<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding-top:6px;color:var(--text-disabled);">
+  <span>7d</span>
+  {{ sep }}
+  <span style="color:var(--text-muted);">{{ metrics.total_runs_7d }} runs</span>
+  {{ sep }}
+  <span style="color:{% if metrics.success_rate_7d >= 80 %}var(--status-success){% elif metrics.success_rate_7d >= 50 %}var(--status-warning){% else %}var(--status-error){% endif %};">{{ metrics.success_rate_7d }}%</span>
+  {{ sep }}
+  <span style="color:var(--text-muted);">${{ "%.2f"|format(metrics.total_cost_7d) }}</span>
+  {{ sep }}
+  <span style="color:var(--text-muted);">{{ (metrics.avg_duration_seconds / 60)|round(1) }}min avg</span>
+</div>
+{%- endif %}
 {% endmacro %}
 
 
