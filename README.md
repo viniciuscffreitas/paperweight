@@ -7,6 +7,7 @@
 *A lean background agent runner for Claude Code — like [Paperclip](https://github.com/paperclipai/paperclip), but without the org charts.*
 
 [![Python](https://img.shields.io/badge/python-3.13+-blue.svg)](https://python.org)
+[![Tests](https://img.shields.io/badge/tests-719-brightgreen.svg)](#running-tests)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/powered%20by-Claude%20Code-orange.svg)](https://claude.ai/code)
 
@@ -139,31 +140,155 @@ Two agents working on the same repo simultaneously. No conflicts. Worktrees are 
 
 ---
 
-## Requirements
-
-| Dependency | Why | Required? |
-|---|---|---|
-| [Python 3.13+](https://python.org) | Runtime | Yes |
-| [uv](https://github.com/astral-sh/uv) | Package manager | Yes |
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | The `claude` CLI must be installed and authenticated (`claude /login`) | Yes |
-| [GitHub CLI](https://cli.github.com/) (`gh`) | Used to create PRs after each run | Yes, for `pr-only` / `auto-merge` |
-| [git](https://git-scm.com/) 2.5+ | Worktree support for run isolation | Yes |
-| Public URL or [ngrok](https://ngrok.com/) | Webhooks need to reach your server | Only for Linear/GitHub triggers |
-
-> **Note:** `claude` and `gh` must be in your `$PATH` and authenticated before starting paperweight. The executor calls them directly as subprocesses.
-
 ## Quickstart
 
 ```bash
 git clone https://github.com/viniciuscffreitas/paperweight
 cd paperweight
-cp .env.example .env         # add your keys (see comments inside)
+cp .env.example .env   # set SECRET_KEY and optionally ANTHROPIC_API_KEY
 uv run agents
 ```
 
-Dashboard at **`http://localhost:8080/dashboard`**.
+Open **`http://localhost:8080`** — you'll be prompted to log in. First-time setup walks you through creating an account.
 
 That's it.
+
+---
+
+## Authentication
+
+paperweight is a multi-user server with invite-code gating.
+
+```
+/login      → username + password
+/register   → invite code required (admin creates codes)
+```
+
+**How it works:**
+- Passwords hashed with `pbkdf2_hmac` (SHA-256, built-in, no extra deps)
+- Each user brings their own Anthropic API key — entered at registration, stored encrypted with [Fernet](https://cryptography.io/en/latest/fernet/) symmetric encryption keyed from `SECRET_KEY`
+- Sessions: random 32-byte hex token in SQLite (no JWT)
+- Admin users can generate invite codes with optional expiry dates from the `/admin/invites` page
+
+```bash
+# Set a strong SECRET_KEY — without it, API keys won't survive restart
+SECRET_KEY=your-random-secret-here uv run agents
+```
+
+No user data is sent anywhere. The API key lives encrypted in your SQLite database and is decrypted only in-process when running an agent.
+
+---
+
+## The dashboard
+
+![Task list](task-list.png)
+
+The UI is **bold-minimal**: dark chrome sidebar on the left, bright content panel on the right — an L-chrome layout. No decorative elements. Every pixel earns its place.
+
+Built with **HTMX + Jinja2** on the server side and plain JS on the client. No framework, no build step, no node_modules.
+
+### Layout
+
+```
+┌──────────┬──────────────────────────────────────┐
+│ sidebar  │  topbar (breadcrumb + actions)        │
+│          ├──────────────────────────────────────┤
+│ projects │                                       │
+│  ▸ myapp │   content panel                       │
+│  ▸ infra │   (task list, task detail, etc.)      │
+│          │                                       │
+│ Settings │                                       │
+└──────────┴──────────────────────────────────────┘
+```
+
+### Task list
+
+Each project has a task list showing all work items in priority order. Active tasks float to the top. Done tasks show as compact rows at the bottom.
+
+At a glance: status dot (running pulses), title, source badge, cost, and a direct link to the PR if one was created.
+
+Stats bar at the top shows running / review / queued counts and today's budget spend.
+
+### Task detail: four tabs
+
+Click any task to open the detail view. Every task has four tabs:
+
+| Tab | What you see |
+|---|---|
+| **Spec** | The spec document auto-discovered from `docs/` — shown if a `.md` file matches the task title or description. Read-only preview with syntax highlighting. |
+| **Activity** | Live feed of every tool call the agent made: `Edit(src/api/users.py)`, `Bash(pytest ...)`, `Grep(...)`. Color-coded by tool type. |
+| **Output** | The agent's final text response, rendered as Markdown with syntax-highlighted code blocks. |
+| **Chat** | Conversational interface to the running agent (see below). |
+
+The topbar shows a **model selector** (Sonnet / Haiku / Opus) and a context-aware action button: **Start** (pending/ready), **Cancel** (running), **Rerun** (done/failed), or **View PR** (if a PR was created).
+
+---
+
+## Brainstorming-first workflow
+
+paperweight has a first-class brainstorming mode. Tasks start as `draft` — the agent *thinks before it codes*.
+
+### The lifecycle
+
+```
+draft → ready → running → done
+```
+
+| Status | What's happening |
+|---|---|
+| `draft` | Agent is brainstorming: exploring the codebase, asking questions, writing a spec |
+| `ready` | Spec is written and approved. Waiting for "Start" |
+| `running` | Agent is implementing: TDD, tests, lint, PR |
+| `done` | PR created or task completed |
+
+### How it works
+
+When you create a task with title "Add OAuth login", paperweight immediately:
+
+1. Opens a Claude session in **brainstorming mode** — explicitly forbidden from writing code
+2. The agent reads `CLAUDE.md`, explores the repo, and asks you clarifying questions via chat
+3. Proposes 2-3 approaches with trade-offs
+4. When you approve, writes a spec to `docs/superpowers/specs/`
+5. PATCHes the task status to `ready` via the internal API
+6. Stops. The chat shows the full conversation.
+
+You review the spec in the **Spec tab**, then click **Start** to begin implementation.
+
+**Why this matters:** The agent never touches source code until the design is locked. No wasted implementation work. No "oops I built the wrong thing."
+
+![Draft state](draft-state.png)
+
+![Brainstorm task](brainstorming-task.png)
+
+---
+
+## Chat
+
+Every task has a live chat panel. It looks and behaves like a messaging app, but the other side is Claude Code running inside your repo.
+
+![Chat](chat-final.png)
+
+### Features
+
+- **WhatsApp-style layout**: your messages on the right (blue), agent on the left (dark), with timestamps and avatars
+- **Markdown rendering**: agent responses render fully — headers, bold, lists, inline code
+- **Syntax-highlighted code blocks**: language label + one-click copy button on every code block
+- **Streaming with typewriter effect**: responses appear character by character, then re-render as Markdown when complete
+- **Tool call groups**: agent tool calls appear as a collapsible "N tools used" card, keeping the conversation clean
+- **Message actions** (hover to reveal): copy, edit (put text back in input), retry (re-send last message)
+- **Thinking indicator**: three animated dots while the agent is processing
+
+### Multimodal
+
+paperweight supports images in chat — no extra setup.
+
+**Screenshot paste:** press Cmd+V with a screenshot in clipboard. The image attaches to your next message.
+
+**Drag-and-drop:** drop any image file onto the chat panel.
+
+**Push-to-talk voice:** hold the microphone button and speak. Uses the browser's native `SpeechRecognition` API — no server-side transcription, no API cost.
+
+![Multimodal chat](multimodal-final.png)
 
 ---
 
@@ -236,8 +361,8 @@ notifications:
 integrations:
   linear_api_key: ${LINEAR_API_KEY}
   discord_bot_token: ${DISCORD_BOT_TOKEN}
-  github_token: ${GITHUB_TOKEN}           # for Project Hub source polling
-  slack_bot_token: ${SLACK_BOT_TOKEN}     # for Project Hub source polling
+  github_token: ${GITHUB_TOKEN}
+  slack_bot_token: ${SLACK_BOT_TOKEN}
 ```
 
 All secrets from environment variables. Nothing hardcoded.
@@ -258,54 +383,18 @@ Default is `pr-only`. You're always in control of what lands on `main`.
 
 ---
 
-## The dashboard
+## Requirements
 
-![paperweight dashboard](docs/dashboard.png)
+| Dependency | Why | Required? |
+|---|---|---|
+| [Python 3.13+](https://python.org) | Runtime | Yes |
+| [uv](https://github.com/astral-sh/uv) | Package manager | Yes |
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | The `claude` CLI must be installed and authenticated | Yes |
+| [GitHub CLI](https://cli.github.com/) (`gh`) | Used to create PRs after each run | Yes, for `pr-only` / `auto-merge` |
+| [git](https://git-scm.com/) 2.5+ | Worktree support for run isolation | Yes |
+| Public URL or [ngrok](https://ngrok.com/) | Webhooks need to reach your server | Only for Linear/GitHub triggers |
 
-*Live stream of every tool call, run history, budget gauge. Powered by [NiceGUI](https://nicegui.io).*
-
-### Project Hub
-
-The dashboard includes a **Project Hub** — a command center where you can manage projects, create tasks, and launch runs without editing YAML files.
-
-#### Creating a project
-
-Click **+ New Project** in the dashboard sidebar. The setup wizard walks you through:
-
-1. **Basics** — project name, repo path, default branch
-2. **Discover Sources** — auto-discovers linked Linear teams, GitHub repos, and Slack channels
-3. **Notifications** — choose where to receive daily digests and urgent alerts
-
-Existing YAML projects are auto-imported on first dashboard load.
-
-#### Creating a task
-
-Inside a project page, click **+ Task**. Each task has:
-
-| Field | What it does |
-|---|---|
-| **Name** | Identifier for the task (e.g., `fix-bugs`, `daily-review`) |
-| **Intent** | The prompt — natural language instructions for Claude. This is what the agent actually reads and executes. |
-| **Trigger** | *When* the task runs: `manual` (on-demand), `schedule` (cron), or `webhook` (Linear/GitHub events) |
-| **Model** | Which Claude model: `sonnet` (balanced), `opus` (most capable), `haiku` (fastest/cheapest) |
-| **Max budget** | Cost ceiling per run in USD. The agent stops if it exceeds this. |
-| **Autonomy** | *What happens with the result* — see [Autonomy modes](#autonomy-modes) above |
-
-**Example task — daily code review:**
-- **Name**: `daily-review`
-- **Intent**: "Review all open PRs. Check test coverage, code quality, and CLAUDE.md compliance. Comment suggestions directly on the PR."
-- **Trigger**: `schedule` (every day at 9am)
-- **Model**: `sonnet`
-- **Budget**: $3.00
-- **Autonomy**: `notify` (analyze only, don't change code)
-
-#### Running a task
-
-From the project page, click **Run** to:
-- **Run an existing task** — pick from the dropdown
-- **Ad-hoc run** — type a one-off intent without saving it as a task
-
-The live stream shows every tool call as it happens.
+> **Note:** `claude` and `gh` must be in your `$PATH` and authenticated before starting paperweight. The executor calls them directly as subprocesses.
 
 ---
 
@@ -357,6 +446,19 @@ WS /ws/runs/{run_id}
 
 # WebSocket — stream all events (global feed)
 WS /ws/runs
+
+# Work items (tasks)
+GET  /api/work-items?project={id}
+POST /api/work-items
+PATCH /api/work-items/{id}
+
+# Agent sessions
+POST /api/projects/{project_id}/agent
+GET  /api/sessions/{session_id}/events
+POST /api/sessions/{session_id}/message
+
+# File uploads (images for multimodal chat)
+POST /api/uploads
 ```
 
 ---
@@ -394,17 +496,22 @@ Scheduled tasks (`schedule: "0 6 * * *"`) and manual triggers (`POST /tasks/{pro
 
 ```bash
 uv run python -m pytest tests/ -v
-# 299 tests across executor, streaming, budget, webhooks, scheduler, project hub
+# 719 tests across executor, streaming, budget, webhooks, scheduler,
+# project hub, auth, chat, multimodal, coordination, brainstorming
 ```
 
 ---
 
 ## Stack
 
-- **[FastAPI](https://fastapi.tiangolo.com/)** — HTTP server + webhook handlers
+- **[FastAPI](https://fastapi.tiangolo.com/)** — HTTP server, webhook handlers, REST API
+- **[Jinja2](https://jinja.palletsprojects.com/)** — server-rendered HTML templates
+- **[HTMX](https://htmx.org/)** — partial page updates without writing JavaScript
 - **[APScheduler](https://apscheduler.readthedocs.io/)** — cron scheduling
-- **[SQLAlchemy](https://www.sqlalchemy.org/) + SQLite** — run history (zero ops)
-- **[NiceGUI](https://nicegui.io/)** — dashboard
+- **[SQLAlchemy](https://www.sqlalchemy.org/) + SQLite** — run history and task store (zero ops)
+- **[cryptography](https://cryptography.io/)** — Fernet encryption for API keys at rest
+- **[marked.js](https://marked.js.org/)** — Markdown rendering in chat and output tabs
+- **[highlight.js](https://highlightjs.org/)** — syntax highlighting for code blocks
 - **[Claude Code CLI](https://claude.ai/code)** — `claude -p --output-format stream-json --verbose`
 
 ---
@@ -416,6 +523,14 @@ uv run python -m pytest tests/ -v
 - [ ] Run diffing — show what changed across attempts
 - [ ] Email + PagerDuty notifications
 - [ ] Docker image + Hetzner one-click deploy
+- [ ] Admin dashboard: invite management, user list, global budget view
+- [x] Authentication — login, register, invite codes, encrypted API keys
+- [x] Brainstorming lifecycle — draft → ready → running → done
+- [x] Chat — WhatsApp layout, streaming, markdown, code blocks, multimodal
+- [x] Task-centric UI — Spec / Activity / Output / Chat tabs per task
+- [x] Model selector — Sonnet / Haiku / Opus switchable mid-session
+- [x] Spec finder — auto-discovers related `.md` docs from your repo
+- [x] Bold-minimal UI — L-chrome layout, HTMX + Jinja2, dark/light themes
 - [x] Web UI for project + task management (without editing YAML)
 
 ---
