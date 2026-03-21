@@ -64,6 +64,7 @@ class User:
     username: str
     is_admin: bool
     _api_key_enc: str  # encrypted; use .api_key property
+    github_id: str | None = None
 
     @property
     def api_key(self) -> str:
@@ -126,7 +127,8 @@ class AuthDB:
                     password_salt TEXT NOT NULL,
                     api_key_enc TEXT NOT NULL DEFAULT '',
                     is_admin INTEGER NOT NULL DEFAULT 0,
-                    created_at REAL NOT NULL
+                    created_at REAL NOT NULL,
+                    github_id TEXT UNIQUE
                 )
             """)
             conn.execute("""
@@ -148,6 +150,15 @@ class AuthDB:
                 )
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user ON user_sessions (user_id)")
+
+        # Migration: add github_id to existing databases that predate this column.
+        # Runs in a separate connection so any OperationalError doesn't taint the
+        # table-creation transaction above.
+        try:
+            with self._conn() as mconn:
+                mconn.execute("ALTER TABLE users ADD COLUMN github_id TEXT UNIQUE")
+        except Exception:
+            pass  # Column already present (new DBs or already migrated)
 
     # ------------------------------------------------------------------
     # Users
@@ -183,7 +194,8 @@ class AuthDB:
     def authenticate(self, username: str, password: str) -> User | None:
         with self._conn() as conn:
             row = conn.execute(
-                "SELECT id, username, password_hash, password_salt, api_key_enc, is_admin"
+                "SELECT id, username, password_hash, password_salt,"
+                " api_key_enc, is_admin, github_id"
                 " FROM users WHERE username = ?",
                 (username,),
             ).fetchone()
@@ -196,12 +208,13 @@ class AuthDB:
             username=row["username"],
             is_admin=bool(row["is_admin"]),
             _api_key_enc=row["api_key_enc"] or "",
+            github_id=row["github_id"],
         )
 
     def get_user(self, user_id: str) -> User | None:
         with self._conn() as conn:
             row = conn.execute(
-                "SELECT id, username, api_key_enc, is_admin FROM users WHERE id = ?",
+                "SELECT id, username, api_key_enc, is_admin, github_id FROM users WHERE id = ?",
                 (user_id,),
             ).fetchone()
         if row is None:
@@ -211,6 +224,44 @@ class AuthDB:
             username=row["username"],
             is_admin=bool(row["is_admin"]),
             _api_key_enc=row["api_key_enc"] or "",
+            github_id=row["github_id"],
+        )
+
+    def find_user_by_github_id(self, github_id: str) -> User | None:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT id, username, api_key_enc, is_admin, github_id"
+                " FROM users WHERE github_id = ?",
+                (github_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return User(
+            id=row["id"],
+            username=row["username"],
+            is_admin=bool(row["is_admin"]),
+            _api_key_enc=row["api_key_enc"] or "",
+            github_id=row["github_id"],
+        )
+
+    def create_github_user(self, github_id: str, username: str) -> User:
+        uid = secrets.token_hex(8)
+        now = time.time()
+        is_admin = not self.has_users()
+        with self._conn() as conn:
+            conn.execute(
+                "INSERT INTO users"
+                " (id, username, password_hash, password_salt,"
+                " api_key_enc, is_admin, created_at, github_id)"
+                " VALUES (?, ?, '', '', '', ?, ?, ?)",
+                (uid, username, int(is_admin), now, github_id),
+            )
+        return User(
+            id=uid,
+            username=username,
+            is_admin=is_admin,
+            _api_key_enc="",
+            github_id=github_id,
         )
 
     def update_api_key(self, user_id: str, api_key: str) -> None:

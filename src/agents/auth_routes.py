@@ -21,9 +21,12 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
 
     @app.get("/login", response_class=HTMLResponse)
     async def login_page(request: Request, error: str = "") -> HTMLResponse:
+        github_oauth_enabled = bool(
+            getattr(request.app.state, "github_oauth_client_id", None)
+        )
         return templates.TemplateResponse(
             "auth/login.html",
-            {"request": request, "error": error},
+            {"request": request, "error": error, "github_oauth_enabled": github_oauth_enabled},
         )
 
     @app.post("/login", response_class=HTMLResponse)

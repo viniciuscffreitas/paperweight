@@ -21,6 +21,7 @@ _SKIP_PREFIXES = (
     "/runs/",
     "/webhooks/",
     "/ws/",
+    "/auth/github",
 )
 
 

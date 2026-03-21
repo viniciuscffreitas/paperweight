@@ -51,6 +51,8 @@ class IntegrationsConfig(BaseModel):
     discord_guild_id: str = ""
     github_token: str = ""
     slack_bot_token: str = ""
+    github_oauth_client_id: str = ""
+    github_oauth_client_secret: str = ""
 
 
 class GlobalConfig(BaseModel):

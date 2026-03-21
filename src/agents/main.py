@@ -347,6 +347,15 @@ def create_app(
             register_auth_routes(app, auth_db_inst, _auth_templates)
             app.state.auth_db = auth_db_inst
             logger.info("Auth enabled (SECRET_KEY set)")
+
+            gh_client_id = config.integrations.github_oauth_client_id
+            gh_client_secret = config.integrations.github_oauth_client_secret
+            if gh_client_id and gh_client_secret:
+                from agents.github_oauth_routes import register_github_oauth_routes
+
+                register_github_oauth_routes(app, auth_db_inst, gh_client_id, gh_client_secret)
+                app.state.github_oauth_client_id = gh_client_id
+                logger.info("GitHub OAuth enabled (client_id=%s)", gh_client_id)
         else:
             app.state.auth_db = None
             logger.info("Auth disabled (no SECRET_KEY)")
