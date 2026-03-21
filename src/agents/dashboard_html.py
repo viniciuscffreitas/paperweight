@@ -131,6 +131,7 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         if state.project_store:
             tasks = state.project_store.list_tasks(project_id)
         projects = state.project_store.list_projects() if state.project_store else []
+        from agents.metrics import collect_metrics
         return _TEMPLATES.TemplateResponse(
             request,
             "tasks.html",
@@ -148,6 +149,7 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
                     if r.project == project_id
                 ),
                 "budget_total": config.budget.daily_limit_usd,
+                "metrics": collect_metrics(state.history, days=7),
             },
         )
 
