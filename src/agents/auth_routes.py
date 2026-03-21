@@ -168,3 +168,43 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
             "auth/invite_admin.html",
             {"request": request, "invites": invites, "new_code": new_code},
         )
+
+    # ------------------------------------------------------------------
+    # Settings — user profile & API key
+    # ------------------------------------------------------------------
+
+    def _mask_api_key(key: str) -> str:
+        """Show prefix + masked suffix so user can identify which key is set."""
+        if not key:
+            return ""
+        if len(key) <= 10:
+            return key[:3] + "****"
+        return key[:7] + "****"
+
+    @app.get("/settings", response_class=HTMLResponse)
+    async def settings_page(request: Request) -> HTMLResponse:
+        user = getattr(request.state, "user", None)
+        if user is None:
+            return RedirectResponse("/login", status_code=303)
+        projects = getattr(request.state, "projects", [])
+        masked_key = _mask_api_key(user.api_key)
+        return templates.TemplateResponse(
+            "settings.html",
+            {
+                "request": request,
+                "user": user,
+                "masked_key": masked_key,
+                "projects": projects,
+                "success": "",
+            },
+        )
+
+    @app.post("/settings", response_class=HTMLResponse)
+    async def settings_save(request: Request) -> Response:
+        user = getattr(request.state, "user", None)
+        if user is None:
+            return RedirectResponse("/login", status_code=303)
+        form = await request.form()
+        api_key = str(form.get("api_key", "")).strip()
+        auth_db.update_api_key(user.id, api_key)
+        return RedirectResponse("/settings?saved=1", status_code=303)

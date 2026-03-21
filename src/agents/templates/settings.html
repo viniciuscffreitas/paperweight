@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block topbar %}
+<span style="font-size:13px;font-weight:600;color:var(--text-primary);">Settings</span>
+{% endblock %}
+
+{% block mobile_title %}Settings{% endblock %}
+
+{% block content %}
+<div style="padding:32px 28px;max-width:480px;">
+
+  {% if request.query_params.get('saved') %}
+  <div style="padding:10px 14px;margin-bottom:20px;font-size:13px;color:var(--status-success);
+              background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);border-radius:8px;">
+    API key updated.
+  </div>
+  {% endif %}
+
+  <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:16px;">
+    Account
+  </div>
+
+  <div style="margin-bottom:24px;">
+    <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px;">Username</div>
+    <div style="font-size:14px;color:var(--text-primary);">{{ user.username }}</div>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--separator-strong);margin:0 0 24px;">
+
+  <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:16px;">
+    Claude API Key
+  </div>
+
+  {% if masked_key %}
+  <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;font-family:monospace;">
+    {{ masked_key }}
+  </div>
+  {% else %}
+  <div style="font-size:13px;color:var(--text-disabled);font-style:italic;margin-bottom:12px;">
+    No API key configured.
+  </div>
+  {% endif %}
+
+  <form method="post" action="/settings">
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">
+        New API Key
+      </label>
+      <input name="api_key" type="password" autocomplete="off"
+             placeholder="sk-ant-..."
+             style="width:100%;padding:10px 14px;font-size:13px;background:var(--bg-chrome);
+                    border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                    font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
+             onfocus="this.style.borderColor='var(--accent-focus)'"
+             onblur="this.style.borderColor='var(--separator-strong)'">
+      <div style="font-size:11px;color:var(--text-disabled);margin-top:6px;">
+        Used to run your agents. Stored encrypted. Leave empty to clear.
+      </div>
+    </div>
+    <button type="submit"
+            style="background:var(--accent-gradient);color:#fff;padding:6px 16px;font-size:13px;
+                   font-weight:500;border-radius:8px;border:none;cursor:pointer;font-family:inherit;
+                   transition:all .15s;display:inline-flex;align-items:center;">
+      Save
+    </button>
+  </form>
+
+</div>
+{% endblock %}
