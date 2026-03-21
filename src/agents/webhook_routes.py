@@ -8,10 +8,12 @@ from typing import TYPE_CHECKING
 from fastapi import BackgroundTasks, FastAPI, Request, Response
 
 from agents.webhooks.github import (
+    extract_github_issue_variables,
     extract_github_variables,
     extract_pr_merge_info,
     is_agent_pr_merge,
     match_github_event,
+    match_github_issue,
     verify_github_signature,
 )
 from agents.webhooks.linear import (
@@ -66,6 +68,28 @@ def register_webhook_routes(
                             await state.executor.run_task(p, tn, trigger_type="github", variables=v)
 
                     background_tasks.add_task(_run)
+
+        if event_type == "issues" and match_github_issue(payload):
+            issue_vars = extract_github_issue_variables(payload)
+            issue_number = issue_vars.get("issue_number", "")
+            repo_name = issue_vars.get("repo_full_name", "")
+            source_id = f"github:{repo_name}#{issue_number}"
+
+            if state.task_store and not state.task_store.exists_by_source("github", source_id):
+                for project in state.projects.values():
+                    repo_match = repo_name and repo_name in project.repo
+                    if repo_match and "issue-resolver" in project.tasks:
+                        state.task_store.create(
+                            project=project.name,
+                            title=issue_vars.get("issue_title", "GitHub issue"),
+                            description=issue_vars.get("issue_body", ""),
+                            source="github",
+                            source_id=source_id,
+                            source_url=issue_vars.get("issue_url", ""),
+                            template="issue-resolver",
+                        )
+                        logger.info("Created task for GitHub issue %s", source_id)
+                        break
 
         if is_agent_pr_merge(payload):
             merge_info = extract_pr_merge_info(payload)

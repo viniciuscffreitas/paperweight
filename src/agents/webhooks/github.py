@@ -42,6 +42,36 @@ def extract_pr_merge_info(payload: dict) -> dict[str, str]:
     }
 
 
+def match_github_issue(payload: dict) -> bool:
+    action = payload.get("action", "")
+    if action not in ("opened", "labeled"):
+        return False
+    issue = payload.get("issue", {})
+    labels = issue.get("labels", [])
+    has_agent = any(
+        label.get("name", "").lower() == "agent"
+        for label in labels if isinstance(label, dict)
+    )
+    if not has_agent:
+        return False
+    if action == "labeled":
+        added_label = payload.get("label", {}).get("name", "")
+        return added_label.lower() == "agent"
+    return True
+
+
+def extract_github_issue_variables(payload: dict) -> dict[str, str]:
+    issue = payload.get("issue", {})
+    repo = payload.get("repository", {})
+    return {
+        "issue_number": str(issue.get("number", "")),
+        "issue_title": issue.get("title", ""),
+        "issue_body": issue.get("body", "") or "",
+        "issue_url": issue.get("html_url", ""),
+        "repo_full_name": repo.get("full_name", ""),
+    }
+
+
 def extract_github_variables(event_type: str, payload: dict) -> dict[str, str]:
     variables: dict[str, str] = {}
     repo = payload.get("repository", {})
