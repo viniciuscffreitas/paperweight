@@ -546,14 +546,24 @@ class Executor:
         timeout: int,
         env: dict[str, str] | None = None,
     ) -> tuple[ClaudeOutput, str]:
+        import os as _os
+
         from agents.streaming import RunStream
+
+        # Ensure ~/.local/bin is in PATH for claude/gh CLIs
+        run_env = env or {**_os.environ}
+        path = run_env.get("PATH", "")
+        home = _os.path.expanduser("~")
+        local_bin = f"{home}/.local/bin"
+        if local_bin not in path:
+            run_env["PATH"] = f"{local_bin}:{path}"
 
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             cwd=cwd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            env=env,
+            env=run_env,
         )
         self._running_processes[run_id] = proc
         stream = RunStream(run_id=run_id, on_event=self.on_stream_event)
