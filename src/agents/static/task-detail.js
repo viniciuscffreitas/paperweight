@@ -113,6 +113,17 @@ function loadActivityFeed(sessionId) {
             var detail = lastItem.querySelector('[style*="text-disabled"]');
             if (detail) detail.textContent = ev.content.substring(0, 100);
           }
+        } else if (ev.type === 'task_failed' && ev.content) {
+          var errRow = document.createElement('div');
+          errRow.style.cssText = 'display:flex;align-items:flex-start;gap:8px;padding:6px 0;font-size:12px;';
+          var errBar = document.createElement('div');
+          errBar.style.cssText = 'width:2px;min-height:20px;background:var(--status-error);border-radius:1px;flex-shrink:0;margin-top:2px;';
+          var errContent = document.createElement('div');
+          errContent.style.cssText = 'flex:1;min-width:0;color:var(--status-error);word-break:break-word;';
+          errContent.textContent = 'Run failed: ' + ev.content.substring(0, 300);
+          errRow.appendChild(errBar);
+          errRow.appendChild(errContent);
+          container.appendChild(errRow);
         }
       });
 
@@ -129,6 +140,15 @@ function loadActivityFeed(sessionId) {
           }
         } else {
           outputText.textContent = lastOutput.trim();
+        }
+      } else if (outputText && !lastOutput) {
+        var lastError = null;
+        for (var i = events.length - 1; i >= 0; i--) {
+          if (events[i].type === 'task_failed') { lastError = events[i]; break; }
+        }
+        if (lastError) {
+          outputText.style.color = 'var(--status-error)';
+          outputText.textContent = 'Run failed: ' + lastError.content.substring(0, 500);
         }
       }
 

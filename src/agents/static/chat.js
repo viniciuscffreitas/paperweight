@@ -289,6 +289,15 @@ function loadChatHistory(events) {
       // Accumulate consecutive agent messages
       if (!pendingAgentTs) pendingAgentTs = ev.timestamp;
       pendingAgentText += ev.content + '\n\n';
+    } else if (ev.type === 'task_failed' && ev.content) {
+      if (pendingAgentText) {
+        appendChatMessage(chatMessages, 'agent', pendingAgentText.trim(), false, null, pendingAgentTs);
+        pendingAgentText = '';
+        pendingAgentTs = null;
+      }
+      var errText = 'Run failed: ' + ev.content.substring(0, 300);
+      var errEl = appendChatMessage(chatMessages, 'agent', errText, false, null, ev.timestamp);
+      if (errEl) errEl.style.color = 'var(--status-error)';
     }
   });
   // Flush remaining agent text

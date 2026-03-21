@@ -393,7 +393,7 @@ class Executor:
                 if not worktree_path.exists():
                     msg = f"Worktree not found for resume: {worktree_path}"
                     raise RuntimeError(msg)
-            else:
+            elif not worktree_path.exists():
                 await self._run_cmd(
                     [
                         "git",
@@ -406,6 +406,7 @@ class Executor:
                     ],
                     cwd=project.repo,
                 )
+            # else: worktree already exists from a previous failed run — reuse it
 
             claude_cmd = [
                 "claude",
