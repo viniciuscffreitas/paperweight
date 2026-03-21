@@ -329,6 +329,7 @@ def create_app(
 
     app = FastAPI(title="Background Agent Runner", lifespan=lifespan)
     app.state.app_state = state
+    app.state.config_path = config_path
 
     from agents.auth_middleware import register_auth_middleware
     register_auth_middleware(app)

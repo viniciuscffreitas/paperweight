@@ -7,15 +7,39 @@
 {% block mobile_title %}Settings{% endblock %}
 
 {% block content %}
-<div style="padding:32px 28px;max-width:480px;">
+<div style="padding:32px 28px;max-width:520px;">
 
-  {% if request.query_params.get('saved') %}
+  {# --- Flash messages --- #}
+  {% if saved == "account" %}
   <div style="padding:10px 14px;margin-bottom:20px;font-size:13px;color:var(--status-success);
               background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);border-radius:8px;">
     API key updated.
   </div>
+  {% elif saved == "password" %}
+  <div style="padding:10px 14px;margin-bottom:20px;font-size:13px;color:var(--status-success);
+              background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);border-radius:8px;">
+    Password changed successfully.
+  </div>
+  {% elif saved == "config" %}
+  <div style="padding:10px 14px;margin-bottom:20px;font-size:13px;color:var(--status-success);
+              background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);border-radius:8px;">
+    Configuration saved.
+  </div>
   {% endif %}
 
+  {% if error == "password" %}
+  <div style="padding:10px 14px;margin-bottom:20px;font-size:13px;color:var(--status-error);
+              background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:8px;">
+    Current password is incorrect.
+  </div>
+  {% elif error == "config" %}
+  <div style="padding:10px 14px;margin-bottom:20px;font-size:13px;color:var(--status-error);
+              background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:8px;">
+    Could not save configuration — config path not set.
+  </div>
+  {% endif %}
+
+  {# --- Account section --- #}
   <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:16px;">
     Account
   </div>
@@ -27,6 +51,7 @@
 
   <hr style="border:none;border-top:1px solid var(--separator-strong);margin:0 0 24px;">
 
+  {# API key subsection #}
   <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:16px;">
     Claude API Key
   </div>
@@ -41,7 +66,7 @@
   </div>
   {% endif %}
 
-  <form method="post" action="/settings">
+  <form method="post" action="/settings/account">
     <div style="margin-bottom:14px;">
       <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">
         New API Key
@@ -64,6 +89,176 @@
       Save
     </button>
   </form>
+
+  <hr style="border:none;border-top:1px solid var(--separator-strong);margin:28px 0 24px;">
+
+  {# Password change subsection #}
+  <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:16px;">
+    Change Password
+  </div>
+
+  <form method="post" action="/settings/password">
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">
+        Current Password
+      </label>
+      <input name="current_password" type="password" autocomplete="current-password"
+             style="width:100%;padding:10px 14px;font-size:13px;background:var(--bg-chrome);
+                    border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                    font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
+             onfocus="this.style.borderColor='var(--accent-focus)'"
+             onblur="this.style.borderColor='var(--separator-strong)'">
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">
+        New Password
+      </label>
+      <input name="new_password" type="password" autocomplete="new-password"
+             style="width:100%;padding:10px 14px;font-size:13px;background:var(--bg-chrome);
+                    border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                    font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
+             onfocus="this.style.borderColor='var(--accent-focus)'"
+             onblur="this.style.borderColor='var(--separator-strong)'">
+    </div>
+    <button type="submit"
+            style="background:var(--accent-gradient);color:#fff;padding:6px 16px;font-size:13px;
+                   font-weight:500;border-radius:8px;border:none;cursor:pointer;font-family:inherit;
+                   transition:all .15s;display:inline-flex;align-items:center;">
+      Change Password
+    </button>
+  </form>
+
+  {# --- Admin-only sections --- #}
+  {% if user.is_admin %}
+
+  <hr style="border:none;border-top:1px solid var(--separator-strong);margin:32px 0 24px;">
+
+  <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:20px;">
+    System Configuration
+  </div>
+
+  <form method="post" action="/settings/config">
+
+    {# Execution section #}
+    <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px;">
+      Execution
+    </div>
+
+    <div style="display:grid;gap:12px;margin-bottom:24px;">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">
+          Default Model
+        </label>
+        <input name="execution.default_model" type="text"
+               value="{{ config.get('execution', {}).get('default_model', '') }}"
+               style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-chrome);
+                      border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                      font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
+               onfocus="this.style.borderColor='var(--accent-focus)'"
+               onblur="this.style.borderColor='var(--separator-strong)'">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">
+          Max Concurrent
+        </label>
+        <input name="execution.max_concurrent" type="number" min="1"
+               value="{{ config.get('execution', {}).get('max_concurrent', '') }}"
+               style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-chrome);
+                      border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                      font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
+               onfocus="this.style.borderColor='var(--accent-focus)'"
+               onblur="this.style.borderColor='var(--separator-strong)'">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">
+          Timeout (minutes)
+        </label>
+        <input name="execution.timeout_minutes" type="number" min="1"
+               value="{{ config.get('execution', {}).get('timeout_minutes', '') }}"
+               style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-chrome);
+                      border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                      font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
+               onfocus="this.style.borderColor='var(--accent-focus)'"
+               onblur="this.style.borderColor='var(--separator-strong)'">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">
+          Default Max Cost (USD)
+        </label>
+        <input name="execution.default_max_cost_usd" type="number" step="0.01" min="0"
+               value="{{ config.get('execution', {}).get('default_max_cost_usd', '') }}"
+               style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-chrome);
+                      border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                      font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
+               onfocus="this.style.borderColor='var(--accent-focus)'"
+               onblur="this.style.borderColor='var(--separator-strong)'">
+      </div>
+    </div>
+
+    {# Budget section #}
+    <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px;">
+      Budget
+    </div>
+
+    <div style="display:grid;gap:12px;margin-bottom:28px;">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">
+          Daily Limit (USD)
+        </label>
+        <input name="budget.daily_limit_usd" type="number" step="0.01" min="0"
+               value="{{ config.get('budget', {}).get('daily_limit_usd', '') }}"
+               style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-chrome);
+                      border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                      font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
+               onfocus="this.style.borderColor='var(--accent-focus)'"
+               onblur="this.style.borderColor='var(--separator-strong)'">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">
+          Warning Threshold (USD)
+        </label>
+        <input name="budget.warning_threshold_usd" type="number" step="0.01" min="0"
+               value="{{ config.get('budget', {}).get('warning_threshold_usd', '') }}"
+               style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-chrome);
+                      border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                      font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
+               onfocus="this.style.borderColor='var(--accent-focus)'"
+               onblur="this.style.borderColor='var(--separator-strong)'">
+      </div>
+    </div>
+
+    <button type="submit"
+            style="background:var(--accent-gradient);color:#fff;padding:6px 16px;font-size:13px;
+                   font-weight:500;border-radius:8px;border:none;cursor:pointer;font-family:inherit;
+                   transition:all .15s;display:inline-flex;align-items:center;">
+      Save Configuration
+    </button>
+  </form>
+
+  {# Integrations status (read-only) #}
+  {% if integrations_status %}
+  <hr style="border:none;border-top:1px solid var(--separator-strong);margin:28px 0 24px;">
+
+  <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:16px;">
+    Integrations
+  </div>
+
+  <div style="display:grid;gap:8px;">
+    {% for key, connected in integrations_status.items() %}
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;
+                background:var(--bg-chrome);border:1px solid var(--separator-strong);border-radius:8px;">
+      <span style="font-size:13px;color:var(--text-secondary);">{{ key }}</span>
+      {% if connected %}
+      <span style="font-size:11px;font-weight:600;color:var(--status-success);">Connected</span>
+      {% else %}
+      <span style="font-size:11px;font-weight:600;color:var(--text-disabled);">Not set</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% endif %}{# end is_admin #}
 
 </div>
 {% endblock %}
