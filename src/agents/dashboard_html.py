@@ -55,7 +55,9 @@ def _find_related_docs(
     search_dirs.append(_BASE.parent.parent / "docs" / "superpowers" / "plans")
 
     # Score each candidate by how many title words match the filename
-    best_score = 0
+    # Require at least 2 matching words to avoid false positives
+    min_score = 2
+    best_score = min_score - 1
     best_content = ""
     best_path = ""
     seen: set[str] = set()
@@ -66,7 +68,7 @@ def _find_related_docs(
         for f in sorted(d.glob("*.md"), reverse=True):
             fname = f.stem.lower()
             score = sum(1 for w in words if w in fname)
-            if score > best_score:
+            if score >= min_score and score > best_score:
                 try:
                     best_content = f.read_text(encoding="utf-8")
                     best_score = score
