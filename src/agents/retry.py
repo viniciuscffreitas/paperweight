@@ -26,6 +26,11 @@ _RETRYABLE_PATTERNS = [
     "503",
     "502",
     "eagain",
+    "no such file or directory",
+    "filenotfounderror",
+    "command not found",
+    "permission denied",
+    "resource temporarily unavailable",
 ]
 _PERMANENT_PATTERNS = [
     "budget exceeded",

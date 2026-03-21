@@ -52,6 +52,14 @@ class TaskProcessor:
 
         return "\n".join(parts)
 
+    async def _notify_failure(self, item: "WorkItem", error: str) -> None:
+        """Send Slack notification when a task fails permanently."""
+        try:
+            msg = f"[{item.project}] Task failed: {item.title}\n   Error: {error}"
+            await self.state.notifier.send_text(msg)
+        except Exception:
+            logger.warning("Failed to send failure notification for task %s", item.id)
+
     async def process_one(self, item: "WorkItem") -> None:
         """Process a single task: create/reuse session, run agent, update status."""
         project = self.state.projects.get(item.project)
@@ -183,9 +191,11 @@ class TaskProcessor:
                         )
                     else:
                         self.task_store.update_status(item.id, TaskStatus.FAILED)
-        except Exception:
+                        await self._notify_failure(item, result.error_message or "unknown error")
+        except Exception as exc:
             logger.exception("Task %s failed", item.id)
             self.task_store.update_status(item.id, TaskStatus.FAILED)
+            await self._notify_failure(item, str(exc)[:200])
         finally:
             session_manager.release_run(session.id)
 

@@ -156,6 +156,11 @@
   {# ── Title ── #}
   <div style="font-size:17px;font-weight:600;letter-spacing:-0.3px;color:var(--text-primary);margin-bottom:4px;">{{ item.title }}</div>
 
+  {# ── Error message (failed tasks only) ── #}
+  {%- if _status == 'failed' and item.error_message is defined and item.error_message %}
+  <div style="font-size:11px;color:var(--status-error);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.error_message[:120] }}</div>
+  {%- endif %}
+
   {# ── Description (truncated) ── #}
   {%- if item.description and item.description != item.title %}
   <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.description[:100] }}{% if item.description|length > 100 %}...{% endif %}</div>

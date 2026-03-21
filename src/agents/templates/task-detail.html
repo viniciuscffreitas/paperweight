@@ -64,6 +64,12 @@
   </script>
   {% endif %}
 
+  {%- if _status == 'draft' %}
+  <div style="padding:12px 16px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:10px;margin-bottom:12px;font-size:13px;color:var(--status-warning);">
+    Brainstorming mode — send a message in the Chat tab to start. The agent will explore the codebase, ask questions, and write a spec before any code is written.
+  </div>
+  {%- endif %}
+
   <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);margin-bottom:16px;">
     {% if item.source_id %}{{ badge(item.source_id) }}{% endif %}
     {% if item.source %}<span>{{ item.source }}</span>{% endif %}

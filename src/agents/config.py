@@ -65,9 +65,13 @@ class GlobalConfig(BaseModel):
 
 def resolve_env_vars(value: str) -> str:
     def replacer(match: re.Match[str]) -> str:
-        return os.environ.get(match.group(1), "")
+        expr = match.group(1)
+        if ":" in expr:
+            var_name, default = expr.split(":", 1)
+            return os.environ.get(var_name, default)
+        return os.environ.get(expr, "")
 
-    return re.sub(r"\$\{(\w+)\}", replacer, value)
+    return re.sub(r"\$\{([^}]+)\}", replacer, value)
 
 
 def _resolve_dict(data: dict) -> dict:
