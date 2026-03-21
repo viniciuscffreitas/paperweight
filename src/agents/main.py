@@ -24,6 +24,19 @@ from agents.streaming import StreamEvent
 logger = logging.getLogger(__name__)
 
 
+class JSONFormatter(logging.Formatter):
+    """JSON log formatter for production use. Enable via LOG_FORMAT=json."""
+    def format(self, record: logging.LogRecord) -> str:
+        return json_module.dumps({
+            "ts": self.formatTime(record),
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
+            "module": record.module,
+            **({"exc": self.formatException(record.exc_info)} if record.exc_info else {}),
+        })
+
+
 def create_app(
     config_path: Path | None = None,
     projects_dir: Path | None = None,
@@ -463,6 +476,11 @@ def create_app(
         except WebSocketDisconnect:
             state.ws_global_clients.discard(websocket)
 
+    @app.get("/api/metrics")
+    async def api_metrics() -> dict:
+        from agents.metrics import collect_metrics
+        return collect_metrics(state.history, days=7)
+
     @app.post("/api/migrate-yaml")
     async def migrate_yaml() -> dict[str, int]:
         from agents.migration import migrate_yaml_projects
@@ -481,8 +499,18 @@ def create_app(
 def run() -> None:
     import uvicorn
     from dotenv import load_dotenv
-
     load_dotenv()
+
+    import os as _os
+    log_format = _os.environ.get("LOG_FORMAT", "text")
+    log_level = _os.environ.get("LOG_LEVEL", "INFO").upper()
+
+    if log_format == "json":
+        handler = logging.StreamHandler()
+        handler.setFormatter(JSONFormatter())
+        logging.root.handlers = [handler]
+
+    logging.root.setLevel(getattr(logging, log_level, logging.INFO))
 
     base = Path.cwd()
     config = load_global_config(base / "config.yaml")

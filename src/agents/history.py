@@ -270,6 +270,40 @@ class HistoryDB:
             ).fetchall()
         return {row["key"]: row["value"] for row in rows}
 
+    def cost_by_day(self, days: int = 7) -> list[dict]:
+        from datetime import timedelta
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT DATE(started_at) as day, SUM(COALESCE(cost_usd, 0)) as total,"
+                " COUNT(*) as runs"
+                " FROM runs WHERE started_at >= ?"
+                " GROUP BY DATE(started_at) ORDER BY day ASC",
+                (cutoff,),
+            ).fetchall()
+        return [{"day": row["day"], "cost": row["total"], "runs": row["runs"]} for row in rows]
+
+    def runs_by_status(self, days: int = 7) -> dict[str, int]:
+        from datetime import timedelta
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT status, COUNT(*) as count FROM runs WHERE started_at >= ?"
+                " GROUP BY status", (cutoff,),
+            ).fetchall()
+        return {row["status"]: row["count"] for row in rows}
+
+    def avg_duration_seconds(self, days: int = 7) -> float:
+        from datetime import timedelta
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT AVG(JULIANDAY(finished_at) - JULIANDAY(started_at)) * 86400 as avg_dur"
+                " FROM runs WHERE started_at >= ? AND finished_at IS NOT NULL",
+                (cutoff,),
+            ).fetchone()
+        return row["avg_dur"] or 0.0
+
     def find_run_by_pr_url(self, pr_url: str) -> RunRecord | None:
         with self._conn() as conn:
             row = conn.execute(

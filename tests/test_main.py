@@ -1,6 +1,24 @@
 import pytest
 
 
+def test_json_formatter_produces_valid_json():
+    import json
+    import logging
+    from io import StringIO
+    from agents.main import JSONFormatter
+    handler = logging.StreamHandler(stream := StringIO())
+    handler.setFormatter(JSONFormatter())
+    logger = logging.getLogger("test_json_fmt")
+    logger.handlers = [handler]
+    logger.setLevel(logging.INFO)
+    logger.info("test message")
+    output = stream.getvalue().strip()
+    parsed = json.loads(output)
+    assert parsed["level"] == "INFO"
+    assert parsed["msg"] == "test message"
+    assert "ts" in parsed
+
+
 @pytest.fixture
 def test_app(tmp_path):
     config_file = tmp_path / "config.yaml"
