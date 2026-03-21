@@ -111,8 +111,7 @@ class NotificationEngine:
         from datetime import UTC, datetime, timedelta
 
         cutoff = datetime.now(UTC) - timedelta(hours=hours)
-        runs_today = history.list_runs_today()
-        overnight_runs = [r for r in runs_today if r.started_at >= cutoff]
+        overnight_runs = history.list_runs_since(cutoff)
 
         if not overnight_runs:
             return ""

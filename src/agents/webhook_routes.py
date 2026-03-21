@@ -46,8 +46,11 @@ def register_webhook_routes(
     ) -> Response | dict[str, str]:
         body = await request.body()
         signature = request.headers.get("X-Hub-Signature-256", "")
-        if not verify_github_signature(body, signature, state.github_secret):
-            return Response(status_code=401, content="Invalid signature")
+        if state.github_secret:
+            if not verify_github_signature(body, signature, state.github_secret):
+                return Response(status_code=401, content="Invalid signature")
+        else:
+            logger.warning("GitHub webhook: no secret configured, skipping signature check")
         event_type = request.headers.get("X-GitHub-Event", "")
         payload = await request.json()
         action = payload.get("action")

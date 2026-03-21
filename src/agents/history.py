@@ -184,6 +184,15 @@ class HistoryDB:
             ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
+    def list_runs_since(self, cutoff: datetime) -> list[RunRecord]:
+        """Return runs started at or after cutoff (timezone-aware)."""
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM runs WHERE started_at >= ? ORDER BY started_at DESC",
+                (cutoff.isoformat(),),
+            ).fetchall()
+        return [self._row_to_record(row) for row in rows]
+
     def total_cost_today(self) -> float:
         today = datetime.now(UTC).date().isoformat()
         with self._conn() as conn:
@@ -303,6 +312,17 @@ class HistoryDB:
                 (cutoff,),
             ).fetchone()
         return row["avg_dur"] or 0.0
+
+    def purge_old_events(self, days: int = 30) -> int:
+        """Delete run_events older than N days. Returns count deleted."""
+        import time
+        cutoff = time.time() - (days * 86400)
+        with self._conn() as conn:
+            cursor = conn.execute(
+                "DELETE FROM run_events WHERE timestamp < ?", (cutoff,),
+            )
+            deleted = cursor.rowcount
+        return deleted
 
     def find_run_by_pr_url(self, pr_url: str) -> RunRecord | None:
         with self._conn() as conn:

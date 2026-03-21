@@ -53,13 +53,11 @@ def cleanup_orphan_worktrees(worktree_base: Path, active_session_ids: set[str]) 
 
 
 def purge_old_run_events(history_db: object, days: int = 30) -> int:
-    cutoff = time.time() - (days * 86400)
-    conn_method = getattr(history_db, "_conn", None)
-    if conn_method is None:
+    """Purge old run events. Delegates to HistoryDB.purge_old_events."""
+    purge_method = getattr(history_db, "purge_old_events", None)
+    if purge_method is None:
         return 0
-    with conn_method() as conn:
-        cursor = conn.execute("DELETE FROM run_events WHERE timestamp < ?", (cutoff,))
-        deleted = cursor.rowcount
+    deleted = purge_method(days)
     if deleted:
         logger.info("Purged %d old run event(s)", deleted)
     return deleted
