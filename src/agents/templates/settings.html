@@ -240,7 +240,7 @@
     </button>
   </form>
 
-  {# Integrations — editable #}
+  {# Integrations — editable cards #}
   <hr style="border:none;border-top:1px solid var(--separator-strong);margin:28px 0 24px;">
 
   <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:16px;">
@@ -248,30 +248,108 @@
   </div>
 
   <form method="post" action="/settings/integrations">
-    <div style="display:grid;gap:12px;margin-bottom:14px;">
-      {% set integ = config.get('integrations', {}) %}
-      {% for key in ['linear_api_key', 'github_token', 'slack_bot_token', 'discord_bot_token'] %}
-      <div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);">
-            {{ key }}
-          </label>
-          {% if integrations_status.get(key) %}
-          <span style="font-size:10px;font-weight:600;color:var(--status-success);">Connected</span>
-          {% endif %}
+    <div style="display:grid;gap:16px;margin-bottom:14px;">
+
+      {# --- Linear --- #}
+      {% set lin_on = integrations_status.get('linear_api_key') %}
+      <div style="padding:16px;background:var(--bg-chrome);border:1px solid var(--separator-strong);border-radius:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:15px;font-weight:600;color:var(--text-primary);">Linear</span>
+            {% if lin_on %}
+            <span style="font-size:10px;font-weight:600;color:var(--status-success);padding:2px 6px;
+                         border:1px solid rgba(74,222,128,0.3);border-radius:4px;">Connected</span>
+            {% endif %}
+          </div>
+          <a href="https://linear.app/settings/api" target="_blank" rel="noopener"
+             style="font-size:11px;color:var(--accent-text);text-decoration:none;">Get key ↗</a>
         </div>
-        <input name="integrations.{{ key }}" type="password" autocomplete="off"
-               placeholder="{% if integrations_status.get(key) %}••••••••{% else %}not set{% endif %}"
-               style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-chrome);
+        <div style="font-size:12px;color:var(--text-disabled);margin-bottom:10px;">Issue tracking — sync tasks from Linear teams.</div>
+        <input name="integrations.linear_api_key" type="password" autocomplete="off"
+               placeholder="{% if lin_on %}••••••••  (leave empty to keep){% else %}lin_api_...{% endif %}"
+               style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-content);
                       border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
                       font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
                onfocus="this.style.borderColor='var(--accent-focus)'"
                onblur="this.style.borderColor='var(--separator-strong)'">
       </div>
-      {% endfor %}
+
+      {# --- GitHub --- #}
+      {% set gh_on = integrations_status.get('github_token') %}
+      <div style="padding:16px;background:var(--bg-chrome);border:1px solid var(--separator-strong);border-radius:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:15px;font-weight:600;color:var(--text-primary);">GitHub</span>
+            {% if gh_on %}
+            <span style="font-size:10px;font-weight:600;color:var(--status-success);padding:2px 6px;
+                         border:1px solid rgba(74,222,128,0.3);border-radius:4px;">Connected</span>
+            {% endif %}
+          </div>
+          <a href="https://github.com/settings/tokens" target="_blank" rel="noopener"
+             style="font-size:11px;color:var(--accent-text);text-decoration:none;">Get token ↗</a>
+        </div>
+        <div style="font-size:12px;color:var(--text-disabled);margin-bottom:10px;">PRs, webhooks, repo discovery.</div>
+        <input name="integrations.github_token" type="password" autocomplete="off"
+               placeholder="{% if gh_on %}••••••••  (leave empty to keep){% else %}ghp_...{% endif %}"
+               style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-content);
+                      border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                      font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
+               onfocus="this.style.borderColor='var(--accent-focus)'"
+               onblur="this.style.borderColor='var(--separator-strong)'">
+      </div>
+
+      {# --- Slack --- #}
+      {% set sl_on = integrations_status.get('slack_bot_token') %}
+      <div style="padding:16px;background:var(--bg-chrome);border:1px solid var(--separator-strong);border-radius:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:15px;font-weight:600;color:var(--text-primary);">Slack</span>
+            {% if sl_on %}
+            <span style="font-size:10px;font-weight:600;color:var(--status-success);padding:2px 6px;
+                         border:1px solid rgba(74,222,128,0.3);border-radius:4px;">Connected</span>
+            {% endif %}
+          </div>
+          <a href="https://api.slack.com/apps" target="_blank" rel="noopener"
+             style="font-size:11px;color:var(--accent-text);text-decoration:none;">Create app ↗</a>
+        </div>
+        <div style="font-size:12px;color:var(--text-disabled);margin-bottom:10px;">Notifications and channel discovery.</div>
+        <input name="integrations.slack_bot_token" type="password" autocomplete="off"
+               placeholder="{% if sl_on %}••••••••  (leave empty to keep){% else %}xoxb-...{% endif %}"
+               style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-content);
+                      border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                      font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
+               onfocus="this.style.borderColor='var(--accent-focus)'"
+               onblur="this.style.borderColor='var(--separator-strong)'">
+      </div>
+
+      {# --- Discord --- #}
+      {% set dc_on = integrations_status.get('discord_bot_token') %}
+      <div style="padding:16px;background:var(--bg-chrome);border:1px solid var(--separator-strong);border-radius:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:15px;font-weight:600;color:var(--text-primary);">Discord</span>
+            {% if dc_on %}
+            <span style="font-size:10px;font-weight:600;color:var(--status-success);padding:2px 6px;
+                         border:1px solid rgba(74,222,128,0.3);border-radius:4px;">Connected</span>
+            {% endif %}
+          </div>
+          <a href="https://discord.com/developers/applications" target="_blank" rel="noopener"
+             style="font-size:11px;color:var(--accent-text);text-decoration:none;">Create bot ↗</a>
+        </div>
+        <div style="font-size:12px;color:var(--text-disabled);margin-bottom:10px;">Run notifications in Discord channels.</div>
+        <input name="integrations.discord_bot_token" type="password" autocomplete="off"
+               placeholder="{% if dc_on %}••••••••  (leave empty to keep){% else %}bot token{% endif %}"
+               style="width:100%;padding:8px 12px;font-size:13px;background:var(--bg-content);
+                      border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);
+                      font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
+               onfocus="this.style.borderColor='var(--accent-focus)'"
+               onblur="this.style.borderColor='var(--separator-strong)'">
+      </div>
+
     </div>
+
     <div style="font-size:11px;color:var(--text-disabled);margin-bottom:14px;">
-      Leave empty to keep current value. Requires restart to take effect.
+      Requires restart to apply changes.
     </div>
     <button type="submit"
             style="background:var(--accent-gradient);color:#fff;padding:6px 16px;font-size:13px;
