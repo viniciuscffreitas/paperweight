@@ -65,6 +65,7 @@ class User:
     is_admin: bool
     _api_key_enc: str  # encrypted; use .api_key property
     github_id: str | None = None
+    _github_token_enc: str = ""  # encrypted; use .github_token property
 
     @property
     def api_key(self) -> str:
@@ -74,6 +75,16 @@ class User:
             return _decrypt(self._api_key_enc)
         except Exception:
             logger.warning("Failed to decrypt API key for user %s", self.id)
+            return ""
+
+    @property
+    def github_token(self) -> str:
+        if not self._github_token_enc:
+            return ""
+        try:
+            return _decrypt(self._github_token_enc)
+        except Exception:
+            logger.warning("Failed to decrypt GitHub token for user %s", self.id)
             return ""
 
 
@@ -128,7 +139,8 @@ class AuthDB:
                     api_key_enc TEXT NOT NULL DEFAULT '',
                     is_admin INTEGER NOT NULL DEFAULT 0,
                     created_at REAL NOT NULL,
-                    github_id TEXT UNIQUE
+                    github_id TEXT UNIQUE,
+                    github_token_enc TEXT NOT NULL DEFAULT ''
                 )
             """)
             conn.execute("""
@@ -154,11 +166,15 @@ class AuthDB:
         # Migration: add github_id to existing databases that predate this column.
         # Runs in a separate connection so any OperationalError doesn't taint the
         # table-creation transaction above.
-        try:
-            with self._conn() as mconn:
-                mconn.execute("ALTER TABLE users ADD COLUMN github_id TEXT UNIQUE")
-        except Exception:
-            pass  # Column already present (new DBs or already migrated)
+        for col_migration in [
+            "ALTER TABLE users ADD COLUMN github_id TEXT UNIQUE",
+            "ALTER TABLE users ADD COLUMN github_token_enc TEXT NOT NULL DEFAULT ''",
+        ]:
+            try:
+                with self._conn() as mconn:
+                    mconn.execute(col_migration)
+            except Exception:
+                pass  # Column already present
 
     # ------------------------------------------------------------------
     # Users
@@ -195,7 +211,7 @@ class AuthDB:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT id, username, password_hash, password_salt,"
-                " api_key_enc, is_admin, github_id"
+                " api_key_enc, is_admin, github_id, github_token_enc"
                 " FROM users WHERE username = ?",
                 (username,),
             ).fetchone()
@@ -209,12 +225,14 @@ class AuthDB:
             is_admin=bool(row["is_admin"]),
             _api_key_enc=row["api_key_enc"] or "",
             github_id=row["github_id"],
+            _github_token_enc=row["github_token_enc"] or "",
         )
 
     def get_user(self, user_id: str) -> User | None:
         with self._conn() as conn:
             row = conn.execute(
-                "SELECT id, username, api_key_enc, is_admin, github_id FROM users WHERE id = ?",
+                "SELECT id, username, api_key_enc, is_admin, github_id,"
+                " github_token_enc FROM users WHERE id = ?",
                 (user_id,),
             ).fetchone()
         if row is None:
@@ -225,13 +243,14 @@ class AuthDB:
             is_admin=bool(row["is_admin"]),
             _api_key_enc=row["api_key_enc"] or "",
             github_id=row["github_id"],
+            _github_token_enc=row["github_token_enc"] or "",
         )
 
     def find_user_by_github_id(self, github_id: str) -> User | None:
         with self._conn() as conn:
             row = conn.execute(
-                "SELECT id, username, api_key_enc, is_admin, github_id"
-                " FROM users WHERE github_id = ?",
+                "SELECT id, username, api_key_enc, is_admin, github_id,"
+                " github_token_enc FROM users WHERE github_id = ?",
                 (github_id,),
             ).fetchone()
         if row is None:
@@ -242,6 +261,7 @@ class AuthDB:
             is_admin=bool(row["is_admin"]),
             _api_key_enc=row["api_key_enc"] or "",
             github_id=row["github_id"],
+            _github_token_enc=row["github_token_enc"] or "",
         )
 
     def create_github_user(self, github_id: str, username: str) -> User:
@@ -270,6 +290,14 @@ class AuthDB:
             conn.execute(
                 "UPDATE users SET api_key_enc = ? WHERE id = ?",
                 (api_key_enc, user_id),
+            )
+
+    def update_github_token(self, user_id: str, token: str) -> None:
+        token_enc = _encrypt(token) if token else ""
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE users SET github_token_enc = ? WHERE id = ?",
+                (token_enc, user_id),
             )
 
     def change_password(self, username: str, current_password: str, new_password: str) -> bool:

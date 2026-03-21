@@ -199,9 +199,13 @@ def create_lifespan(
             gh_client_id = config.integrations.github_oauth_client_id  # type: ignore[union-attr]
             gh_client_secret = config.integrations.github_oauth_client_secret  # type: ignore[union-attr]
             if gh_client_id and gh_client_secret:
-                from agents.github_oauth_routes import register_github_oauth_routes
+                from agents.github_oauth_routes import (
+                    register_github_oauth_routes,
+                    register_github_repo_routes,
+                )
 
                 register_github_oauth_routes(app, auth_db_inst, gh_client_id, gh_client_secret)
+                register_github_repo_routes(app, auth_db_inst)
                 app.state.github_oauth_client_id = gh_client_id
                 logger.info("GitHub OAuth enabled (client_id=%s)", gh_client_id)
         else:

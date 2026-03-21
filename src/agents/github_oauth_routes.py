@@ -17,6 +17,7 @@ _COOKIE_MAX_AGE = 30 * 24 * 3600  # 30 days
 GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
 GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 GITHUB_USER_URL = "https://api.github.com/user"
+GITHUB_REPOS_URL = "https://api.github.com/user/repos"
 
 
 async def exchange_code_for_token(code: str, client_id: str, client_secret: str) -> dict:
@@ -105,6 +106,9 @@ def register_github_oauth_routes(
                             "/login?error=oauth_username_conflict", status_code=303,
                         )
 
+        # Persist OAuth token (encrypted) for repo discovery
+        auth_db.update_github_token(user.id, access_token)
+
         token = auth_db.create_session(user.id)
         response = RedirectResponse("/dashboard", status_code=303)
         response.set_cookie(
@@ -115,3 +119,40 @@ def register_github_oauth_routes(
             samesite="lax",
         )
         return response
+
+
+async def fetch_github_repos(access_token: str) -> list[dict]:
+    """Fetch repos for authenticated user from GitHub API."""
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.get(
+            GITHUB_REPOS_URL,
+            params={"per_page": 100, "sort": "updated"},
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Accept": "application/vnd.github+json",
+            },
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
+def register_github_repo_routes(app: FastAPI, auth_db: AuthDB) -> None:
+    """Register repo discovery routes (requires auth)."""
+
+    @app.get("/api/github/repos")
+    async def list_github_repos(request: Request) -> Response:
+        user = getattr(request.state, "user", None)
+        if user is None:
+            user_token = request.cookies.get(_COOKIE_NAME)
+            if user_token:
+                user = auth_db.get_session_user(user_token)
+        if user is None or not user.github_token:
+            return Response(status_code=401, content="No GitHub token")
+
+        repos = await fetch_github_repos(user.github_token)
+        import json as json_module
+
+        return Response(
+            content=json_module.dumps(repos),
+            media_type="application/json",
+        )
