@@ -191,44 +191,29 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                     if current and not current.title and prompt:
                         title = _generate_title(prompt)
                         session_manager.update_session(session.id, title=title)
-                    # Auto-update linked work item status
-                    # Skip for draft tasks (brainstorming) — agent
-                    # will PATCH to ready explicitly when spec is done
-                    if state.task_store:
+                    # Auto-update linked work item status (agent_routes = interactive chat)
+                    # Only mark FAILED on error — never auto-mark DONE from chat.
+                    # Reason: a single chat exchange (e.g. agent asks a question)
+                    # is not task completion. The user or TaskProcessor decides DONE.
+                    if state.task_store and result.status.value != "success":
                         from agents.task_store import TaskStatus
 
                         items = state.task_store.list_by_project(project_name)
                         for item in items:
                             if item.session_id == session.id:
-                                if item.status == TaskStatus.DRAFT:
-                                    break  # don't auto-update drafts
-                                new_status = (
-                                    TaskStatus.DONE
-                                    if result.status.value == "success"
-                                    else TaskStatus.FAILED
-                                )
+                                if item.status in (
+                                    TaskStatus.DRAFT,
+                                    TaskStatus.READY,
+                                ):
+                                    break  # don't auto-update drafts/ready
                                 state.task_store.update_status(
                                     item.id,
-                                    new_status,
+                                    TaskStatus.FAILED,
                                     pr_url=result.pr_url,
                                 )
                                 break
             finally:
                 session_manager.release_run(session.id)
-                # Bug #19: if task is still 'running', executor died unexpectedly
-                if state.task_store:
-                    from agents.task_store import TaskStatus
-
-                    items = state.task_store.list_by_project(project_name)
-                    for item in items:
-                        if (
-                            item.session_id == session.id
-                            and item.status == TaskStatus.RUNNING
-                        ):
-                            state.task_store.update_status(
-                                item.id, TaskStatus.FAILED,
-                            )
-                            break
 
         background_tasks.add_task(_run)
         return {"run_id": run_id, "session_id": session.id, "status": "running"}
