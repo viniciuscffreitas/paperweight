@@ -1,4 +1,4 @@
-from agents.webhooks.github import is_agent_pr_merge, extract_pr_merge_info
+from agents.webhooks.github import extract_pr_merge_info, is_agent_pr_merge
 
 
 def test_agent_pr_merge_detected():
@@ -34,9 +34,10 @@ def test_pr_closed_without_merge_ignored():
 
 
 def test_find_run_by_pr_url(tmp_path):
+    from datetime import UTC, datetime
+
     from agents.history import HistoryDB
     from agents.models import RunRecord, RunStatus, TriggerType
-    from datetime import datetime, UTC
 
     db = HistoryDB(tmp_path / "test.db")
     run = RunRecord(

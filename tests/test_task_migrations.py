@@ -1,7 +1,8 @@
+from datetime import UTC, datetime
+
 from agents.history import HistoryDB
-from agents.session_manager import SessionManager
 from agents.models import RunRecord, RunStatus, TriggerType
-from datetime import datetime, UTC
+from agents.session_manager import SessionManager
 
 
 def test_runs_table_has_task_id_column(tmp_path):

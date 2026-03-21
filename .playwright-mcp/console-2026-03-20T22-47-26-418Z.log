@@ -1,0 +1,3 @@
+[     305ms] ReferenceError: initMultimodal is not defined
+    at initTaskDetail (https://paperweight.vinicius.xyz/static/task-detail.js:31:3)
+    at https://paperweight.vinicius.xyz/hub/paperweight/task/102ed2e83a0c:514:3

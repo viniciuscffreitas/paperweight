@@ -1,7 +1,8 @@
-import pytest
+from datetime import UTC, datetime
+
+from agents.models import WorkItem
 from agents.task_processor import TaskProcessor
-from agents.models import TaskStatus, WorkItem
-from datetime import datetime, UTC
+
 
 def test_build_prompt_basic():
     item = WorkItem(

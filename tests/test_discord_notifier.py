@@ -164,7 +164,6 @@ class TestBuildEmbed:
 class TestRateLimitRetry:
     @pytest.mark.asyncio
     async def test_request_retries_on_429(self, notifier):
-        import asyncio
 
         ok_response = MagicMock()
         ok_response.status_code = 200

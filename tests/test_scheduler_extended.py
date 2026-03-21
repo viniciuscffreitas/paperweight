@@ -4,7 +4,6 @@ import pytest
 
 from agents.models import ProjectConfig, TaskConfig, TriggerConfig
 
-
 # ---------------------------------------------------------------------------
 # parse_cron_to_apscheduler — edge cases
 # ---------------------------------------------------------------------------
@@ -189,7 +188,7 @@ def _make_scheduler():
     return AsyncIOScheduler()
 
 
-async def _dummy_callback(**kwargs):  # noqa: ARG001
+async def _dummy_callback(**kwargs):
     pass
 
 

@@ -15,7 +15,7 @@ from agents.budget import BudgetManager
 from agents.config import BudgetConfig, ExecutionConfig
 from agents.coordination.broker import CoordinationBroker
 from agents.coordination.models import CoordinationConfig
-from agents.executor import ClaudeOutput, Executor
+from agents.executor import Executor
 from agents.history import HistoryDB
 from agents.models import ProjectConfig, RunStatus, TaskConfig
 from agents.notifier import Notifier
@@ -127,7 +127,6 @@ async def test_semaphore_limits_concurrent_runs(tmp_path):
     repo = tmp_path / "repo"
     await _init_git_repo(repo)
 
-    from agents.app_state import AppState
 
     executor, db, budget, events = _make_executor(tmp_path, max_concurrent=2)
 

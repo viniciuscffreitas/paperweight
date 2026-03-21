@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from agents.session_manager import AgentSession, SessionManager
+from agents.session_manager import SessionManager
 
 
 @pytest.fixture

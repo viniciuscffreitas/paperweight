@@ -4,7 +4,6 @@ These tests simulate the full coordination lifecycle without the Claude CLI:
 two agents working on the same repo, file conflicts, inbox/outbox messaging,
 state propagation across worktrees, TTL expiry, and deadlock detection.
 """
-import asyncio
 import json
 import time
 
@@ -12,7 +11,6 @@ import pytest
 
 from agents.coordination.broker import CoordinationBroker
 from agents.coordination.models import CoordinationConfig
-from agents.coordination.protocol import read_inbox
 from agents.streaming import StreamEvent
 
 

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-theme="{{ request.cookies.get('theme', 'dark') }}">
+<html lang="en" data-theme="{{ request.cookies.get('theme', 'dark') }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>paperweight — criar conta</title>
+  <title>paperweight — create account</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
@@ -124,7 +124,7 @@
 <body>
   <div class="auth-card">
     <div class="auth-logo">paperweight</div>
-    <div class="auth-subtitle">Criar conta</div>
+    <div class="auth-subtitle">Create account</div>
 
     {% if error %}
     <div class="auth-error">{{ error }}</div>
@@ -133,17 +133,17 @@
     <form method="post" action="/register">
       <input type="hidden" name="invite" value="{{ invite }}">
 
-      <div class="auth-section-label">Acesso</div>
+      <div class="auth-section-label">Access</div>
 
       <div class="auth-field">
-        <label for="username">Usuário</label>
+        <label for="username">Username</label>
         <input id="username" name="username" type="text" autocomplete="username"
-               placeholder="escolha um usuário" autofocus required>
+               placeholder="choose a username" autofocus required>
       </div>
       <div class="auth-field">
-        <label for="password">Senha</label>
+        <label for="password">Password</label>
         <input id="password" name="password" type="password" autocomplete="new-password"
-               placeholder="mínimo 8 caracteres" minlength="8" required>
+               placeholder="minimum 8 characters" minlength="8" required>
       </div>
 
       <hr class="auth-divider">
@@ -154,16 +154,16 @@
         <input id="api_key" name="api_key" type="password" autocomplete="off"
                placeholder="sk-ant-..." >
         <div class="hint">
-          Usada para rodar seus agents. Armazenada de forma encriptada.
-          Pode ser configurada depois em Settings.
+          Used to run your agents. Stored encrypted.
+          Can be configured later in Settings.
         </div>
       </div>
 
-      <button type="submit" class="auth-submit">Criar conta</button>
+      <button type="submit" class="auth-submit">Create account</button>
     </form>
 
     <div class="auth-login-link">
-      Já tem conta? <a href="/login">Entrar</a>
+      Already have an account? <a href="/login">Sign in</a>
     </div>
   </div>
 </body>

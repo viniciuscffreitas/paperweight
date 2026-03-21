@@ -1,9 +1,6 @@
 """Tests for AppState — session_manager wiring."""
-import asyncio
 from pathlib import Path
 from unittest.mock import MagicMock
-
-import pytest
 
 from agents.app_state import AppState
 from agents.session_manager import SessionManager

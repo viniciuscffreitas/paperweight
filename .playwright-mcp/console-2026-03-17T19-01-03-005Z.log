@@ -1,0 +1,15 @@
+[     272ms] [WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation @ https://cdn.tailwindcss.com/:63
+[     506ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://agents.vinicius.xyz/favicon.ico:0
+[ 8979808ms] [WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation @ https://cdn.tailwindcss.com/:63
+[ 8980635ms] [WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation @ https://cdn.tailwindcss.com/:63
+[ 8980701ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://agents.vinicius.xyz/favicon.ico:0
+[ 8981166ms] [WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation @ https://cdn.tailwindcss.com/:63
+[ 8981250ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://agents.vinicius.xyz/favicon.ico:0
+[ 8981973ms] [WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation @ https://cdn.tailwindcss.com/:63
+[ 8982409ms] [WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation @ https://cdn.tailwindcss.com/:63
+[ 8982452ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://agents.vinicius.xyz/favicon.ico:0
+[ 9047018ms] [WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation @ https://cdn.tailwindcss.com/:63
+[ 9089951ms] [WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation @ https://cdn.tailwindcss.com/:63
+[ 9090012ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://agents.vinicius.xyz/favicon.ico:0
+[ 9091445ms] [WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation @ https://cdn.tailwindcss.com/:63
+[ 9091564ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://agents.vinicius.xyz/favicon.ico:0

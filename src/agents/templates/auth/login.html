@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-theme="{{ request.cookies.get('theme', 'dark') }}">
+<html lang="en" data-theme="{{ request.cookies.get('theme', 'dark') }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>paperweight — entrar</title>
+  <title>paperweight — sign in</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
@@ -103,16 +103,16 @@
 
     <form method="post" action="/login">
       <div class="auth-field">
-        <label for="username">Usuário</label>
+        <label for="username">Username</label>
         <input id="username" name="username" type="text" autocomplete="username"
-               placeholder="seu usuário" autofocus required>
+               placeholder="your username" autofocus required>
       </div>
       <div class="auth-field">
-        <label for="password">Senha</label>
+        <label for="password">Password</label>
         <input id="password" name="password" type="password" autocomplete="current-password"
                placeholder="••••••••" required>
       </div>
-      <button type="submit" class="auth-submit">Entrar</button>
+      <button type="submit" class="auth-submit">Sign in</button>
     </form>
   </div>
 </body>

@@ -1,7 +1,7 @@
 """Tests for executor_notifications: finalize_agent_success and fail_agent_run."""
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 

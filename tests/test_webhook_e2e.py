@@ -13,11 +13,9 @@ These tests complement test_main.py by covering scenarios not yet tested there:
 import hashlib
 import hmac
 import json
-from unittest.mock import AsyncMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures

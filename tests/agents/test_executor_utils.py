@@ -1,7 +1,6 @@
 """Tests for executor_utils: ID generation, output parsing, progress logs."""
 
 import json
-from pathlib import Path
 
 import pytest
 
@@ -14,7 +13,6 @@ from agents.executor_utils import (
     parse_claude_output,
     write_progress_log,
 )
-
 
 # ---------------------------------------------------------------------------
 # generate_run_id

@@ -34,7 +34,7 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
         if user is None:
             return templates.TemplateResponse(
                 "auth/login.html",
-                {"request": request, "error": "Usuário ou senha incorretos."},
+                {"request": request, "error": "Invalid username or password."},
                 status_code=401,
             )
         token = auth_db.create_session(user.id)
@@ -70,14 +70,14 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
         if not invite:
             return templates.TemplateResponse(
                 "auth/login.html",
-                {"request": request, "error": "Link de convite inválido ou ausente."},
+                {"request": request, "error": "Invalid or missing invite link."},
                 status_code=400,
             )
         valid = auth_db.validate_invite(invite)
         if valid is None:
             return templates.TemplateResponse(
                 "auth/login.html",
-                {"request": request, "error": "Convite inválido, expirado ou já utilizado."},
+                {"request": request, "error": "Invalid, expired, or already used invite."},
                 status_code=400,
             )
         return templates.TemplateResponse(
@@ -97,7 +97,7 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
             return templates.TemplateResponse(
                 "auth/register.html",
                 {"request": request, "invite": invite_code,
-                 "error": "Username e senha são obrigatórios."},
+                 "error": "Username and password are required."},
                 status_code=400,
             )
 
@@ -106,7 +106,7 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
             return templates.TemplateResponse(
                 "auth/register.html",
                 {"request": request, "invite": invite_code,
-                 "error": "Convite inválido ou expirado."},
+                 "error": "Invalid or expired invite."},
                 status_code=400,
             )
 
@@ -126,7 +126,7 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
             return templates.TemplateResponse(
                 "auth/register.html",
                 {"request": request, "invite": invite_code,
-                 "error": "Username já existe. Escolha outro."},
+                 "error": "Username already exists. Choose another."},
                 status_code=400,
             )
 

@@ -252,8 +252,9 @@ def test_trigger_type_agent():
 
 
 def test_run_record_session_id_default():
-    from agents.models import RunRecord, RunStatus, TriggerType
     from datetime import UTC, datetime
+
+    from agents.models import RunRecord, RunStatus, TriggerType
     run = RunRecord(
         id="test-run", project="test", task="agent",
         trigger_type=TriggerType.AGENT, started_at=datetime.now(UTC),
@@ -263,8 +264,9 @@ def test_run_record_session_id_default():
 
 
 def test_run_record_session_id_set():
-    from agents.models import RunRecord, RunStatus, TriggerType
     from datetime import UTC, datetime
+
+    from agents.models import RunRecord, RunStatus, TriggerType
     run = RunRecord(
         id="test-run", project="test", task="agent",
         trigger_type=TriggerType.AGENT, started_at=datetime.now(UTC),

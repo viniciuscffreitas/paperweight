@@ -1,5 +1,5 @@
-from agents.task_store import TaskStore
 from agents.models import TaskStatus
+from agents.task_store import TaskStore
 
 
 def test_linear_source_dedup(tmp_path):

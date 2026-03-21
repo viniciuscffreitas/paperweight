@@ -1,0 +1,4 @@
+[     -11ms] [ERROR] Failed to load resource: the server responded with a status of 999 () @ https://br.linkedin.com/in/michel-costa-6a8bb426:0
+[     524ms] [WARNING] Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently @ https://static.licdn.com/aero-v1/sc/h/r4636jxhi1asyu21dii4uokg:1
+[    1149ms] [WARNING] Element with id: dust-var-locale not found @ https://static.licdn.com/aero-v1/sc/h/7x6pq1mrezuu1kqm5misq5pje:1
+[    1205ms] [WARNING] Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently @ https://static.licdn.com/aero-v1/sc/h/r4636jxhi1asyu21dii4uokg:1

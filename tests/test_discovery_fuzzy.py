@@ -1,6 +1,8 @@
 import pytest
+
 from agents.discovery import auto_discover_project_ids
 from agents.models import ProjectConfig, TaskConfig
+
 
 @pytest.fixture
 def dummy_project():

@@ -1,7 +1,8 @@
 """Tests for executor PR creation and agent finalization paths."""
-import pytest
-from unittest.mock import AsyncMock, patch
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock
+
+import pytest
 
 
 @pytest.mark.asyncio

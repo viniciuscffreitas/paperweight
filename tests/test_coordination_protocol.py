@@ -147,7 +147,7 @@ def test_write_state_does_not_mutate_input(worktree):
 
 def test_append_outbox_does_not_mutate_input(worktree):
     """append_outbox should not modify the caller's dict."""
-    from agents.coordination.protocol import init_coordination_dir, append_outbox
+    from agents.coordination.protocol import append_outbox, init_coordination_dir
 
     init_coordination_dir(worktree)
     msg = {"type": "file_released", "file": "x.py"}
