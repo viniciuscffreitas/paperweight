@@ -195,3 +195,22 @@ def test_bootstrap_invite_noop_when_users_exist(db: AuthDB) -> None:
     db.create_user("nancy", "pass")
     result = db.bootstrap_invite()
     assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Password change
+# ---------------------------------------------------------------------------
+
+def test_change_password_success(db: AuthDB) -> None:
+    db.create_user("alice", "old-password")
+    result = db.change_password("alice", "old-password", "new-password")
+    assert result is True
+    assert db.authenticate("alice", "new-password") is not None
+    assert db.authenticate("alice", "old-password") is None
+
+
+def test_change_password_wrong_current(db: AuthDB) -> None:
+    db.create_user("bob", "correct")
+    result = db.change_password("bob", "wrong", "new-password")
+    assert result is False
+    assert db.authenticate("bob", "correct") is not None

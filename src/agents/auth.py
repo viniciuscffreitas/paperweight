@@ -213,6 +213,20 @@ class AuthDB:
                 (api_key_enc, user_id),
             )
 
+    def change_password(self, username: str, current_password: str, new_password: str) -> bool:
+        """Change password if current_password is correct. Returns True on success."""
+        user = self.authenticate(username, current_password)
+        if user is None:
+            return False
+        salt = secrets.token_hex(32)
+        hashed = hash_password(new_password, salt)
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?",
+                (hashed, salt, user.id),
+            )
+        return True
+
     # ------------------------------------------------------------------
     # Invite codes
     # ------------------------------------------------------------------
