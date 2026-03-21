@@ -292,6 +292,15 @@ def create_app(
         scheduler.add_job(run_daily_digest, "cron", hour=9, minute=0, id="daily_digest")
         scheduler.add_job(cleanup_old_events, "cron", hour=3, minute=0, id="event_cleanup")
         scheduler.add_job(cleanup_sessions, "interval", minutes=10, id="session_cleanup")
+
+        async def cleanup_run_artifacts_job() -> None:
+            from agents.cleanup import cleanup_run_artifacts, purge_old_run_events
+            cleanup_run_artifacts(data_dir / "runs", max_age_days=30)
+            purge_old_run_events(history, days=30)
+
+        scheduler.add_job(
+            cleanup_run_artifacts_job, "cron", hour=4, minute=0, id="artifact_cleanup"
+        )
         scheduler.start()
         logger.info("Scheduler started with %d jobs", len(scheduler.get_jobs()))
         aggregator_task = asyncio.create_task(aggregator.start(poll_interval_seconds=300))
