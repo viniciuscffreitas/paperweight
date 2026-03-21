@@ -78,6 +78,6 @@ def register_task_routes(app: FastAPI, task_store: TaskStore) -> None:
         item = task_store.get(item_id)
         if item is None:
             return Response(status_code=404, content="Work item not found")
-        task_store.update_status(item_id, TaskStatus.PENDING)
+        task_store.reset_for_rerun(item_id)
         updated = task_store.get(item_id)
         return updated.model_dump(mode="json")

@@ -38,6 +38,15 @@ class TaskProcessor:
         parts.append(f"# Task: {item.title}\n")
         parts.append(item.description)
 
+        # Inject spec content for READY tasks with a spec_path
+        if item.spec_path:
+            try:
+                spec_content = Path(item.spec_path).read_text()
+                parts.append(f"\n\n## Implement the spec at `{item.spec_path}`\n")
+                parts.append(spec_content)
+            except (OSError, FileNotFoundError):
+                parts.append(f"\n\n(Spec file not found: {item.spec_path})")
+
         if context_entries:
             parts.append("\n\n## Prior Context (newest first)")
             total = 0
@@ -216,7 +225,7 @@ class TaskProcessor:
         logger.info("TaskProcessor started")
         while self._running:
             try:
-                pending = self.task_store.list_pending(
+                pending = self.task_store.list_actionable(
                     limit=self.config.execution.max_concurrent,
                 )
                 for item in pending:

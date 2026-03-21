@@ -28,8 +28,6 @@ _RETRYABLE_PATTERNS = [
     "eagain",
     "no such file or directory",
     "filenotfounderror",
-    "command not found",
-    "permission denied",
     "resource temporarily unavailable",
 ]
 _PERMANENT_PATTERNS = [
@@ -38,6 +36,8 @@ _PERMANENT_PATTERNS = [
     "task not found",
     "invalid signature",
     "authentication",
+    "command not found",
+    "permission denied",
 ]
 
 

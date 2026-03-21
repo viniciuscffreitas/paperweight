@@ -171,12 +171,23 @@ class TaskStore:
             ).fetchall()
         return [self._row_to_item(r) for r in rows]
 
+    def list_actionable(self, limit: int = 10) -> list[WorkItem]:
+        """Return tasks that are PENDING or READY — both eligible for processing."""
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM work_items WHERE status IN (?, ?)"
+                " ORDER BY created_at ASC LIMIT ?",
+                (TaskStatus.PENDING, TaskStatus.READY, limit),
+            ).fetchall()
+        return [self._row_to_item(r) for r in rows]
+
     def try_claim(self, item_id: str) -> bool:
         now = datetime.now(UTC).isoformat()
         with self._conn() as conn:
             cursor = conn.execute(
-                "UPDATE work_items SET status = ?, updated_at = ? WHERE id = ? AND status = ?",
-                (TaskStatus.RUNNING, now, item_id, TaskStatus.PENDING),
+                "UPDATE work_items SET status = ?, updated_at = ? WHERE id = ?"
+                " AND status IN (?, ?)",
+                (TaskStatus.RUNNING, now, item_id, TaskStatus.PENDING, TaskStatus.READY),
             )
             return cursor.rowcount == 1
 
@@ -245,6 +256,16 @@ class TaskStore:
             conn.execute(
                 "UPDATE work_items SET title = ?, updated_at = ? WHERE id = ?",
                 (title, now, item_id),
+            )
+
+    def reset_for_rerun(self, item_id: str) -> None:
+        """Reset a task for a clean re-run: status=pending, retry_count=0, clear stale state."""
+        now = datetime.now(UTC).isoformat()
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE work_items SET status = ?, retry_count = 0, next_retry_at = NULL,"
+                " session_id = NULL, updated_at = ? WHERE id = ?",
+                (TaskStatus.PENDING, now, item_id),
             )
 
     def reset_running_to_pending(self) -> int:
