@@ -200,8 +200,8 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                         items = state.task_store.list_by_project(project_name)
                         for item in items:
                             if item.session_id == session.id:
-                                if item.status == TaskStatus.DRAFT:
-                                    break  # don't auto-update drafts
+                                if item.status in (TaskStatus.DRAFT, TaskStatus.READY):
+                                    break  # don't auto-update drafts or ready tasks
                                 new_status = (
                                     TaskStatus.DONE
                                     if result.status.value == "success"
