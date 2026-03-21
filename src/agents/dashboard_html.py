@@ -21,6 +21,16 @@ if TYPE_CHECKING:
 _BASE = Path(__file__).parent
 _TEMPLATES = Jinja2Templates(directory=_BASE / "templates")
 
+# Cache-busting: short git hash so browsers pick up new static files on deploy
+try:
+    import subprocess as _sp
+    _git_hash = _sp.check_output(
+        ["git", "rev-parse", "--short", "HEAD"], cwd=_BASE, stderr=_sp.DEVNULL
+    ).decode().strip()
+except Exception:
+    _git_hash = str(int(_time.time()))
+_TEMPLATES.env.globals["static_version"] = _git_hash
+
 
 def _find_related_docs(
     item: object,

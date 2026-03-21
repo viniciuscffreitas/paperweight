@@ -167,10 +167,10 @@
   </div>
 </div>
 
-<script src="/static/stream.js"></script>
-<script src="/static/chat.js"></script>
-<script src="/static/chat-multimodal.js"></script>
-<script src="/static/task-detail.js"></script>
+<script src="/static/stream.js?v={{ static_version }}"></script>
+<script src="/static/chat.js?v={{ static_version }}"></script>
+<script src="/static/chat-multimodal.js?v={{ static_version }}"></script>
+<script src="/static/task-detail.js?v={{ static_version }}"></script>
 <script>
   initTaskDetail({
     taskId: '{{ item.id }}',
