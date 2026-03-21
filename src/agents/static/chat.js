@@ -462,7 +462,7 @@ function sendChatPrompt() {
 
   var modelSelect = document.getElementById('chat-model');
   var model = modelSelect ? modelSelect.value : 'claude-sonnet-4-6';
-  var body = { prompt: promptText, model: model, max_cost_usd: 2.0 };
+  var body = { prompt: promptText, model: model, max_cost_usd: 5.0 };
   if (_taskConfig.sessionId) body.session_id = _taskConfig.sessionId;
 
   showThinking();

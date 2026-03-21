@@ -278,10 +278,19 @@ function startTask() {
   var modelSelect = document.getElementById('chat-model');
   var model = modelSelect ? modelSelect.value : 'claude-sonnet-4-6';
 
+  // Mark task as running before sending prompt
+  if (_taskConfig.taskId) {
+    fetch('/api/work-items/' + _taskConfig.taskId, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ status: 'running' })
+    });
+  }
+
   fetch('/api/projects/' + _taskConfig.projectId + '/agent', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ prompt: prompt, model: model, max_cost_usd: 2.0 })
+    body: JSON.stringify({ prompt: prompt, model: model, max_cost_usd: 5.0 })
   })
   .then(function(r) { return r.json(); })
   .then(function(data) {
@@ -415,7 +424,7 @@ function autoBrainstorm() {
   fetch('/api/projects/' + _taskConfig.projectId + '/agent', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ prompt: prompt, model: model, max_cost_usd: 2.0 })
+    body: JSON.stringify({ prompt: prompt, model: model, max_cost_usd: 5.0 })
   })
   .then(function(r) { return r.json(); })
   .then(function(data) {
