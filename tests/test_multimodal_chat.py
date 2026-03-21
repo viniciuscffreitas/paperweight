@@ -234,7 +234,7 @@ def _read_js() -> str:
     # task-detail.js and chat.js are companion modules that share global scope.
     # Tests check the combined surface — functions may live in either file.
     return (
-        (_STATIC_DIR / "task-detail.js").read_text() + "\n" + (_STATIC_DIR / "chat.js").read_text()
+        (_STATIC_DIR / "task-detail.js").read_text() + "\n" + (_STATIC_DIR / "chat.js").read_text() + "\n" + (_STATIC_DIR / "chat-multimodal.js").read_text()
     )
 
 

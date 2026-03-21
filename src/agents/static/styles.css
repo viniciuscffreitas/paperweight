@@ -213,7 +213,7 @@ html, body { height: 100%; background: var(--bg-chrome); color: var(--text-prima
 .chat-msg-label { font-size: 12px; font-weight: 600; flex: 1; }
 .chat-msg-label.you { color: var(--text-secondary); }
 .chat-msg-label.agent { color: var(--accent-text); }
-.chat-msg-time { font-size: 10px; color: var(--text-disabled); flex-shrink: 0; }
+.chat-msg-time { font-size: 10px; color: var(--text-disabled); flex-shrink: 0; font-family: 'SF Mono', 'Fira Code', monospace; letter-spacing: -0.3px; }
 .msg-actions {
   position: absolute; top: 8px; right: 8px; display: flex; gap: 2px;
   opacity: 0; transition: opacity 0.15s; background: var(--bg-content);
@@ -303,6 +303,18 @@ html, body { height: 100%; background: var(--bg-chrome); color: var(--text-prima
 @keyframes dot-pulse {
   0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
   40% { opacity: 1; transform: scale(1); }
+}
+
+/* Run separator — visual divider between agent runs */
+.run-separator {
+  display: flex; align-items: center; gap: 12px;
+  margin: 16px 0 8px; padding: 0 4px;
+  color: var(--text-disabled); font-size: 10px;
+  letter-spacing: 0.3px; text-transform: uppercase;
+}
+.run-separator::before, .run-separator::after {
+  content: ''; flex: 1; height: 1px;
+  background: var(--separator-subtle);
 }
 
 /* Auto-resize textarea */
