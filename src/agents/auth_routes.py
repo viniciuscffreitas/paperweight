@@ -201,7 +201,8 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
         user = getattr(request.state, "user", None)
         if user is None:
             return RedirectResponse("/login", status_code=303)
-        projects = getattr(request.state, "projects", [])
+        store = getattr(request.app.state, "project_store", None)
+        projects = store.list_projects() if store else []
         masked_key = _mask_api_key(user.api_key)
 
         config_data = {}

@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from agents.auth import AuthDB
 from agents.auth_routes import register_auth_routes
+from agents.project_store import ProjectStore
 
 _TEMPLATES_DIR = Path(__file__).parent.parent / "src" / "agents" / "templates"
 
@@ -26,12 +27,6 @@ def auth_db(tmp_path: Path) -> AuthDB:
 def client(auth_db: AuthDB) -> TestClient:
     app = FastAPI()
     templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
-
-    # Inject projects (needed by base.html sidebar)
-    @app.middleware("http")
-    async def inject_projects(request: Request, call_next):
-        request.state.projects = []
-        return await call_next(request)
 
     register_auth_routes(app, auth_db, templates)
 
@@ -67,11 +62,6 @@ def admin_client(auth_db: AuthDB, config_path: Path) -> TestClient:
     app = FastAPI()
     templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
     app.state.config_path = config_path
-
-    @app.middleware("http")
-    async def inject_projects(request: Request, call_next):
-        request.state.projects = []
-        return await call_next(request)
 
     register_auth_routes(app, auth_db, templates)
 
@@ -251,3 +241,75 @@ def test_get_settings_shows_integration_forms_for_admin(
     assert resp.status_code == 200
     assert "linear_api_key" in resp.text
     assert "github_token" in resp.text
+
+
+# ---------------------------------------------------------------------------
+# Behavior Contract: sidebar shows projects + add button always visible
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def client_with_projects(auth_db: AuthDB, tmp_path: Path) -> TestClient:
+    """Client where app.state.project_store has a real project."""
+    app = FastAPI()
+    templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
+
+    # Set up a real project store with one project
+    store = ProjectStore(tmp_path / "projects.db")
+    store.create_project("paperweight", "paperweight", "/tmp/pw")
+    app.state.project_store = store
+
+    register_auth_routes(app, auth_db, templates)
+
+    user = auth_db.create_user("testuser", "password123", api_key="sk-ant-test-key")
+    token = auth_db.create_session(user.id)
+
+    @app.middleware("http")
+    async def fake_auth(request: Request, call_next):
+        if request.cookies.get("pw_session") == token:
+            request.state.user = auth_db.get_session_user(token)
+        return await call_next(request)
+
+    return TestClient(app, cookies={"pw_session": token})
+
+
+def test_settings_sidebar_shows_projects(client_with_projects: TestClient) -> None:
+    """CHANGES: settings page must list existing projects in sidebar."""
+    resp = client_with_projects.get("/settings")
+    assert resp.status_code == 200
+    # sidebar_item renders a link to /hub/{id}/tasks
+    assert '/hub/paperweight/tasks' in resp.text
+    assert "No projects yet" not in resp.text
+
+
+def test_sidebar_add_project_button_always_visible(
+    client_with_projects: TestClient,
+) -> None:
+    """CHANGES: add project button must appear even when projects exist."""
+    resp = client_with_projects.get("/settings")
+    assert resp.status_code == 200
+    assert '/hub/paperweight/tasks' in resp.text  # project is listed
+    assert "Add project" in resp.text  # button still visible
+
+
+def test_settings_empty_projects_when_no_store(auth_db: AuthDB) -> None:
+    """Edge case: no project_store on app.state → empty list, no crash."""
+    app = FastAPI()
+    templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
+    # Deliberately NOT setting app.state.project_store
+
+    register_auth_routes(app, auth_db, templates)
+
+    user = auth_db.create_user("testuser2", "password123")
+    token = auth_db.create_session(user.id)
+
+    @app.middleware("http")
+    async def fake_auth(request: Request, call_next):
+        if request.cookies.get("pw_session") == token:
+            request.state.user = auth_db.get_session_user(token)
+        return await call_next(request)
+
+    c = TestClient(app, cookies={"pw_session": token})
+    resp = c.get("/settings")
+    assert resp.status_code == 200
+    assert "No projects yet" in resp.text

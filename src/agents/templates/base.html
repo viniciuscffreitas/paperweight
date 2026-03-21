@@ -43,11 +43,13 @@
       {% for p in projects %}
         {{ sidebar_item(p.name, p.id, active=(selected_project|default('') == p.id)) }}
       {% else %}
-        <div style="padding:12px 12px 8px;">
-          <div style="font-size:12px;color:var(--text-disabled);font-style:italic;margin-bottom:8px;">No projects yet</div>
-          {{ btn('+ add project', variant='dashed', onclick='openWizard()', aria_label='Add project') }}
+        <div style="padding:12px 12px 4px;">
+          <div style="font-size:12px;color:var(--text-disabled);font-style:italic;">No projects yet</div>
         </div>
       {% endfor %}
+      <div style="padding:4px 12px 8px;">
+        {{ btn('+ add project', variant='dashed', onclick='openWizard()', aria_label='Add project') }}
+      </div>
     </div>
 
     <div style="padding:12px 16px;">
