@@ -120,6 +120,7 @@ def test_format_event_html_contains_color_for_type():
 
 def test_format_event_html_tool_use_color_is_light_gray():
     from agents.dashboard_formatters import EVENT_COLORS
+
     assert EVENT_COLORS["tool_use"] == "#d4d4d8"
 
 
@@ -225,6 +226,7 @@ def test_build_history_rows_capped_at_30():
 
 def test_build_history_rows_status_is_raw_string():
     from agents.dashboard_formatters import build_history_rows
+
     rows = build_history_rows([_make_run(status="success")])
     assert rows[0]["status"] == "success"
     assert "✅" not in rows[0]["status"]
@@ -232,6 +234,7 @@ def test_build_history_rows_status_is_raw_string():
 
 def test_build_history_rows_has_raw_status_field():
     from agents.dashboard_formatters import build_history_rows
+
     rows = build_history_rows([_make_run(status="failure")])
     assert rows[0]["status"] == "failure"
     assert rows[0]["raw_status"] == "failure"
@@ -239,8 +242,10 @@ def test_build_history_rows_has_raw_status_field():
 
 # ── format_stream_html ──────────────────────────────────────────────────────
 
+
 def test_format_stream_html_returns_html_div():
     from agents.dashboard_formatters import format_stream_html
+
     data = {"run_id": "p-t-x", "type": "tool_use", "tool_name": "Bash", "content": "ls"}
     html = format_stream_html(data)
     assert html.startswith("<div")
@@ -249,6 +254,7 @@ def test_format_stream_html_returns_html_div():
 
 def test_format_stream_html_no_emoji():
     from agents.dashboard_formatters import format_stream_html
+
     data = {"run_id": "p-t-x", "type": "task_started", "content": "p/t [manual]"}
     html = format_stream_html(data)
     assert not any(ord(c) > 0x1F000 for c in html)
@@ -256,9 +262,12 @@ def test_format_stream_html_no_emoji():
 
 def test_format_stream_html_uses_correct_color_for_tool_use():
     from agents.dashboard_formatters import format_stream_html
+
     data = {
-        "run_id": "p-t-x", "type": "tool_use",
-        "tool_name": "Read", "content": '{"file_path":"src/main.py"}',
+        "run_id": "p-t-x",
+        "type": "tool_use",
+        "tool_name": "Read",
+        "content": '{"file_path":"src/main.py"}',
     }
     html = format_stream_html(data)
     assert "#d4d4d8" in html
@@ -267,6 +276,7 @@ def test_format_stream_html_uses_correct_color_for_tool_use():
 
 def test_format_stream_html_uses_correct_color_for_failure():
     from agents.dashboard_formatters import format_stream_html
+
     data = {"run_id": "p-t-x", "type": "task_failed", "content": "timeout"}
     html = format_stream_html(data)
     assert "#f87171" in html
@@ -274,6 +284,7 @@ def test_format_stream_html_uses_correct_color_for_failure():
 
 def test_format_stream_html_includes_run_id():
     from agents.dashboard_formatters import format_stream_html
+
     data = {"run_id": "proj-task-20260316-120000-abcd1234", "type": "assistant", "content": "hello"}
     html = format_stream_html(data)
     assert "proj/task" in html
@@ -281,6 +292,7 @@ def test_format_stream_html_includes_run_id():
 
 def test_format_stream_html_no_timestamp_column():
     from agents.dashboard_formatters import format_stream_html
+
     data = {"run_id": "p-t-x", "type": "system", "content": "", "timestamp": 1710590400.0}
     html = format_stream_html(data)
     assert "--:--:--" not in html

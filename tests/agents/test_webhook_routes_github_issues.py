@@ -1,11 +1,11 @@
 """Integration tests for GitHub Issues → work-item creation in github_webhook."""
+
 import hashlib
 import hmac
 import json
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-
 
 MINIMAL_CONFIG = """
 budget:
@@ -53,6 +53,7 @@ def app_with_issue_project(tmp_path):
     (proj_dir / "issuerepo.yaml").write_text(ISSUE_PROJECT_YAML)
 
     from agents.main import create_app
+
     return create_app(config_path=cfg, projects_dir=proj_dir, data_dir=tmp_path / "data")
 
 
@@ -194,7 +195,6 @@ async def test_github_issue_dedup_does_not_create_duplicate(app_with_issue_proje
         await client.post("/webhooks/github", content=body, headers=headers)
 
     # Verify exactly one item with this source_id
-    from agents.task_store import TaskStore
     items = state.task_store.list_by_project("issuerepo")
     matching = [i for i in items if i.source_id == "github:org/repo#55"]
     assert len(matching) == 1

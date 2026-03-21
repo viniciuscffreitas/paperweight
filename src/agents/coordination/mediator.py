@@ -9,6 +9,7 @@ What is NOT YET IMPLEMENTED:
 - Rebasing or merging worktrees after mediation completes
 - Notifying the contesting agents when mediation is done
 """
+
 from __future__ import annotations
 
 COORDINATION_PREAMBLE = """## Coordinated Mode — Paperweight Protocol

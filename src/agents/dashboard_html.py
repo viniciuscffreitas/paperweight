@@ -1,4 +1,5 @@
 """HTMX + Jinja2 dashboard — replaces NiceGUI dashboard*.py files."""
+
 from __future__ import annotations
 
 import re
@@ -28,7 +29,8 @@ def _find_related_docs(
 ) -> str:
     """Search for spec/plan docs related to a task in worktrees and repo."""
     title_slug = re.sub(
-        r"[^a-z0-9]+", "-",
+        r"[^a-z0-9]+",
+        "-",
         getattr(item, "title", "").lower(),
     ).strip("-")
     words = [w for w in title_slug.split("-") if len(w) > 2]
@@ -115,23 +117,24 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
             return HTMLResponse("<p>Project not found</p>", status_code=404)
         work_items = state.task_store.list_by_project(project_id) if state.task_store else []
         # Build counts
-        counts = {'running': 0, 'review': 0, 'queued': 0, 'done': 0}
+        counts = {"running": 0, "review": 0, "queued": 0, "done": 0}
         for item in work_items:
             s = item.status
-            if s == 'running':
-                counts['running'] += 1
-            elif s == 'review':
-                counts['review'] += 1
-            elif s in ('pending', 'draft'):
-                counts['queued'] += 1
-            elif s in ('done', 'failed'):
-                counts['done'] += 1
+            if s == "running":
+                counts["running"] += 1
+            elif s == "review":
+                counts["review"] += 1
+            elif s in ("pending", "draft"):
+                counts["queued"] += 1
+            elif s in ("done", "failed"):
+                counts["done"] += 1
         # Task templates (for potential use)
         tasks = []
         if state.project_store:
             tasks = state.project_store.list_tasks(project_id)
         projects = state.project_store.list_projects() if state.project_store else []
         from agents.metrics import collect_metrics
+
         return _TEMPLATES.TemplateResponse(
             request,
             "tasks.html",
@@ -183,6 +186,7 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
     @app.post("/setup/discover", response_class=HTMLResponse)
     async def setup_discover(request: Request) -> HTMLResponse:
         from agents.project_hub_routes import _discover_sources
+
         form = await request.form()
         name = str(form.get("name", ""))
         repo_path = str(form.get("repo_path", ""))
@@ -244,7 +248,10 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
 
     @app.get("/hub/{project_id}/agent", response_class=HTMLResponse)
     async def hub_agent(
-        request: Request, project_id: str, session: str | None = None, run: str | None = None,
+        request: Request,
+        project_id: str,
+        session: str | None = None,
+        run: str | None = None,
     ) -> HTMLResponse:
         project = state.project_store.get_project(project_id) if state.project_store else None
         if not project:
@@ -274,8 +281,11 @@ def setup_dashboard(app: FastAPI, state: AppState, config: GlobalConfig) -> None
         if theme not in ("light", "dark"):
             raise HTTPException(status_code=422, detail="Invalid theme value")
         response.set_cookie(
-            "theme", theme,
-            max_age=31_536_000, path="/",
-            httponly=True, samesite="lax",
+            "theme",
+            theme,
+            max_age=31_536_000,
+            path="/",
+            httponly=True,
+            samesite="lax",
         )
         return {"ok": True}

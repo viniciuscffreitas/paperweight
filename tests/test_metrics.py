@@ -1,23 +1,34 @@
-import pytest
 from datetime import UTC, datetime, timedelta
+
+import pytest
+
 from agents.history import HistoryDB
-from agents.models import RunRecord, RunStatus, TriggerType
 from agents.metrics import collect_metrics
+from agents.models import RunRecord, RunStatus, TriggerType
 
 
 def _make_run(history, project, status, cost, days_ago=0):
     started = datetime.now(UTC) - timedelta(days=days_ago)
     run = RunRecord(
         id=f"run-{project}-{days_ago}-{status}-{cost}",
-        project=project, task="test-task",
-        trigger_type=TriggerType.MANUAL, started_at=started,
+        project=project,
+        task="test-task",
+        trigger_type=TriggerType.MANUAL,
+        started_at=started,
         finished_at=started + timedelta(minutes=5),
-        status=RunStatus(status), model="sonnet",
-        cost_usd=cost, num_turns=10,
+        status=RunStatus(status),
+        model="sonnet",
+        cost_usd=cost,
+        num_turns=10,
     )
     history.insert_run(run)
-    history.update_run(run.id, status=run.status, finished_at=run.finished_at,
-                       cost_usd=run.cost_usd, num_turns=run.num_turns)
+    history.update_run(
+        run.id,
+        status=run.status,
+        finished_at=run.finished_at,
+        cost_usd=run.cost_usd,
+        num_turns=run.num_turns,
+    )
 
 
 def test_collect_metrics_cost_by_day(tmp_path):

@@ -42,8 +42,14 @@ async def finalize_agent_success(
                 (run.finished_at - run.started_at).total_seconds() if run.finished_at else 0
             )
             await discord_notifier.finalize_run_message(  # type: ignore[union-attr]
-                project.discord_channel_id, discord_msg_id, identifier, title, [],
-                pr_url=run.pr_url, cost=run.cost_usd or 0.0, duration_s=duration_s,
+                project.discord_channel_id,
+                discord_msg_id,
+                identifier,
+                title,
+                [],
+                pr_url=run.pr_url,
+                cost=run.cost_usd or 0.0,
+                duration_s=duration_s,
             )
         except Exception:
             logger.warning("Failed to finalize Discord for %s", issue_id)
@@ -79,9 +85,16 @@ async def fail_agent_run(
                 (run.finished_at - run.started_at).total_seconds() if run.finished_at else 0
             )
             await discord_notifier.fail_run_message(  # type: ignore[union-attr]
-                project.discord_channel_id, discord_msg_id, identifier, title, [],
-                error=run.error_message or "", attempt=attempt, max_attempts=max_attempts,
-                cost=run.cost_usd or 0.0, duration_s=duration_s,
+                project.discord_channel_id,
+                discord_msg_id,
+                identifier,
+                title,
+                [],
+                error=run.error_message or "",
+                attempt=attempt,
+                max_attempts=max_attempts,
+                cost=run.cost_usd or 0.0,
+                duration_s=duration_s,
             )
         except Exception:
             logger.warning("Failed to report failure to Discord for %s", issue_id)

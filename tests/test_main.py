@@ -5,7 +5,9 @@ def test_json_formatter_produces_valid_json():
     import json
     import logging
     from io import StringIO
+
     from agents.main import JSONFormatter
+
     handler = logging.StreamHandler(stream := StringIO())
     handler.setFormatter(JSONFormatter())
     logger = logging.getLogger("test_json_fmt")
@@ -59,9 +61,7 @@ tasks:
 """)
     from agents.main import create_app
 
-    app = create_app(
-        config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data"
-    )
+    app = create_app(config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data")
     return app
 
 
@@ -181,9 +181,8 @@ integrations:
     projects_dir = tmp_path / "projects"
     projects_dir.mkdir()
     from agents.main import create_app
-    app = create_app(
-        config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data"
-    )
+
+    app = create_app(config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data")
     state = app.state.app_state
     assert state.executor.linear_client is not None
     assert state.executor.discord_notifier is not None
@@ -232,25 +231,25 @@ tasks:
 
     from agents.main import create_app
 
-    with patch(
-        "agents.discovery.auto_discover_project_ids", new_callable=AsyncMock
-    ):
-        create_app(
-            config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data"
-        )
+    with patch("agents.discovery.auto_discover_project_ids", new_callable=AsyncMock):
+        create_app(config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data")
 
     # Since lifespan doesn't run in this test context, verify the import works
     from agents.discovery import auto_discover_project_ids
+
     assert callable(auto_discover_project_ids)
 
 
 @pytest.mark.asyncio
 async def test_create_project(client):
-    response = await client.post("/api/projects", json={
-        "id": "proj-1",
-        "name": "Test Project",
-        "repo_path": "/tmp/test-repo",
-    })
+    response = await client.post(
+        "/api/projects",
+        json={
+            "id": "proj-1",
+            "name": "Test Project",
+            "repo_path": "/tmp/test-repo",
+        },
+    )
     assert response.status_code == 201
     data = response.json()
     assert data["id"] == "proj-1"
@@ -261,11 +260,14 @@ async def test_create_project(client):
 
 @pytest.mark.asyncio
 async def test_list_projects(client):
-    await client.post("/api/projects", json={
-        "id": "proj-list-1",
-        "name": "List Project",
-        "repo_path": "/tmp/list-repo",
-    })
+    await client.post(
+        "/api/projects",
+        json={
+            "id": "proj-list-1",
+            "name": "List Project",
+            "repo_path": "/tmp/list-repo",
+        },
+    )
     response = await client.get("/api/projects")
     assert response.status_code == 200
     data = response.json()
@@ -276,11 +278,14 @@ async def test_list_projects(client):
 
 @pytest.mark.asyncio
 async def test_get_project(client):
-    await client.post("/api/projects", json={
-        "id": "proj-get-1",
-        "name": "Get Project",
-        "repo_path": "/tmp/get-repo",
-    })
+    await client.post(
+        "/api/projects",
+        json={
+            "id": "proj-get-1",
+            "name": "Get Project",
+            "repo_path": "/tmp/get-repo",
+        },
+    )
     response = await client.get("/api/projects/proj-get-1")
     assert response.status_code == 200
     data = response.json()
@@ -296,11 +301,14 @@ async def test_get_project_not_found(client):
 
 @pytest.mark.asyncio
 async def test_delete_project(client):
-    await client.post("/api/projects", json={
-        "id": "proj-del-1",
-        "name": "Delete Project",
-        "repo_path": "/tmp/del-repo",
-    })
+    await client.post(
+        "/api/projects",
+        json={
+            "id": "proj-del-1",
+            "name": "Delete Project",
+            "repo_path": "/tmp/del-repo",
+        },
+    )
     response = await client.delete("/api/projects/proj-del-1")
     assert response.status_code == 204
     get_response = await client.get("/api/projects/proj-del-1")
@@ -309,16 +317,22 @@ async def test_delete_project(client):
 
 @pytest.mark.asyncio
 async def test_create_task(client):
-    await client.post("/api/projects", json={
-        "id": "proj-task-1",
-        "name": "Task Project",
-        "repo_path": "/tmp/task-repo",
-    })
-    response = await client.post("/api/projects/proj-task-1/tasks", json={
-        "name": "My Task",
-        "intent": "Do something useful",
-        "trigger_type": "manual",
-    })
+    await client.post(
+        "/api/projects",
+        json={
+            "id": "proj-task-1",
+            "name": "Task Project",
+            "repo_path": "/tmp/task-repo",
+        },
+    )
+    response = await client.post(
+        "/api/projects/proj-task-1/tasks",
+        json={
+            "name": "My Task",
+            "intent": "Do something useful",
+            "trigger_type": "manual",
+        },
+    )
     assert response.status_code == 201
     data = response.json()
     assert data["name"] == "My Task"
@@ -329,16 +343,22 @@ async def test_create_task(client):
 
 @pytest.mark.asyncio
 async def test_list_tasks(client):
-    await client.post("/api/projects", json={
-        "id": "proj-task-list-1",
-        "name": "Task List Project",
-        "repo_path": "/tmp/task-list-repo",
-    })
-    await client.post("/api/projects/proj-task-list-1/tasks", json={
-        "name": "Listed Task",
-        "intent": "Be listed",
-        "trigger_type": "schedule",
-    })
+    await client.post(
+        "/api/projects",
+        json={
+            "id": "proj-task-list-1",
+            "name": "Task List Project",
+            "repo_path": "/tmp/task-list-repo",
+        },
+    )
+    await client.post(
+        "/api/projects/proj-task-list-1/tasks",
+        json={
+            "name": "Listed Task",
+            "intent": "Be listed",
+            "trigger_type": "schedule",
+        },
+    )
     response = await client.get("/api/projects/proj-task-list-1/tasks")
     assert response.status_code == 200
     data = response.json()
@@ -349,16 +369,22 @@ async def test_list_tasks(client):
 
 @pytest.mark.asyncio
 async def test_delete_task(client):
-    await client.post("/api/projects", json={
-        "id": "proj-task-del-1",
-        "name": "Task Del Project",
-        "repo_path": "/tmp/task-del-repo",
-    })
-    create_resp = await client.post("/api/projects/proj-task-del-1/tasks", json={
-        "name": "Del Task",
-        "intent": "To be deleted",
-        "trigger_type": "manual",
-    })
+    await client.post(
+        "/api/projects",
+        json={
+            "id": "proj-task-del-1",
+            "name": "Task Del Project",
+            "repo_path": "/tmp/task-del-repo",
+        },
+    )
+    create_resp = await client.post(
+        "/api/projects/proj-task-del-1/tasks",
+        json={
+            "name": "Del Task",
+            "intent": "To be deleted",
+            "trigger_type": "manual",
+        },
+    )
     task_id = create_resp.json()["id"]
     response = await client.delete(f"/api/tasks/{task_id}")
     assert response.status_code == 204
@@ -366,16 +392,22 @@ async def test_delete_task(client):
 
 @pytest.mark.asyncio
 async def test_create_source(client):
-    await client.post("/api/projects", json={
-        "id": "proj-src-1",
-        "name": "Source Project",
-        "repo_path": "/tmp/src-repo",
-    })
-    response = await client.post("/api/projects/proj-src-1/sources", json={
-        "source_type": "github",
-        "source_id": "myorg/myrepo",
-        "source_name": "My Repo",
-    })
+    await client.post(
+        "/api/projects",
+        json={
+            "id": "proj-src-1",
+            "name": "Source Project",
+            "repo_path": "/tmp/src-repo",
+        },
+    )
+    response = await client.post(
+        "/api/projects/proj-src-1/sources",
+        json={
+            "source_type": "github",
+            "source_id": "myorg/myrepo",
+            "source_name": "My Repo",
+        },
+    )
     assert response.status_code == 201
     data = response.json()
     assert data["source_type"] == "github"
@@ -386,16 +418,22 @@ async def test_create_source(client):
 
 @pytest.mark.asyncio
 async def test_list_sources(client):
-    await client.post("/api/projects", json={
-        "id": "proj-src-list-1",
-        "name": "Source List Project",
-        "repo_path": "/tmp/src-list-repo",
-    })
-    await client.post("/api/projects/proj-src-list-1/sources", json={
-        "source_type": "linear",
-        "source_id": "team-abc",
-        "source_name": "My Linear Team",
-    })
+    await client.post(
+        "/api/projects",
+        json={
+            "id": "proj-src-list-1",
+            "name": "Source List Project",
+            "repo_path": "/tmp/src-list-repo",
+        },
+    )
+    await client.post(
+        "/api/projects/proj-src-list-1/sources",
+        json={
+            "source_type": "linear",
+            "source_id": "team-abc",
+            "source_name": "My Linear Team",
+        },
+    )
     response = await client.get("/api/projects/proj-src-list-1/sources")
     assert response.status_code == 200
     data = response.json()
@@ -481,25 +519,27 @@ tasks:
     from httpx import ASGITransport, AsyncClient
 
     from agents.main import create_app
-    app = create_app(
-        config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data"
-    )
+
+    app = create_app(config_path=config_file, projects_dir=projects_dir, data_dir=tmp_path / "data")
     state = app.state.app_state
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post("/webhooks/linear", json={
-            "action": "create",
-            "type": "Issue",
-            "data": {
-                "id": "issue-new-1",
-                "identifier": "TST-1",
-                "title": "Test issue",
-                "description": "Test description",
-                "teamId": "team-xyz",
-                "labels": [{"name": "agent"}],
+        response = await client.post(
+            "/webhooks/linear",
+            json={
+                "action": "create",
+                "type": "Issue",
+                "data": {
+                    "id": "issue-new-1",
+                    "identifier": "TST-1",
+                    "title": "Test issue",
+                    "description": "Test description",
+                    "teamId": "team-xyz",
+                    "labels": [{"name": "agent"}],
+                },
             },
-        })
+        )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "processed"

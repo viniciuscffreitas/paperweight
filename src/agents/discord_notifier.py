@@ -23,9 +23,7 @@ class DiscordRunNotifier:
             "Content-Type": "application/json",
         }
 
-    async def _request(
-        self, method: str, path: str, json: dict | None = None
-    ) -> dict | list:
+    async def _request(self, method: str, path: str, json: dict | None = None) -> dict | list:
         url = f"{DISCORD_API_URL}{path}"
         async with httpx.AsyncClient() as client:
             response = await client.request(
@@ -33,9 +31,7 @@ class DiscordRunNotifier:
             )
             if response.status_code == 429:
                 retry_after = response.json().get("retry_after", 2.0)
-                logger.warning(
-                    "Discord rate limited, backing off %.1fs", retry_after
-                )
+                logger.warning("Discord rate limited, backing off %.1fs", retry_after)
                 await asyncio.sleep(retry_after)
                 response = await client.request(
                     method, url, json=json, headers=self._headers, timeout=10.0
@@ -80,9 +76,7 @@ class DiscordRunNotifier:
             if omitted:
                 lines.append(f"*... {omitted} earlier events omitted*")
             for evt in display_events:
-                ts = time.strftime(
-                    "%H:%M:%S", time.localtime(evt.get("timestamp", 0))
-                )
+                ts = time.strftime("%H:%M:%S", time.localtime(evt.get("timestamp", 0)))
                 etype = evt.get("type", "unknown")
                 content = evt.get("content", "")[:120]
                 icon = {
@@ -126,9 +120,7 @@ class DiscordRunNotifier:
 
         return embed
 
-    async def create_run_message(
-        self, channel_id: str, identifier: str, title: str
-    ) -> str:
+    async def create_run_message(self, channel_id: str, identifier: str, title: str) -> str:
         embed = self._build_embed(identifier, title, status="running")
         data = await self._request(
             "POST", f"/channels/{channel_id}/messages", json={"embeds": [embed]}
@@ -166,8 +158,13 @@ class DiscordRunNotifier:
         duration_s: float = 0.0,
     ) -> None:
         embed = self._build_embed(
-            identifier, title, events=events, status="success",
-            pr_url=pr_url, cost=cost, duration_s=duration_s,
+            identifier,
+            title,
+            events=events,
+            status="success",
+            pr_url=pr_url,
+            cost=cost,
+            duration_s=duration_s,
         )
         await self._request(
             "PATCH",
@@ -189,8 +186,13 @@ class DiscordRunNotifier:
         duration_s: float = 0.0,
     ) -> None:
         embed = self._build_embed(
-            identifier, title, events=events, status="failure",
-            error=error, cost=cost, duration_s=duration_s,
+            identifier,
+            title,
+            events=events,
+            status="failure",
+            error=error,
+            cost=cost,
+            duration_s=duration_s,
         )
         embed["footer"] = {"text": f"Attempt {attempt}/{max_attempts} · ${cost:.2f}"}
         await self._request(

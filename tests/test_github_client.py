@@ -14,8 +14,14 @@ def client() -> GitHubClient:
 async def test_list_open_prs(client: GitHubClient) -> None:
     mock_response = MagicMock()
     mock_response.json.return_value = [
-        {"number": 1, "title": "Fix bug", "state": "open", "html_url": "https://github.com/org/repo/pull/1",
-         "user": {"login": "dev1"}, "head": {"ref": "fix-bug"}},
+        {
+            "number": 1,
+            "title": "Fix bug",
+            "state": "open",
+            "html_url": "https://github.com/org/repo/pull/1",
+            "user": {"login": "dev1"},
+            "head": {"ref": "fix-bug"},
+        },
     ]
     mock_response.raise_for_status = MagicMock()
     with patch.object(client._client, "get", new=AsyncMock(return_value=mock_response)):

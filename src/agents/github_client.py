@@ -38,9 +38,7 @@ class GitHubClient:
         return resp.json()
 
     async def search_repos(self, org: str, query: str) -> list[dict]:
-        resp = await self._client.get(
-            "/search/repositories", params={"q": f"{query} org:{org}"}
-        )
+        resp = await self._client.get("/search/repositories", params={"q": f"{query} org:{org}"})
         resp.raise_for_status()
         return resp.json().get("items", [])
 

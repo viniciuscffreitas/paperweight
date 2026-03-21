@@ -1,4 +1,5 @@
 """Agent session API route registration."""
+
 import logging
 from pathlib import Path
 
@@ -36,9 +37,27 @@ def _build_session_history(session_id: str, state: AppState) -> str:
         return ""
     return "\n".join(lines)
 
+
 # Greeting words to strip when generating chat titles
-_GREETINGS = {"oi", "olá", "ola", "hey", "hi", "hello", "e", "ae", "eae", "bom", "boa",
-              "dia", "tarde", "noite", "tudo", "bem", "beleza"}
+_GREETINGS = {
+    "oi",
+    "olá",
+    "ola",
+    "hey",
+    "hi",
+    "hello",
+    "e",
+    "ae",
+    "eae",
+    "bom",
+    "boa",
+    "dia",
+    "tarde",
+    "noite",
+    "tudo",
+    "bem",
+    "beleza",
+}
 
 
 def _generate_title(prompt: str) -> str:
@@ -121,7 +140,9 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                     if history_context:
                         prompt = history_context + "\n\n---\n\n" + prompt
                     session_manager.update_session(
-                        session.id, model=model, claude_session_id="",
+                        session.id,
+                        model=model,
+                        claude_session_id="",
                     )
                     session = session_manager.get_session(session_id)
                 is_resume = True
@@ -146,13 +167,18 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                     state.get_repo_semaphore(project.repo),
                 ):
                     result = await state.executor.run_adhoc(
-                        project, prompt, session, is_resume=is_resume, run_id=run_id,
+                        project,
+                        prompt,
+                        session,
+                        is_resume=is_resume,
+                        run_id=run_id,
                         api_key=user_api_key,
                     )
                     # Capture session_id from ClaudeOutput for --resume
                     if result.claude_session_id:
                         session_manager.update_session(
-                            session.id, claude_session_id=result.claude_session_id,
+                            session.id,
+                            claude_session_id=result.claude_session_id,
                         )
                     elif result.output_file:
                         logger.warning(
@@ -170,6 +196,7 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                     # will PATCH to ready explicitly when spec is done
                     if state.task_store:
                         from agents.task_store import TaskStatus
+
                         items = state.task_store.list_by_project(project_name)
                         for item in items:
                             if item.session_id == session.id:
@@ -181,7 +208,8 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                                     else TaskStatus.FAILED
                                 )
                                 state.task_store.update_status(
-                                    item.id, new_status,
+                                    item.id,
+                                    new_status,
                                     pr_url=result.pr_url,
                                 )
                                 break
@@ -211,6 +239,7 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                 )
                 if _should_create_pr(log_output):
                     from agents.pr_body_builder import build_pr_body
+
                     diff_stat = await state.executor._run_cmd(
                         ["git", "diff", "--stat", f"{project.base_branch}..HEAD"],
                         cwd=str(worktree_path),
@@ -228,8 +257,17 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                     )
                     title = session.title or f"Agent session {session.id[:8]}"
                     pr_output = await state.executor._run_cmd(
-                        ["gh", "pr", "create", "--title", f"[agents] {title}",
-                         "--body", body, "--base", project.base_branch],
+                        [
+                            "gh",
+                            "pr",
+                            "create",
+                            "--title",
+                            f"[agents] {title}",
+                            "--body",
+                            body,
+                            "--base",
+                            project.base_branch,
+                        ],
                         cwd=str(worktree_path),
                     )
                     pr_url = pr_output.strip()
@@ -247,7 +285,8 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
             except Exception:
                 logger.warning(
                     "Failed to remove worktree %s for session %s",
-                    worktree_path, session_id,
+                    worktree_path,
+                    session_id,
                 )
 
         result: dict[str, str | None] = {"status": "closed"}
@@ -303,11 +342,13 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
         for run in runs:
             run_events = state.history.list_events(run.id)
             if run.trigger_type == "agent" and run.task:
-                events.append({
-                    "type": "user_prompt",
-                    "content": run.task,
-                    "timestamp": run.started_at.timestamp(),
-                })
+                events.append(
+                    {
+                        "type": "user_prompt",
+                        "content": run.task,
+                        "timestamp": run.started_at.timestamp(),
+                    }
+                )
             events.extend(run_events)
         return events
 

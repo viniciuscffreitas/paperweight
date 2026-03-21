@@ -1,5 +1,5 @@
 """Tests for auth_middleware — session-cookie enforcement."""
-import pytest
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -35,6 +35,7 @@ def _make_app(auth_db=None) -> FastAPI:
 # Auth disabled (auth_db = None)
 # ---------------------------------------------------------------------------
 
+
 def test_auth_disabled_allows_all_paths():
     app = _make_app(auth_db=None)
     client = TestClient(app, follow_redirects=False)
@@ -46,6 +47,7 @@ def test_auth_disabled_allows_all_paths():
 # ---------------------------------------------------------------------------
 # Auth enabled — skip paths pass through
 # ---------------------------------------------------------------------------
+
 
 class _FakeAuthDB:
     def __init__(self, user=None):

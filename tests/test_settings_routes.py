@@ -1,4 +1,5 @@
 """Tests for settings routes — GET/POST /settings."""
+
 import os
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-settings-tests")
@@ -114,7 +115,8 @@ def test_post_settings_updates_api_key(client: TestClient, auth_db: AuthDB) -> N
 
     # Verify the key was updated in the DB
     users_with_key = [
-        u for uid in ["testuser"]
+        u
+        for uid in ["testuser"]
         if (u := auth_db.authenticate("testuser", "password123")) is not None
     ]
     assert len(users_with_key) == 1
@@ -188,6 +190,7 @@ def test_post_config_saves_values(admin_client: TestClient, config_path: Path) -
     )
     assert resp.status_code == 303
     from agents.config_writer import read_raw_config
+
     raw = read_raw_config(config_path)
     assert raw["budget"]["daily_limit_usd"] == 200.0
     assert raw["execution"]["default_model"] == "opus"
@@ -208,9 +211,7 @@ def test_post_config_rejected_for_non_admin(client: TestClient) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_post_integrations_saves_token(
-    admin_client: TestClient, config_path: Path
-) -> None:
+def test_post_integrations_saves_token(admin_client: TestClient, config_path: Path) -> None:
     resp = admin_client.post(
         "/settings/integrations",
         data={"integrations.linear_api_key": "sk-lin-new"},
@@ -278,7 +279,7 @@ def test_settings_sidebar_shows_projects(client_with_projects: TestClient) -> No
     resp = client_with_projects.get("/settings")
     assert resp.status_code == 200
     # sidebar_item renders a link to /hub/{id}/tasks
-    assert '/hub/paperweight/tasks' in resp.text
+    assert "/hub/paperweight/tasks" in resp.text
     assert "No projects yet" not in resp.text
 
 
@@ -288,7 +289,7 @@ def test_sidebar_add_project_button_always_visible(
     """CHANGES: add project button must appear even when projects exist."""
     resp = client_with_projects.get("/settings")
     assert resp.status_code == 200
-    assert '/hub/paperweight/tasks' in resp.text  # project is listed
+    assert "/hub/paperweight/tasks" in resp.text  # project is listed
     assert "Add project" in resp.text  # button still visible
 
 

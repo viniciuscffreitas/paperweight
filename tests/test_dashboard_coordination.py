@@ -1,4 +1,5 @@
 """Tests for the dashboard coordination tab."""
+
 from __future__ import annotations
 
 import json
@@ -61,8 +62,9 @@ async def test_get_coordination_snapshot_with_claims(broker, wt_a, wt_b):
 
     await broker.on_stream_event(
         "run-a",
-        StreamEvent(type="tool_use", tool_name="Edit",
-                    file_path=str(wt_a / "src/users.py"), timestamp=1.0),
+        StreamEvent(
+            type="tool_use", tool_name="Edit", file_path=str(wt_a / "src/users.py"), timestamp=1.0
+        ),
         worktree_root=wt_a,
     )
 
@@ -83,8 +85,9 @@ async def test_get_coordination_snapshot_contested(broker, wt_a, wt_b):
 
     await broker.on_stream_event(
         "run-a",
-        StreamEvent(type="tool_use", tool_name="Edit",
-                    file_path=str(wt_a / "src/users.py"), timestamp=1.0),
+        StreamEvent(
+            type="tool_use", tool_name="Edit", file_path=str(wt_a / "src/users.py"), timestamp=1.0
+        ),
         worktree_root=wt_a,
     )
 
@@ -105,8 +108,9 @@ async def test_get_coordination_snapshot_timeline(broker, wt_a):
 
     await broker.on_stream_event(
         "run-a",
-        StreamEvent(type="tool_use", tool_name="Edit",
-                    file_path=str(wt_a / "src/x.py"), timestamp=1.0),
+        StreamEvent(
+            type="tool_use", tool_name="Edit", file_path=str(wt_a / "src/x.py"), timestamp=1.0
+        ),
         worktree_root=wt_a,
     )
 
@@ -134,8 +138,12 @@ async def test_timeline_capped_at_100(broker, wt_a):
     for i in range(120):
         await broker.on_stream_event(
             "run-a",
-            StreamEvent(type="tool_use", tool_name="Edit",
-                        file_path=str(wt_a / f"src/file{i}.py"), timestamp=float(i)),
+            StreamEvent(
+                type="tool_use",
+                tool_name="Edit",
+                file_path=str(wt_a / f"src/file{i}.py"),
+                timestamp=float(i),
+            ),
             worktree_root=wt_a,
         )
     # Internal timeline capped at 100

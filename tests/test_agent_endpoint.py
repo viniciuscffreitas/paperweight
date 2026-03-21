@@ -1,4 +1,3 @@
-
 import pytest
 
 
@@ -16,7 +15,7 @@ webhooks:
   github_secret: ""
   linear_secret: ""
 execution:
-  worktree_base: "{tmp_path / 'worktrees'}"
+  worktree_base: "{tmp_path / "worktrees"}"
   dry_run: true
   timeout_minutes: 1
   max_concurrent: 3
@@ -51,6 +50,7 @@ tasks:
     max_cost_usd: 1.0
 """)
     from agents.main import create_app
+
     app = create_app(config_path=config_path, projects_dir=projects_dir, data_dir=tmp_path / "data")
     return app
 
@@ -58,12 +58,16 @@ tasks:
 @pytest.mark.asyncio
 async def test_agent_endpoint_new_session(test_app):
     from httpx import ASGITransport, AsyncClient
+
     async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
-        resp = await client.post("/api/projects/testproj/agent", json={
-            "prompt": "test prompt",
-            "model": "sonnet",
-            "max_cost_usd": 1.0,
-        })
+        resp = await client.post(
+            "/api/projects/testproj/agent",
+            json={
+                "prompt": "test prompt",
+                "model": "sonnet",
+                "max_cost_usd": 1.0,
+            },
+        )
     assert resp.status_code == 202
     data = resp.json()
     assert "run_id" in data
@@ -74,6 +78,7 @@ async def test_agent_endpoint_new_session(test_app):
 @pytest.mark.asyncio
 async def test_agent_endpoint_project_not_found(test_app):
     from httpx import ASGITransport, AsyncClient
+
     async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
         resp = await client.post("/api/projects/nonexistent/agent", json={"prompt": "test"})
     assert resp.status_code == 404
@@ -82,6 +87,7 @@ async def test_agent_endpoint_project_not_found(test_app):
 @pytest.mark.asyncio
 async def test_agent_endpoint_empty_prompt(test_app):
     from httpx import ASGITransport, AsyncClient
+
     async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
         resp = await client.post("/api/projects/testproj/agent", json={"prompt": ""})
     assert resp.status_code == 400
@@ -90,11 +96,15 @@ async def test_agent_endpoint_empty_prompt(test_app):
 @pytest.mark.asyncio
 async def test_close_session_endpoint(test_app):
     from httpx import ASGITransport, AsyncClient
+
     async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
         # Create a session first via the agent endpoint
-        resp = await client.post("/api/projects/testproj/agent", json={
-            "prompt": "test prompt",
-        })
+        resp = await client.post(
+            "/api/projects/testproj/agent",
+            json={
+                "prompt": "test prompt",
+            },
+        )
         assert resp.status_code == 202
         session_id = resp.json()["session_id"]
 
@@ -107,6 +117,7 @@ async def test_close_session_endpoint(test_app):
 @pytest.mark.asyncio
 async def test_close_session_not_found(test_app):
     from httpx import ASGITransport, AsyncClient
+
     async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
         resp = await client.post("/api/sessions/nonexistent-session/close")
     assert resp.status_code == 404
@@ -124,10 +135,13 @@ async def test_agent_endpoint_duplicate_run(test_app):
     assert state.session_manager.try_acquire_run(session.id)  # lock held
 
     async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
-        resp = await client.post("/api/projects/testproj/agent", json={
-            "prompt": "second prompt",
-            "session_id": session.id,
-        })
+        resp = await client.post(
+            "/api/projects/testproj/agent",
+            json={
+                "prompt": "second prompt",
+                "session_id": session.id,
+            },
+        )
     assert resp.status_code == 409
 
     state.session_manager.release_run(session.id)  # cleanup

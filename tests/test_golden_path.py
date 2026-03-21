@@ -9,6 +9,7 @@ Simulates the complete lifecycle without the Claude CLI binary:
 The Claude CLI subprocess is replaced by a mock that emits realistic stream-json
 events (Read → Edit → Write → result), exercising the full streaming pipeline.
 """
+
 import asyncio
 import json
 from pathlib import Path
@@ -32,81 +33,132 @@ pytestmark = pytest.mark.e2e
 # Helpers: simulate realistic stream-json output from Claude CLI
 # ---------------------------------------------------------------------------
 
+
 def _stream_json_lines(worktree: Path) -> list[str]:
     """Produce stream-json lines simulating a Claude agent that reads, edits, writes."""
     return [
         # 1. Agent reads the existing file
-        json.dumps({
-            "type": "assistant",
-            "message": {"content": [{
-                "type": "tool_use", "name": "Read",
-                "input": {"file_path": str(worktree / "src" / "api" / "users.py")},
-            }]},
-        }),
+        json.dumps(
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "name": "Read",
+                            "input": {"file_path": str(worktree / "src" / "api" / "users.py")},
+                        }
+                    ]
+                },
+            }
+        ),
         # 2. Tool result (user message with content)
-        json.dumps({
-            "type": "user",
-            "message": {"content": [{
-                "type": "tool_result", "tool_use_id": "toolu_read1",
-                "content": "def get_users():\n    return []",
-            }]},
-        }),
+        json.dumps(
+            {
+                "type": "user",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": "toolu_read1",
+                            "content": "def get_users():\n    return []",
+                        }
+                    ]
+                },
+            }
+        ),
         # 3. Agent thinks
-        json.dumps({
-            "type": "assistant",
-            "message": {"content": [{
-                "type": "text",
-                "text": "I'll add cursor-based pagination to the users endpoint.",
-            }]},
-        }),
+        json.dumps(
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "I'll add cursor-based pagination to the users endpoint.",
+                        }
+                    ]
+                },
+            }
+        ),
         # 4. Agent edits the file
-        json.dumps({
-            "type": "assistant",
-            "message": {"content": [{
-                "type": "tool_use", "name": "Edit",
-                "input": {
-                    "file_path": str(worktree / "src" / "api" / "users.py"),
-                    "old_string": "def get_users():",
-                    "new_string": "def get_users(cursor=None):",
+        json.dumps(
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "name": "Edit",
+                            "input": {
+                                "file_path": str(worktree / "src" / "api" / "users.py"),
+                                "old_string": "def get_users():",
+                                "new_string": "def get_users(cursor=None):",
+                            },
+                        }
+                    ]
                 },
-            }]},
-        }),
+            }
+        ),
         # 5. Tool result for edit
-        json.dumps({
-            "type": "user",
-            "message": {"content": [{
-                "type": "tool_result", "tool_use_id": "toolu_edit1",
-                "content": "Edit applied successfully",
-            }]},
-        }),
-        # 6. Agent writes a new test file
-        json.dumps({
-            "type": "assistant",
-            "message": {"content": [{
-                "type": "tool_use", "name": "Write",
-                "input": {
-                    "file_path": str(worktree / "tests" / "test_users.py"),
-                    "content": "def test_pagination(): pass",
+        json.dumps(
+            {
+                "type": "user",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": "toolu_edit1",
+                            "content": "Edit applied successfully",
+                        }
+                    ]
                 },
-            }]},
-        }),
+            }
+        ),
+        # 6. Agent writes a new test file
+        json.dumps(
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "name": "Write",
+                            "input": {
+                                "file_path": str(worktree / "tests" / "test_users.py"),
+                                "content": "def test_pagination(): pass",
+                            },
+                        }
+                    ]
+                },
+            }
+        ),
         # 7. Agent runs tests via Bash (not a file tool — no claim)
-        json.dumps({
-            "type": "assistant",
-            "message": {"content": [{
-                "type": "tool_use", "name": "Bash",
-                "input": {"command": "pytest tests/ -v"},
-            }]},
-        }),
+        json.dumps(
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "name": "Bash",
+                            "input": {"command": "pytest tests/ -v"},
+                        }
+                    ]
+                },
+            }
+        ),
         # 8. Final result
-        json.dumps({
-            "type": "result",
-            "subtype": "success",
-            "is_error": False,
-            "total_cost_usd": 0.42,
-            "num_turns": 8,
-            "result": "Done! Added cursor-based pagination.",
-        }),
+        json.dumps(
+            {
+                "type": "result",
+                "subtype": "success",
+                "is_error": False,
+                "total_cost_usd": 0.42,
+                "num_turns": 8,
+                "result": "Done! Added cursor-based pagination.",
+            }
+        ),
     ]
 
 
@@ -146,19 +198,34 @@ async def test_golden_path_single_agent_full_lifecycle(tmp_path):
     (repo / "tests").mkdir()
 
     proc = await asyncio.create_subprocess_exec(
-        "git", "init", cwd=str(repo),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        "git",
+        "init",
+        cwd=str(repo),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     await proc.communicate()
     proc = await asyncio.create_subprocess_exec(
-        "git", "add", "-A", cwd=str(repo),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        "git",
+        "add",
+        "-A",
+        cwd=str(repo),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     await proc.communicate()
     proc = await asyncio.create_subprocess_exec(
-        "git", "-c", "user.name=test", "-c", "user.email=test@test.com",
-        "commit", "-m", "init", cwd=str(repo),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        "git",
+        "-c",
+        "user.name=test",
+        "-c",
+        "user.email=test@test.com",
+        "commit",
+        "-m",
+        "init",
+        cwd=str(repo),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     await proc.communicate()
 
@@ -222,8 +289,6 @@ async def test_golden_path_single_agent_full_lifecycle(tmp_path):
     # Mock the subprocess to emit our stream-json + mock gh pr create
     worktree_ref: list[Path] = []
 
-    original_run_claude = executor._run_claude
-    original_create_pr = executor._create_pr
 
     async def mock_run_claude(cmd, cwd, run_id, timeout):
         worktree = Path(cwd)
@@ -231,6 +296,7 @@ async def test_golden_path_single_agent_full_lifecycle(tmp_path):
         lines = _stream_json_lines(worktree)
         proc = await _mock_subprocess(lines)
         from agents.streaming import RunStream
+
         stream = RunStream(run_id=run_id, on_event=executor.on_stream_event)
         result = await stream.process_stream(proc)
         return result, stream.get_raw_output()
@@ -242,7 +308,9 @@ async def test_golden_path_single_agent_full_lifecycle(tmp_path):
     executor._create_pr = mock_create_pr
 
     run = await executor.run_task(
-        project, "add-pagination", trigger_type="manual",
+        project,
+        "add-pagination",
+        trigger_type="manual",
     )
 
     # ── Phase 3: Verify run result ──
@@ -322,19 +390,34 @@ async def test_golden_path_two_agents_parallel_no_conflict(tmp_path):
     (repo / "src" / "users.py").write_text("# users\n")
 
     proc = await asyncio.create_subprocess_exec(
-        "git", "init", cwd=str(repo),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        "git",
+        "init",
+        cwd=str(repo),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     await proc.communicate()
     proc = await asyncio.create_subprocess_exec(
-        "git", "add", "-A", cwd=str(repo),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        "git",
+        "add",
+        "-A",
+        cwd=str(repo),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     await proc.communicate()
     proc = await asyncio.create_subprocess_exec(
-        "git", "-c", "user.name=test", "-c", "user.email=test@test.com",
-        "commit", "-m", "init", cwd=str(repo),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        "git",
+        "-c",
+        "user.name=test",
+        "-c",
+        "user.email=test@test.com",
+        "commit",
+        "-m",
+        "init",
+        cwd=str(repo),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     await proc.communicate()
 
@@ -355,20 +438,27 @@ async def test_golden_path_two_agents_parallel_no_conflict(tmp_path):
         timeout_minutes=5,
     )
     executor = Executor(
-        config=exec_config, budget=budget, history=db,
-        notifier=notifier, data_dir=data_dir,
-        on_stream_event=broadcast_event, broker=broker,
+        config=exec_config,
+        budget=budget,
+        history=db,
+        notifier=notifier,
+        data_dir=data_dir,
+        on_stream_event=broadcast_event,
+        broker=broker,
     )
 
     project = ProjectConfig(
-        name="myapp", repo=str(repo),
+        name="myapp",
+        repo=str(repo),
         tasks={
             "auth-task": TaskConfig(
-                description="Add auth", intent="Add auth middleware",
+                description="Add auth",
+                intent="Add auth middleware",
                 max_cost_usd=2.0,
             ),
             "users-task": TaskConfig(
-                description="Add pagination", intent="Add pagination to users",
+                description="Add pagination",
+                intent="Add pagination to users",
                 max_cost_usd=2.0,
             ),
         },
@@ -378,27 +468,41 @@ async def test_golden_path_two_agents_parallel_no_conflict(tmp_path):
         async def mock_run_claude(cmd, cwd, run_id, timeout):
             worktree = Path(cwd)
             lines = [
-                json.dumps({
-                    "type": "assistant",
-                    "message": {"content": [{
-                        "type": "tool_use", "name": "Edit",
-                        "input": {
-                            "file_path": str(worktree / file_rel_path),
-                            "old_string": "#", "new_string": "# modified",
+                json.dumps(
+                    {
+                        "type": "assistant",
+                        "message": {
+                            "content": [
+                                {
+                                    "type": "tool_use",
+                                    "name": "Edit",
+                                    "input": {
+                                        "file_path": str(worktree / file_rel_path),
+                                        "old_string": "#",
+                                        "new_string": "# modified",
+                                    },
+                                }
+                            ]
                         },
-                    }]},
-                }),
-                json.dumps({
-                    "type": "result", "is_error": False,
-                    "total_cost_usd": 0.30, "num_turns": 3,
-                    "result": "Done",
-                }),
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "result",
+                        "is_error": False,
+                        "total_cost_usd": 0.30,
+                        "num_turns": 3,
+                        "result": "Done",
+                    }
+                ),
             ]
             proc = await _mock_subprocess(lines)
             from agents.streaming import RunStream
+
             stream = RunStream(run_id=run_id, on_event=executor.on_stream_event)
             result = await stream.process_stream(proc)
             return result, stream.get_raw_output()
+
         return mock_run_claude
 
     async def mock_create_pr(cwd, project, task_name, branch, autonomy, **kwargs):
@@ -447,19 +551,34 @@ async def test_golden_path_two_agents_same_file_conflict_detected(tmp_path):
     (repo / "src" / "shared.py").write_text("# shared\n")
 
     proc = await asyncio.create_subprocess_exec(
-        "git", "init", cwd=str(repo),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        "git",
+        "init",
+        cwd=str(repo),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     await proc.communicate()
     proc = await asyncio.create_subprocess_exec(
-        "git", "add", "-A", cwd=str(repo),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        "git",
+        "add",
+        "-A",
+        cwd=str(repo),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     await proc.communicate()
     proc = await asyncio.create_subprocess_exec(
-        "git", "-c", "user.name=test", "-c", "user.email=test@test.com",
-        "commit", "-m", "init", cwd=str(repo),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        "git",
+        "-c",
+        "user.name=test",
+        "-c",
+        "user.email=test@test.com",
+        "commit",
+        "-m",
+        "init",
+        cwd=str(repo),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     await proc.communicate()
 
@@ -476,27 +595,36 @@ async def test_golden_path_two_agents_same_file_conflict_detected(tmp_path):
         worktree_path = Path(tmp_path / "worktrees") / run_id
         if broker and worktree_path.exists():
             conflict = await broker.on_stream_event(
-                run_id, event, worktree_root=worktree_path,
+                run_id,
+                event,
+                worktree_root=worktree_path,
             )
             if conflict:
-                conflicts_detected.append({
-                    "run_id": run_id,
-                    "conflict_with": conflict.run_id,
-                    "file": conflict.file_path,
-                })
+                conflicts_detected.append(
+                    {
+                        "run_id": run_id,
+                        "conflict_with": conflict.run_id,
+                        "file": conflict.file_path,
+                    }
+                )
 
     exec_config = ExecutionConfig(
         worktree_base=str(tmp_path / "worktrees"),
         timeout_minutes=5,
     )
     executor = Executor(
-        config=exec_config, budget=budget, history=db,
-        notifier=notifier, data_dir=data_dir,
-        on_stream_event=broadcast_event, broker=broker,
+        config=exec_config,
+        budget=budget,
+        history=db,
+        notifier=notifier,
+        data_dir=data_dir,
+        on_stream_event=broadcast_event,
+        broker=broker,
     )
 
     project = ProjectConfig(
-        name="myapp", repo=str(repo),
+        name="myapp",
+        repo=str(repo),
         tasks={
             "task-a": TaskConfig(description="A", intent="Edit shared.py for A", max_cost_usd=2.0),
             "task-b": TaskConfig(description="B", intent="Edit shared.py for B", max_cost_usd=2.0),
@@ -507,26 +635,41 @@ async def test_golden_path_two_agents_same_file_conflict_detected(tmp_path):
         async def mock_run_claude(cmd, cwd, run_id, timeout):
             worktree = Path(cwd)
             lines = [
-                json.dumps({
-                    "type": "assistant",
-                    "message": {"content": [{
-                        "type": "tool_use", "name": "Edit",
-                        "input": {
-                            "file_path": str(worktree / file_path),
-                            "old_string": "#", "new_string": "# edited",
+                json.dumps(
+                    {
+                        "type": "assistant",
+                        "message": {
+                            "content": [
+                                {
+                                    "type": "tool_use",
+                                    "name": "Edit",
+                                    "input": {
+                                        "file_path": str(worktree / file_path),
+                                        "old_string": "#",
+                                        "new_string": "# edited",
+                                    },
+                                }
+                            ]
                         },
-                    }]},
-                }),
-                json.dumps({
-                    "type": "result", "is_error": False,
-                    "total_cost_usd": 0.25, "num_turns": 2, "result": "Done",
-                }),
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "result",
+                        "is_error": False,
+                        "total_cost_usd": 0.25,
+                        "num_turns": 2,
+                        "result": "Done",
+                    }
+                ),
             ]
             proc = await _mock_subprocess(lines)
             from agents.streaming import RunStream
+
             stream = RunStream(run_id=run_id, on_event=executor.on_stream_event)
             result = await stream.process_stream(proc)
             return result, stream.get_raw_output()
+
         return mock_run_claude
 
     async def mock_pr(cwd, project, task_name, branch, autonomy, **kwargs):
@@ -566,19 +709,34 @@ async def test_golden_path_coordination_preamble_in_prompt(tmp_path):
     (repo / "src" / "main.py").write_text("# main\n")
 
     proc = await asyncio.create_subprocess_exec(
-        "git", "init", cwd=str(repo),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        "git",
+        "init",
+        cwd=str(repo),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     await proc.communicate()
     proc = await asyncio.create_subprocess_exec(
-        "git", "add", "-A", cwd=str(repo),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        "git",
+        "add",
+        "-A",
+        cwd=str(repo),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     await proc.communicate()
     proc = await asyncio.create_subprocess_exec(
-        "git", "-c", "user.name=test", "-c", "user.email=test@test.com",
-        "commit", "-m", "init", cwd=str(repo),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        "git",
+        "-c",
+        "user.name=test",
+        "-c",
+        "user.email=test@test.com",
+        "commit",
+        "-m",
+        "init",
+        cwd=str(repo),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     await proc.communicate()
 
@@ -594,12 +752,17 @@ async def test_golden_path_coordination_preamble_in_prompt(tmp_path):
         timeout_minutes=5,
     )
     executor = Executor(
-        config=exec_config, budget=budget, history=db,
-        notifier=notifier, data_dir=data_dir, broker=broker,
+        config=exec_config,
+        budget=budget,
+        history=db,
+        notifier=notifier,
+        data_dir=data_dir,
+        broker=broker,
     )
 
     project = ProjectConfig(
-        name="myapp", repo=str(repo),
+        name="myapp",
+        repo=str(repo),
         tasks={"t": TaskConfig(description="d", intent="do stuff", max_cost_usd=1.0)},
     )
 
@@ -608,12 +771,20 @@ async def test_golden_path_coordination_preamble_in_prompt(tmp_path):
     async def mock_run_claude(cmd, cwd, run_id, timeout):
         # cmd[2] is the prompt (claude -p <prompt> ...)
         captured_prompts.append(cmd[2])
-        lines = [json.dumps({
-            "type": "result", "is_error": False,
-            "total_cost_usd": 0.01, "num_turns": 1, "result": "ok",
-        })]
+        lines = [
+            json.dumps(
+                {
+                    "type": "result",
+                    "is_error": False,
+                    "total_cost_usd": 0.01,
+                    "num_turns": 1,
+                    "result": "ok",
+                }
+            )
+        ]
         proc = await _mock_subprocess(lines)
         from agents.streaming import RunStream
+
         stream = RunStream(run_id=run_id, on_event=executor.on_stream_event)
         result = await stream.process_stream(proc)
         return result, stream.get_raw_output()
@@ -647,19 +818,34 @@ async def test_golden_path_no_coordination_without_broker(tmp_path):
     (repo / "src" / "main.py").write_text("# main\n")
 
     proc = await asyncio.create_subprocess_exec(
-        "git", "init", cwd=str(repo),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        "git",
+        "init",
+        cwd=str(repo),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     await proc.communicate()
     proc = await asyncio.create_subprocess_exec(
-        "git", "add", "-A", cwd=str(repo),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        "git",
+        "add",
+        "-A",
+        cwd=str(repo),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     await proc.communicate()
     proc = await asyncio.create_subprocess_exec(
-        "git", "-c", "user.name=test", "-c", "user.email=test@test.com",
-        "commit", "-m", "init", cwd=str(repo),
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        "git",
+        "-c",
+        "user.name=test",
+        "-c",
+        "user.email=test@test.com",
+        "commit",
+        "-m",
+        "init",
+        cwd=str(repo),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     await proc.communicate()
 
@@ -675,12 +861,16 @@ async def test_golden_path_no_coordination_without_broker(tmp_path):
     )
     # No broker!
     executor = Executor(
-        config=exec_config, budget=budget, history=db,
-        notifier=notifier, data_dir=data_dir,
+        config=exec_config,
+        budget=budget,
+        history=db,
+        notifier=notifier,
+        data_dir=data_dir,
     )
 
     project = ProjectConfig(
-        name="myapp", repo=str(repo),
+        name="myapp",
+        repo=str(repo),
         tasks={"t": TaskConfig(description="d", intent="do stuff", max_cost_usd=1.0)},
     )
 
@@ -688,12 +878,20 @@ async def test_golden_path_no_coordination_without_broker(tmp_path):
 
     async def mock_run_claude(cmd, cwd, run_id, timeout):
         captured_prompts.append(cmd[2])
-        lines = [json.dumps({
-            "type": "result", "is_error": False,
-            "total_cost_usd": 0.01, "num_turns": 1, "result": "ok",
-        })]
+        lines = [
+            json.dumps(
+                {
+                    "type": "result",
+                    "is_error": False,
+                    "total_cost_usd": 0.01,
+                    "num_turns": 1,
+                    "result": "ok",
+                }
+            )
+        ]
         proc = await _mock_subprocess(lines)
         from agents.streaming import RunStream
+
         stream = RunStream(run_id=run_id, on_event=executor.on_stream_event)
         result = await stream.process_stream(proc)
         return result, stream.get_raw_output()

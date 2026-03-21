@@ -1,4 +1,5 @@
 """Auth middleware factory — registers HTTP session-check middleware on the app."""
+
 from collections.abc import Callable, Coroutine
 from typing import Any
 
@@ -7,9 +8,19 @@ from fastapi.responses import RedirectResponse
 
 # Paths that bypass auth unconditionally (browser navigation + all API/WS routes)
 _SKIP_PREFIXES = (
-    "/static/", "/health", "/status", "/login", "/register",
-    "/favicon.ico", "/logout", "/admin/",
-    "/api/", "/tasks/", "/runs/", "/webhooks/", "/ws/",
+    "/static/",
+    "/health",
+    "/status",
+    "/login",
+    "/register",
+    "/favicon.ico",
+    "/logout",
+    "/admin/",
+    "/api/",
+    "/tasks/",
+    "/runs/",
+    "/webhooks/",
+    "/ws/",
 )
 
 

@@ -81,7 +81,9 @@ class Executor:
         )
         run.finished_at = datetime.now(UTC)
         self.history.update_run(
-            run_id=run.id, status=run.status, finished_at=run.finished_at,
+            run_id=run.id,
+            status=run.status,
+            finished_at=run.finished_at,
             error_message=run.error_message,
         )
         await self._emit(run.id, "task_failed", run.error_message)
@@ -95,7 +97,10 @@ class Executor:
         run.cost_usd = 0.0
         run.finished_at = datetime.now(UTC)
         self.history.update_run(
-            run_id=run.id, status=run.status, finished_at=run.finished_at, cost_usd=0.0,
+            run_id=run.id,
+            status=run.status,
+            finished_at=run.finished_at,
+            cost_usd=0.0,
         )
         await self._emit(run.id, "task_completed", "done (dry run)")
         return run
@@ -125,9 +130,13 @@ class Executor:
             progress_file = progress_dir / f"{issue_id}.txt"
             variables["progress_file_path"] = str(progress_file)
             if not progress_file.exists():
-                write_progress_log(progress_dir, issue_id, attempt=1,
-                                   issue_title=variables.get("issue_title", ""),
-                                   issue_description=variables.get("issue_description", ""))
+                write_progress_log(
+                    progress_dir,
+                    issue_id,
+                    attempt=1,
+                    issue_title=variables.get("issue_title", ""),
+                    issue_description=variables.get("issue_description", ""),
+                )
         is_agent_issue = bool(issue_id and self.linear_client)
 
         run_id = generate_run_id(project.name, task_name, issue_id=issue_id)
@@ -153,13 +162,17 @@ class Executor:
             title = variables.get("issue_title", "")
             try:
                 await self.linear_client.update_status(issue_id, team_id, "In Progress")  # type: ignore[union-attr]
-                await self.linear_client.post_comment(issue_id, "\U0001f916 Agente iniciou execução")  # type: ignore[union-attr]
+                await self.linear_client.post_comment(
+                    issue_id, "\U0001f916 Agente iniciou execução"
+                )  # type: ignore[union-attr]
             except Exception:
                 logger.warning("Failed to update Linear for %s", issue_id)
             if self.discord_notifier and project.discord_channel_id:
                 try:
                     discord_msg_id = await self.discord_notifier.create_run_message(  # type: ignore[union-attr]
-                        project.discord_channel_id, identifier, title,
+                        project.discord_channel_id,
+                        identifier,
+                        title,
                     )
                 except Exception:
                     logger.warning("Failed to create Discord message for %s", issue_id)
@@ -172,8 +185,12 @@ class Executor:
             run = await self._handle_dry_run(run, f"{project.name}/{task_name}")
             if is_agent_issue:
                 await finalize_agent_success(
-                    project, variables, discord_msg_id, run,
-                    self.linear_client, self.discord_notifier,
+                    project,
+                    variables,
+                    discord_msg_id,
+                    run,
+                    self.linear_client,
+                    self.discord_notifier,
                 )
             return run
 
@@ -183,26 +200,48 @@ class Executor:
             prompt = build_prompt(task, variables or {})
             if coordination_enabled:
                 from agents.coordination.mediator import build_coordination_preamble
+
                 prompt = build_coordination_preamble() + "\n\n---\n\n" + prompt
 
             branch_name = generate_branch_name(project.branch_prefix, task_name)
             worktree_path = Path(self.config.worktree_base) / run_id
             await self._run_cmd(
-                ["git", "worktree", "add", str(worktree_path), "-b", branch_name, project.base_branch],
+                [
+                    "git",
+                    "worktree",
+                    "add",
+                    str(worktree_path),
+                    "-b",
+                    branch_name,
+                    project.base_branch,
+                ],
                 cwd=project.repo,
             )
 
             if coordination_enabled:
-                await self.broker.register_run(run_id, worktree_path, task.intent or task.prompt or "")  # type: ignore[union-attr]
+                await self.broker.register_run(
+                    run_id, worktree_path, task.intent or task.prompt or ""
+                )  # type: ignore[union-attr]
 
             claude_cmd = [
-                "claude", "-p", prompt, "--model", task.model,
-                "--max-budget-usd", str(task.max_cost_usd),
-                "--output-format", "stream-json", "--verbose",
-                "--permission-mode", "auto", "--no-session-persistence",
+                "claude",
+                "-p",
+                prompt,
+                "--model",
+                task.model,
+                "--max-budget-usd",
+                str(task.max_cost_usd),
+                "--output-format",
+                "stream-json",
+                "--verbose",
+                "--permission-mode",
+                "auto",
+                "--no-session-persistence",
             ]
             output, raw_output = await self._run_claude(
-                claude_cmd, cwd=str(worktree_path), run_id=run_id,
+                claude_cmd,
+                cwd=str(worktree_path),
+                run_id=run_id,
                 timeout=self.config.timeout_minutes * 60,
             )
 
@@ -221,9 +260,13 @@ class Executor:
                 await self._emit(run_id, "task_failed", run.error_message)
             else:
                 pr_url = await self._create_pr(
-                    cwd=str(worktree_path), project=project, task_name=task_name,
-                    branch=branch_name, autonomy=task.autonomy,
-                    variables=variables, cost_usd=output.cost_usd,
+                    cwd=str(worktree_path),
+                    project=project,
+                    task_name=task_name,
+                    branch=branch_name,
+                    autonomy=task.autonomy,
+                    variables=variables,
+                    cost_usd=output.cost_usd,
                 )
                 run.status = RunStatus.SUCCESS
                 run.pr_url = pr_url
@@ -233,8 +276,12 @@ class Executor:
                     delete_progress_log(self.data_dir / "progress", issue_id)
                 if is_agent_issue:
                     await finalize_agent_success(
-                        project, variables, discord_msg_id, run,
-                        self.linear_client, self.discord_notifier,
+                        project,
+                        variables,
+                        discord_msg_id,
+                        run,
+                        self.linear_client,
+                        self.discord_notifier,
                     )
 
         except TimeoutError:
@@ -250,14 +297,23 @@ class Executor:
             run.finished_at = datetime.now(UTC)
             if issue_id and run.status in (RunStatus.FAILURE, RunStatus.TIMEOUT):
                 try:
-                    append_progress_log(self.data_dir / "progress", issue_id,
-                                        attempt=1, error=run.error_message or "")
+                    append_progress_log(
+                        self.data_dir / "progress",
+                        issue_id,
+                        attempt=1,
+                        error=run.error_message or "",
+                    )
                 except Exception:
                     logger.warning("Failed to write progress log for %s", issue_id)
             self.history.update_run(
-                run_id=run.id, status=run.status, finished_at=run.finished_at,
-                cost_usd=run.cost_usd, num_turns=run.num_turns, pr_url=run.pr_url,
-                error_message=run.error_message, output_file=run.output_file,
+                run_id=run.id,
+                status=run.status,
+                finished_at=run.finished_at,
+                cost_usd=run.cost_usd,
+                num_turns=run.num_turns,
+                pr_url=run.pr_url,
+                error_message=run.error_message,
+                output_file=run.output_file,
             )
             should_cleanup = True
             if coordination_enabled and worktree_path:
@@ -278,8 +334,14 @@ class Executor:
         await self.notifier.send_run_notification(run)
         if is_agent_issue and run.status in (RunStatus.FAILURE, RunStatus.TIMEOUT):
             await fail_agent_run(
-                project, variables, discord_msg_id, run, 1, 1,
-                self.linear_client, self.discord_notifier,
+                project,
+                variables,
+                discord_msg_id,
+                run,
+                1,
+                1,
+                self.linear_client,
+                self.discord_notifier,
             )
         status = self.budget.get_status()
         if status.is_warning:
@@ -331,26 +393,42 @@ class Executor:
             else:
                 await self._run_cmd(
                     [
-                        "git", "worktree", "add", str(worktree_path),
-                        "-b", f"agents/session-{session.id}", project.base_branch,
+                        "git",
+                        "worktree",
+                        "add",
+                        str(worktree_path),
+                        "-b",
+                        f"agents/session-{session.id}",
+                        project.base_branch,
                     ],
                     cwd=project.repo,
                 )
 
             claude_cmd = [
-                "claude", "-p", prompt, "--model", session.model,
-                "--max-budget-usd", str(session.max_cost_usd),
-                "--output-format", "stream-json", "--verbose",
-                "--permission-mode", "auto",
+                "claude",
+                "-p",
+                prompt,
+                "--model",
+                session.model,
+                "--max-budget-usd",
+                str(session.max_cost_usd),
+                "--output-format",
+                "stream-json",
+                "--verbose",
+                "--permission-mode",
+                "auto",
             ]
             if is_resume and session.claude_session_id:
                 claude_cmd.extend(["--resume", session.claude_session_id])
 
             import os as _os
+
             env_override = {**_os.environ, "ANTHROPIC_API_KEY": api_key} if api_key else None
 
             output, raw_output = await self._run_claude(
-                claude_cmd, cwd=str(worktree_path), run_id=run_id,
+                claude_cmd,
+                cwd=str(worktree_path),
+                run_id=run_id,
                 timeout=self.config.timeout_minutes * 60,
                 env=env_override,
             )
@@ -381,14 +459,20 @@ class Executor:
         except Exception as e:
             run.status = RunStatus.FAILURE
             run.error_message = str(e)[:500]
-            logger.exception("Ad-hoc execution failed: %s/agent (session=%s)", project.name, session.id)
+            logger.exception(
+                "Ad-hoc execution failed: %s/agent (session=%s)", project.name, session.id
+            )
             await self._emit(run_id, "task_failed", run.error_message)
         finally:
             run.finished_at = datetime.now(UTC)
             self.history.update_run(
-                run_id=run.id, status=run.status, finished_at=run.finished_at,
-                cost_usd=run.cost_usd, num_turns=run.num_turns,
-                error_message=run.error_message, output_file=run.output_file,
+                run_id=run.id,
+                status=run.status,
+                finished_at=run.finished_at,
+                cost_usd=run.cost_usd,
+                num_turns=run.num_turns,
+                error_message=run.error_message,
+                output_file=run.output_file,
             )
             self._running_processes.pop(run_id, None)
             # Worktree cleanup intentionally omitted — session manager owns the lifecycle
@@ -407,8 +491,12 @@ class Executor:
         run: RunRecord,
     ) -> None:
         await finalize_agent_success(
-            project, variables, discord_msg_id, run,
-            self.linear_client, self.discord_notifier,
+            project,
+            variables,
+            discord_msg_id,
+            run,
+            self.linear_client,
+            self.discord_notifier,
         )
 
     async def _fail_agent_run(
@@ -421,8 +509,14 @@ class Executor:
         max_attempts: int,
     ) -> None:
         await fail_agent_run(
-            project, variables, discord_msg_id, run, attempt, max_attempts,
-            self.linear_client, self.discord_notifier,
+            project,
+            variables,
+            discord_msg_id,
+            run,
+            attempt,
+            max_attempts,
+            self.linear_client,
+            self.discord_notifier,
         )
 
     async def cancel_run(self, run_id: str) -> bool:
@@ -506,6 +600,7 @@ class Executor:
         )
 
         from agents.pr_body_builder import build_pr_body
+
         body = build_pr_body(
             project_name=project.name,
             task_name=task_name,
@@ -517,10 +612,15 @@ class Executor:
 
         await self._run_cmd(["git", "push", "-u", "origin", branch], cwd=cwd)
         pr_cmd = [
-            "gh", "pr", "create",
-            "--title", f"[agents] {project.name}/{task_name}",
-            "--body", body,
-            "--base", project.base_branch,
+            "gh",
+            "pr",
+            "create",
+            "--title",
+            f"[agents] {project.name}/{task_name}",
+            "--body",
+            body,
+            "--base",
+            project.base_branch,
         ]
         pr_output = await self._run_cmd(pr_cmd, cwd=cwd)
         pr_url = pr_output.strip()

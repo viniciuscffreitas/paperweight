@@ -1,4 +1,5 @@
 """Tests for HTMX dashboard HTML routes."""
+
 from __future__ import annotations
 
 import pytest
@@ -264,6 +265,7 @@ def test_main_imports_dashboard_html_not_nicegui():
     import inspect
 
     from agents import main
+
     source = inspect.getsource(main)
     assert "from agents.dashboard_html import setup_dashboard" in source
     assert "from agents.dashboard import setup_dashboard" not in source
@@ -278,6 +280,7 @@ def test_dashboard_chrome_no_redundant_border(app_with_dashboard):
     assert "margin-top:-1px" not in html
     # content-card must not carry its own border (sidebar/topbar already define the L frame)
     import re
+
     content_card_match = re.search(r'id="content-card"[^>]*style="([^"]*)"', html)
     assert content_card_match, "content-card element not found"
     card_style = content_card_match.group(1)
@@ -301,6 +304,7 @@ def test_dashboard_chrome_label_contrast(app_with_dashboard):
 def test_dashboard_chrome_sidebar_no_right_border(app_with_dashboard):
     """Sidebar must not have border-right — separation via color contrast only."""
     import re
+
     resp = app_with_dashboard.get("/dashboard")
     html = resp.text
     match = re.search(r'id="sidebar"[^>]*style="([^"]*)"', html)
@@ -311,6 +315,7 @@ def test_dashboard_chrome_sidebar_no_right_border(app_with_dashboard):
 def test_dashboard_chrome_topbar_no_bottom_border(app_with_dashboard):
     """#app-topbar must not have border-bottom — floating card effect."""
     import re
+
     resp = app_with_dashboard.get("/dashboard")
     html = resp.text
     match = re.search(r'id="app-topbar"[^>]*style="([^"]*)"', html)
@@ -326,6 +331,7 @@ def test_dashboard_chrome_topbar_no_bottom_border(app_with_dashboard):
 def test_dashboard_chrome_l_sidebar_header_no_internal_border(app_with_dashboard):
     """Sidebar header must not have its own border-bottom (causes misaligned L)."""
     import re
+
     resp = app_with_dashboard.get("/dashboard")
     html = resp.text
     match = re.search(r'<div[^>]*style="([^"]*)"[^>]*>\s*<span[^>]*>paperweight', html)
@@ -338,6 +344,7 @@ def test_dashboard_chrome_l_sidebar_header_no_internal_border(app_with_dashboard
 def test_dashboard_chrome_l_sidebar_header_height(app_with_dashboard):
     """Sidebar header must declare height:44px to align with topbar."""
     import re
+
     resp = app_with_dashboard.get("/dashboard")
     html = resp.text
     match = re.search(r'<div[^>]*style="([^"]*)"[^>]*>\s*<span[^>]*>paperweight', html)
@@ -348,11 +355,10 @@ def test_dashboard_chrome_l_sidebar_header_height(app_with_dashboard):
 def test_dashboard_chrome_l_topbar_height(app_with_dashboard):
     """Topbar content must be 44px tall to match sidebar header."""
     import re
+
     resp = app_with_dashboard.get("/dashboard")
     html = resp.text
-    topbar_region = re.search(
-        r'id="app-topbar"[^>]*>(.*?)</div>\s*<!--', html, re.DOTALL
-    )
+    topbar_region = re.search(r'id="app-topbar"[^>]*>(.*?)</div>\s*<!--', html, re.DOTALL)
     assert topbar_region, "#app-topbar region not found"
     assert "height:44px" in topbar_region.group(1)
 
@@ -401,6 +407,7 @@ def test_panel_header_height_44px(app_with_project):
     """Topbar and sidebar header must be 44px to align in L-chrome."""
     # Redesign: /hub/<id> now redirects to /hub/<id>/tasks (full page, not panel fragment)
     import re
+
     resp = app_with_project.get("/hub/p1")
     html = resp.text
     assert "height:44px" in html
@@ -545,9 +552,8 @@ def test_hub_agent_session_status_has_data_attribute(app_with_project):
 def test_css_vars_root_defined():
     """styles.css must define the :root CSS custom properties block."""
     import os
-    css_path = os.path.join(
-        os.path.dirname(__file__), "../src/agents/static/styles.css"
-    )
+
+    css_path = os.path.join(os.path.dirname(__file__), "../src/agents/static/styles.css")
     with open(css_path) as f:
         css = f.read()
     assert ":root {" in css
@@ -556,6 +562,7 @@ def test_css_vars_root_defined():
 def test_right_panel_no_border_left_desktop(app_with_dashboard):
     """#right-panel desktop inline style must not contain border-left."""
     import re
+
     resp = app_with_dashboard.get("/dashboard")
     html = resp.text
     match = re.search(r'id="right-panel"[^>]*style="([^"]*)"', html)
@@ -575,11 +582,11 @@ def test_templates_use_css_vars(app_with_project):
 # Light Theme — CSS
 # ---------------------------------------------------------------------------
 
+
 def _read_css() -> str:
     import os
-    css_path = os.path.join(
-        os.path.dirname(__file__), "../src/agents/static/styles.css"
-    )
+
+    css_path = os.path.join(os.path.dirname(__file__), "../src/agents/static/styles.css")
     with open(css_path) as f:
         return f.read()
 
@@ -607,8 +614,13 @@ def test_css_light_theme_overrides_all_bg_tokens():
     assert light_block_start != -1
     light_block = css[light_block_start:]
     for token in [
-        "--bg-chrome", "--bg-content", "--bg-elevated", "--bg-overlay",
-        "--bg-task-success", "--bg-task-error", "--bg-task-hover",
+        "--bg-chrome",
+        "--bg-content",
+        "--bg-elevated",
+        "--bg-overlay",
+        "--bg-task-success",
+        "--bg-task-error",
+        "--bg-task-hover",
     ]:
         assert token in light_block, f"Missing {token} in light theme block"
 
@@ -619,8 +631,11 @@ def test_css_light_theme_overrides_all_text_tokens():
     light_block_start = css.find('[data-theme="light"]')
     light_block = css[light_block_start:]
     for token in [
-        "--text-primary", "--text-secondary", "--text-muted",
-        "--text-disabled", "--text-placeholder",
+        "--text-primary",
+        "--text-secondary",
+        "--text-muted",
+        "--text-disabled",
+        "--text-placeholder",
     ]:
         assert token in light_block, f"Missing {token} in light theme block"
 
@@ -631,9 +646,14 @@ def test_css_light_theme_overrides_border_and_accent_tokens():
     light_block_start = css.find('[data-theme="light"]')
     light_block = css[light_block_start:]
     for token in [
-        "--border-subtle", "--border-default", "--border-strong",
-        "--accent", "--accent-bg", "--accent-hover",
-        "--overlay-backdrop", "--overlay-shadow",
+        "--border-subtle",
+        "--border-default",
+        "--border-strong",
+        "--accent",
+        "--accent-bg",
+        "--accent-hover",
+        "--overlay-backdrop",
+        "--overlay-shadow",
     ]:
         assert token in light_block, f"Missing {token} in light theme block"
 
@@ -644,10 +664,15 @@ def test_css_light_theme_overrides_status_tokens():
     light_block_start = css.find('[data-theme="light"]')
     light_block = css[light_block_start:]
     for token in [
-        "--status-running", "--status-success", "--status-error",
-        "--status-warning", "--status-neutral",
+        "--status-running",
+        "--status-success",
+        "--status-error",
+        "--status-warning",
+        "--status-neutral",
     ]:
-        assert token in light_block, f"Missing {token} in light theme block (needed for WCAG contrast on cream)"
+        assert token in light_block, (
+            f"Missing {token} in light theme block (needed for WCAG contrast on cream)"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -786,10 +811,10 @@ def test_theme_toggle_js_rollback_present(app_with_dashboard):
 def test_base_uses_new_assets(app_with_dashboard):
     r = app_with_dashboard.get("/dashboard")
     assert r.status_code == 200
-    assert 'styles.css' in r.text
-    assert 'app.js' in r.text
-    assert 'dashboard.css' not in r.text
-    assert 'dashboard.js' not in r.text
+    assert "styles.css" in r.text
+    assert "app.js" in r.text
+    assert "dashboard.css" not in r.text
+    assert "dashboard.js" not in r.text
 
 
 # ---------------------------------------------------------------------------
@@ -881,9 +906,7 @@ def test_task_detail_route_404(app_with_dashboard_with_project):
 def test_hub_task_detail_route(app_with_dashboard_with_project_and_task):
     """Task detail returns 200 and renders task content for an existing task."""
     task_id = app_with_dashboard_with_project_and_task._task_id
-    r = app_with_dashboard_with_project_and_task.get(
-        f"/hub/test-project/task/{task_id}"
-    )
+    r = app_with_dashboard_with_project_and_task.get(f"/hub/test-project/task/{task_id}")
     assert r.status_code == 200
     assert "Back to tasks" in r.text or "back" in r.text.lower()
 
@@ -891,9 +914,7 @@ def test_hub_task_detail_route(app_with_dashboard_with_project_and_task):
 def test_hub_task_detail_shows_title(app_with_dashboard_with_project_and_task):
     """Task detail renders the task title."""
     task_id = app_with_dashboard_with_project_and_task._task_id
-    r = app_with_dashboard_with_project_and_task.get(
-        f"/hub/test-project/task/{task_id}"
-    )
+    r = app_with_dashboard_with_project_and_task.get(f"/hub/test-project/task/{task_id}")
     assert r.status_code == 200
     assert "My test task" in r.text
 
@@ -901,9 +922,7 @@ def test_hub_task_detail_shows_title(app_with_dashboard_with_project_and_task):
 def test_hub_task_detail_loads_stream_js(app_with_dashboard_with_project_and_task):
     """Task detail template loads stream.js and task-detail.js."""
     task_id = app_with_dashboard_with_project_and_task._task_id
-    r = app_with_dashboard_with_project_and_task.get(
-        f"/hub/test-project/task/{task_id}"
-    )
+    r = app_with_dashboard_with_project_and_task.get(f"/hub/test-project/task/{task_id}")
     assert r.status_code == 200
     assert b"/static/stream.js" in r.content
     assert b"/static/task-detail.js" in r.content

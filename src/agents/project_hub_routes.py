@@ -1,4 +1,5 @@
 """Project Hub CRUD route registration (projects, tasks, sources)."""
+
 from fastapi import FastAPI, HTTPException
 
 from agents.app_state import AppState
@@ -16,12 +17,14 @@ async def _discover_sources(name: str, state: AppState) -> list[dict]:
             for team_name, team_id in teams.items():
                 if query in team_name.replace("-", "").replace(" ", ""):
                     norm = team_name.replace("-", "").replace(" ", "")
-                    results.append({
-                        "source_type": "linear",
-                        "source_id": team_id,
-                        "source_name": f"Team: {team_name}",
-                        "confidence": "high" if query == norm else "medium",
-                    })
+                    results.append(
+                        {
+                            "source_type": "linear",
+                            "source_id": team_id,
+                            "source_name": f"Team: {team_name}",
+                            "confidence": "high" if query == norm else "medium",
+                        }
+                    )
         except Exception:
             pass
 
@@ -31,15 +34,15 @@ async def _discover_sources(name: str, state: AppState) -> list[dict]:
             repos = await state.github_client.search_repos("", name)
             for repo in repos[:5]:
                 full_name = repo.get("full_name", "")
-                confidence = (
-                    "high" if query in full_name.lower().replace("-", "") else "medium"
+                confidence = "high" if query in full_name.lower().replace("-", "") else "medium"
+                results.append(
+                    {
+                        "source_type": "github",
+                        "source_id": full_name,
+                        "source_name": f"Repo: {repo.get('name', '')}",
+                        "confidence": confidence,
+                    }
                 )
-                results.append({
-                    "source_type": "github",
-                    "source_id": full_name,
-                    "source_name": f"Repo: {repo.get('name', '')}",
-                    "confidence": confidence,
-                })
         except Exception:
             pass
 
@@ -48,12 +51,14 @@ async def _discover_sources(name: str, state: AppState) -> list[dict]:
         try:
             channels = await state.slack_bot_client.search_channels_by_name(name)
             for ch in channels[:5]:
-                results.append({
-                    "source_type": "slack",
-                    "source_id": ch["id"],
-                    "source_name": f"#{ch['name']}",
-                    "confidence": "high" if query in ch["name"].replace("-", "") else "medium",
-                })
+                results.append(
+                    {
+                        "source_type": "slack",
+                        "source_id": ch["id"],
+                        "source_name": f"#{ch['name']}",
+                        "confidence": "high" if query in ch["name"].replace("-", "") else "medium",
+                    }
+                )
         except Exception:
             pass
 

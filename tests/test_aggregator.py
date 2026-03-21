@@ -1,4 +1,5 @@
 """Tests for aggregator normalizers and AggregatorService."""
+
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -166,9 +167,7 @@ class TestNormalizeSlackMessage:
 
     def test_user_name_in_author(self):
         raw = {"text": "hi", "ts": "1700000000.0"}
-        result = normalize_slack_message(
-            raw, project_id="p", channel_name="c", user_name="dave"
-        )
+        result = normalize_slack_message(raw, project_id="p", channel_name="c", user_name="dave")
         assert result["author"] == "dave"
 
 
@@ -261,9 +260,7 @@ class TestPollGithub:
                 }
             ]
         )
-        github_client.get_combined_status = AsyncMock(
-            return_value={"state": "success"}
-        )
+        github_client.get_combined_status = AsyncMock(return_value={"state": "success"})
 
         svc = AggregatorService(store=store, github_client=github_client)
         await svc.poll_github("proj-1")
@@ -291,9 +288,7 @@ class TestPollSlack:
                 {"text": "Deploy done", "ts": "1700000001.000", "user": "U999"},
             ]
         )
-        slack_client.get_user_info = AsyncMock(
-            return_value={"real_name": "Frank", "id": "U999"}
-        )
+        slack_client.get_user_info = AsyncMock(return_value={"real_name": "Frank", "id": "U999"})
 
         svc = AggregatorService(store=store, slack_client=slack_client)
         await svc.poll_slack("proj-1")

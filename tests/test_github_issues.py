@@ -1,11 +1,12 @@
-from agents.webhooks.github import match_github_issue, extract_github_issue_variables
+from agents.webhooks.github import extract_github_issue_variables, match_github_issue
 
 
 def test_match_github_issue_opened():
     payload = {
         "action": "opened",
         "issue": {
-            "number": 42, "title": "Add pagination",
+            "number": 42,
+            "title": "Add pagination",
             "body": "We need cursor-based pagination",
             "labels": [{"name": "agent"}],
             "user": {"login": "vini"},
@@ -20,7 +21,9 @@ def test_match_github_issue_labeled_with_agent():
         "action": "labeled",
         "label": {"name": "agent"},
         "issue": {
-            "number": 42, "title": "Fix bug", "body": "",
+            "number": 42,
+            "title": "Fix bug",
+            "body": "",
             "labels": [{"name": "agent"}, {"name": "bug"}],
         },
     }
@@ -50,7 +53,8 @@ def test_extract_github_issue_variables():
     payload = {
         "action": "opened",
         "issue": {
-            "number": 42, "title": "Add pagination",
+            "number": 42,
+            "title": "Add pagination",
             "body": "Description here",
             "html_url": "https://github.com/org/repo/issues/42",
             "labels": [{"name": "agent"}],

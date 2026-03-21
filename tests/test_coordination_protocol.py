@@ -1,4 +1,5 @@
 """Tests for coordination protocol filesystem I/O."""
+
 import json
 
 import pytest
@@ -71,10 +72,7 @@ def test_read_inbox_incremental(worktree):
 
     init_coordination_dir(worktree)
     inbox_path = worktree / ".paperweight" / "inbox.jsonl"
-    inbox_path.write_text(
-        '{"type":"need_file","file":"a.py"}\n'
-        '{"type":"heartbeat"}\n'
-    )
+    inbox_path.write_text('{"type":"need_file","file":"a.py"}\n{"type":"heartbeat"}\n')
 
     msgs, pos = read_inbox(worktree, from_position=0)
     assert len(msgs) == 2
@@ -108,9 +106,9 @@ def test_read_inbox_skips_malformed_json(worktree):
     inbox_path = worktree / ".paperweight" / "inbox.jsonl"
     inbox_path.write_text(
         '{"type":"heartbeat"}\n'
-        'THIS IS NOT JSON\n'
+        "THIS IS NOT JSON\n"
         '{"type":"edit_complete","file":"x.py"}\n'
-        '{invalid json too}\n'
+        "{invalid json too}\n"
     )
 
     msgs, pos = read_inbox(worktree, from_position=0)

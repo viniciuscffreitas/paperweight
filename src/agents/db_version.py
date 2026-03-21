@@ -1,4 +1,5 @@
 """Simple schema version tracker — alternative to Alembic for embedded SQLite."""
+
 import logging
 import sqlite3
 from collections.abc import Callable
@@ -31,6 +32,7 @@ class SchemaVersionTracker:
         if version <= self.current_version():
             return False
         from datetime import UTC, datetime
+
         with self._conn() as conn:
             migration_fn(conn)
             conn.execute(

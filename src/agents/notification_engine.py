@@ -1,4 +1,5 @@
 """Notification Engine — daily digests and real-time urgent alerts."""
+
 from __future__ import annotations
 
 import logging

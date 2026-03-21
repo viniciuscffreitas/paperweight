@@ -1,4 +1,5 @@
 """Retry policy for failed task executions."""
+
 from pydantic import BaseModel
 
 
@@ -16,12 +17,22 @@ class RetryPolicy(BaseModel):
 
 
 _RETRYABLE_PATTERNS = [
-    "timed out", "timeout", "rate_limit", "worktree add",
-    "connection", "temporary", "503", "502", "eagain",
+    "timed out",
+    "timeout",
+    "rate_limit",
+    "worktree add",
+    "connection",
+    "temporary",
+    "503",
+    "502",
+    "eagain",
 ]
 _PERMANENT_PATTERNS = [
-    "budget exceeded", "project not found", "task not found",
-    "invalid signature", "authentication",
+    "budget exceeded",
+    "project not found",
+    "task not found",
+    "invalid signature",
+    "authentication",
 ]
 
 

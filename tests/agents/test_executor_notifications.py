@@ -44,7 +44,12 @@ def _make_run(pr_url: str | None = None, error: str | None = None) -> RunRecord:
 async def test_finalize_posts_pr_comment_to_linear():
     linear = AsyncMock()
     run = _make_run(pr_url="https://github.com/org/repo/pull/42")
-    variables = {"issue_id": "ISS-1", "team_id": "T1", "issue_identifier": "ISS-1", "issue_title": "Fix"}
+    variables = {
+        "issue_id": "ISS-1",
+        "team_id": "T1",
+        "issue_identifier": "ISS-1",
+        "issue_title": "Fix",
+    }
 
     await finalize_agent_success(_make_project(), variables, "", run, linear, None)
 
@@ -57,7 +62,12 @@ async def test_finalize_posts_pr_comment_to_linear():
 async def test_finalize_posts_no_changes_comment_when_no_pr():
     linear = AsyncMock()
     run = _make_run(pr_url=None)
-    variables = {"issue_id": "ISS-2", "team_id": "T1", "issue_identifier": "ISS-2", "issue_title": "x"}
+    variables = {
+        "issue_id": "ISS-2",
+        "team_id": "T1",
+        "issue_identifier": "ISS-2",
+        "issue_title": "x",
+    }
 
     await finalize_agent_success(_make_project(), variables, "", run, linear, None)
 
@@ -91,9 +101,16 @@ async def test_finalize_removes_agent_label():
 async def test_finalize_calls_discord_when_msg_id_set():
     discord = AsyncMock()
     run = _make_run(pr_url="https://github.com/pr/2")
-    variables = {"issue_id": "ISS-5", "team_id": "", "issue_identifier": "ISS-5", "issue_title": "Title"}
+    variables = {
+        "issue_id": "ISS-5",
+        "team_id": "",
+        "issue_identifier": "ISS-5",
+        "issue_title": "Title",
+    }
 
-    await finalize_agent_success(_make_project(discord_channel_id="C1"), variables, "msg-abc", run, None, discord)
+    await finalize_agent_success(
+        _make_project(discord_channel_id="C1"), variables, "msg-abc", run, None, discord
+    )
 
     discord.finalize_run_message.assert_awaited_once()
 
@@ -104,7 +121,9 @@ async def test_finalize_skips_discord_when_no_msg_id():
     run = _make_run()
     variables = {"issue_id": "ISS-6", "team_id": "", "issue_identifier": "", "issue_title": ""}
 
-    await finalize_agent_success(_make_project(discord_channel_id="C1"), variables, "", run, None, discord)
+    await finalize_agent_success(
+        _make_project(discord_channel_id="C1"), variables, "", run, None, discord
+    )
 
     discord.finalize_run_message.assert_not_awaited()
 
@@ -163,9 +182,16 @@ async def test_fail_resets_linear_status_to_todo():
 async def test_fail_calls_discord_fail_message():
     discord = AsyncMock()
     run = _make_run(error="crash")
-    variables = {"issue_id": "ISS-11", "team_id": "", "issue_identifier": "ISS-11", "issue_title": "Bork"}
+    variables = {
+        "issue_id": "ISS-11",
+        "team_id": "",
+        "issue_identifier": "ISS-11",
+        "issue_title": "Bork",
+    }
 
-    await fail_agent_run(_make_project(discord_channel_id="C2"), variables, "msg-xyz", run, 2, 5, None, discord)
+    await fail_agent_run(
+        _make_project(discord_channel_id="C2"), variables, "msg-xyz", run, 2, 5, None, discord
+    )
 
     discord.fail_run_message.assert_awaited_once()
     kwargs = discord.fail_run_message.call_args[1]

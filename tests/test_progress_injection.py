@@ -6,6 +6,7 @@ def test_progress_file_path_injected_into_variables():
     import tempfile
 
     from agents.executor_utils import write_progress_log
+
     progress_dir = Path(tempfile.mkdtemp()) / "progress"
     issue_id = "issue-abc"
     path = write_progress_log(progress_dir, issue_id, attempt=1, issue_title="Test")

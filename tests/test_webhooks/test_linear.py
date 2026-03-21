@@ -48,34 +48,46 @@ def test_extract_linear_variables():
 
 def test_match_agent_issue_with_agent_label():
     from agents.webhooks.linear import match_agent_issue
+
     payload = {
-        "action": "create", "type": "Issue",
+        "action": "create",
+        "type": "Issue",
         "data": {"id": "i-1", "labels": [{"name": "agent"}, {"name": "bug"}]},
     }
     assert match_agent_issue(payload) is True
 
+
 def test_match_agent_issue_without_agent_label():
     from agents.webhooks.linear import match_agent_issue
+
     payload = {
-        "action": "create", "type": "Issue",
+        "action": "create",
+        "type": "Issue",
         "data": {"id": "i-1", "labels": [{"name": "bug"}]},
     }
     assert match_agent_issue(payload) is False
 
+
 def test_match_agent_issue_ignores_non_issue_types():
     from agents.webhooks.linear import match_agent_issue
+
     payload = {
-        "action": "create", "type": "Comment",
+        "action": "create",
+        "type": "Comment",
         "data": {"id": "c-1", "labels": [{"name": "agent"}]},
     }
     assert match_agent_issue(payload) is False
 
+
 def test_extract_agent_issue_variables():
     from agents.webhooks.linear import extract_agent_issue_variables
+
     payload = {
         "data": {
-            "id": "i-abc", "identifier": "SEK-147",
-            "title": "Add pagination", "description": "Add to user list",
+            "id": "i-abc",
+            "identifier": "SEK-147",
+            "title": "Add pagination",
+            "description": "Add to user list",
             "teamId": "team-xyz",
         }
     }

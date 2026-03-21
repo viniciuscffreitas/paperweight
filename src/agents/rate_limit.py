@@ -1,4 +1,5 @@
 """Simple in-memory rate limiter — no external dependencies."""
+
 import time
 from collections import defaultdict
 

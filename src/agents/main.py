@@ -26,15 +26,18 @@ logger = logging.getLogger(__name__)
 
 class JSONFormatter(logging.Formatter):
     """JSON log formatter for production use. Enable via LOG_FORMAT=json."""
+
     def format(self, record: logging.LogRecord) -> str:
-        return json_module.dumps({
-            "ts": self.formatTime(record),
-            "level": record.levelname,
-            "logger": record.name,
-            "msg": record.getMessage(),
-            "module": record.module,
-            **({"exc": self.formatException(record.exc_info)} if record.exc_info else {}),
-        })
+        return json_module.dumps(
+            {
+                "ts": self.formatTime(record),
+                "level": record.levelname,
+                "logger": record.name,
+                "msg": record.getMessage(),
+                "module": record.module,
+                **({"exc": self.formatException(record.exc_info)} if record.exc_info else {}),
+            }
+        )
 
 
 def create_app(
@@ -59,9 +62,11 @@ def create_app(
     project_store = ProjectStore(data_dir / "project_hub.db")
 
     from agents.session_manager import SessionManager
+
     session_manager = SessionManager(db_path, worktree_base=config.execution.worktree_base)
 
     from agents.task_store import TaskStore
+
     task_store = TaskStore(db_path)
 
     from agents.aggregator import AggregatorService
@@ -95,6 +100,7 @@ def create_app(
     )
 
     from agents.notification_engine import NotificationEngine
+
     notification_engine = NotificationEngine(
         store=project_store,
         slack_notifier=notifier,
@@ -115,10 +121,8 @@ def create_app(
         # Close WebSocket connections when run finishes
         if event.type in ("task_completed", "task_failed"):
             for ws in set(state.ws_clients.get(run_id, set())):
-                try:
+                with contextlib.suppress(Exception):
                     await ws.close()
-                except Exception:
-                    pass
             state.ws_clients.pop(run_id, None)
             state.run_events.pop(run_id, None)
 
@@ -152,7 +156,8 @@ def create_app(
         if state.broker:
             worktree_path = Path(config.execution.worktree_base) / run_id
             await state.broker.on_stream_event(
-                run_id, event,
+                run_id,
+                event,
                 worktree_root=worktree_path if worktree_path.exists() else None,
             )
 
@@ -197,11 +202,16 @@ def create_app(
         history.mark_running_as_cancelled()
 
         from agents.discovery import auto_discover_project_ids
+
         await auto_discover_project_ids(
-            projects, linear_client, discord_notifier_client, config.integrations.discord_guild_id,
+            projects,
+            linear_client,
+            discord_notifier_client,
+            config.integrations.discord_guild_id,
         )
 
         from agents.migration import migrate_yaml_projects
+
         _migrated = migrate_yaml_projects(projects, project_store)
         if _migrated:
             logger.info("Auto-migrated %d YAML project(s) to SQLite", _migrated)
@@ -213,7 +223,11 @@ def create_app(
             if project and task_name in project.tasks:
                 task = project.tasks[task_name]
                 from agents.config import build_prompt
-                prompt = build_prompt(task, {"date": datetime.now(UTC).strftime("%Y-%m-%d"), "project_name": project_name})
+
+                prompt = build_prompt(
+                    task,
+                    {"date": datetime.now(UTC).strftime("%Y-%m-%d"), "project_name": project_name},
+                )
                 if state.task_store:
                     state.task_store.create(
                         project=project_name,
@@ -279,7 +293,9 @@ def create_app(
                         if state_name in ("done", "cancelled", "canceled"):
                             continue
                         logger.info("Polling: found unprocessed agent issue %s", issue_id)
-                        if state.task_store and not state.task_store.exists_by_source("linear", issue_id):
+                        if state.task_store and not state.task_store.exists_by_source(
+                            "linear", issue_id
+                        ):
                             state.task_store.create(
                                 project=project.name,
                                 title=full.get("title", "Linear issue"),
@@ -300,6 +316,7 @@ def create_app(
 
         async def cleanup_run_artifacts_job() -> None:
             from agents.cleanup import cleanup_run_artifacts, purge_old_run_events
+
             cleanup_run_artifacts(data_dir / "runs", max_age_days=30)
             purge_old_run_events(history, days=30)
 
@@ -313,15 +330,18 @@ def create_app(
         if broker:
             await broker.start()
         from agents.task_processor import TaskProcessor
+
         task_processor = TaskProcessor(task_store=task_store, state=state, config=config)
         processor_task = asyncio.create_task(task_processor.run_loop())
 
         # Auth (optional — enabled when SECRET_KEY env var is set)
         import os as _os
+
         if _os.environ.get("SECRET_KEY"):
             from agents.auth import AuthDB
             from agents.auth_routes import register_auth_routes
             from agents.dashboard_html import _TEMPLATES as _auth_templates
+
             auth_db_inst = AuthDB(data_dir / "auth.db")
             auth_db_inst.bootstrap_invite()
             register_auth_routes(app, auth_db_inst, _auth_templates)
@@ -348,13 +368,15 @@ def create_app(
     app.state.project_store = state.project_store
 
     from agents.auth_middleware import register_auth_middleware
+
     register_auth_middleware(app)
 
     from agents.rate_limit import RateLimiter
+
     _rate_limiter = RateLimiter(max_requests=120, window_seconds=60)
 
     @app.middleware("http")
-    async def rate_limit_middleware(request: Request, call_next):
+    async def rate_limit_middleware(request: Request, call_next: object) -> Response:
         path = request.url.path
         if path.startswith("/ws/") or path == "/health" or path.startswith("/static/"):
             return await call_next(request)
@@ -449,14 +471,17 @@ def create_app(
         return {"status": "cancelled"}
 
     from agents.agent_routes import register_agent_routes
+
     register_agent_routes(app, state, config)
 
     from agents.task_routes import register_task_routes
+
     register_task_routes(app, task_store)
 
     # --- Webhook routes ---
 
     from agents.webhook_routes import register_webhook_routes
+
     register_webhook_routes(app, state, config, linear_client)
 
     # --- WebSocket routes ---
@@ -496,18 +521,22 @@ def create_app(
     @app.get("/api/metrics")
     async def api_metrics() -> dict:
         from agents.metrics import collect_metrics
+
         return collect_metrics(state.history, days=7)
 
     @app.post("/api/migrate-yaml")
     async def migrate_yaml() -> dict[str, int]:
         from agents.migration import migrate_yaml_projects
+
         count = migrate_yaml_projects(state.projects, state.project_store)
         return {"migrated": count}
 
     from agents.project_hub_routes import register_project_hub_routes
+
     register_project_hub_routes(app, state)
 
     from agents.dashboard_html import setup_dashboard
+
     setup_dashboard(app, state, config)
 
     return app
@@ -516,9 +545,11 @@ def create_app(
 def run() -> None:
     import uvicorn
     from dotenv import load_dotenv
+
     load_dotenv()
 
     import os as _os
+
     log_format = _os.environ.get("LOG_FORMAT", "text")
     log_level = _os.environ.get("LOG_LEVEL", "INFO").upper()
 

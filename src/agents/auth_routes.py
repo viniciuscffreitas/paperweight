@@ -1,4 +1,5 @@
 """Auth routes — login, logout, register (via invite), admin invite management."""
+
 import logging
 
 from fastapi import FastAPI, Request, Response
@@ -96,8 +97,11 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
         if not username or not password:
             return templates.TemplateResponse(
                 "auth/register.html",
-                {"request": request, "invite": invite_code,
-                 "error": "Username and password are required."},
+                {
+                    "request": request,
+                    "invite": invite_code,
+                    "error": "Username and password are required.",
+                },
                 status_code=400,
             )
 
@@ -105,8 +109,7 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
         if invite is None:
             return templates.TemplateResponse(
                 "auth/register.html",
-                {"request": request, "invite": invite_code,
-                 "error": "Invalid or expired invite."},
+                {"request": request, "invite": invite_code, "error": "Invalid or expired invite."},
                 status_code=400,
             )
 
@@ -125,8 +128,11 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
             logger.info("Registration failed for %r: %s", username, exc)
             return templates.TemplateResponse(
                 "auth/register.html",
-                {"request": request, "invite": invite_code,
-                 "error": "Username already exists. Choose another."},
+                {
+                    "request": request,
+                    "invite": invite_code,
+                    "error": "Username already exists. Choose another.",
+                },
                 status_code=400,
             )
 
@@ -211,6 +217,7 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
         if user.is_admin and config_path:
             from agents.config import resolve_env_vars
             from agents.config_writer import is_env_var, read_raw_config
+
             raw = read_raw_config(config_path)
             config_data = raw
             integ = raw.get("integrations", {})
@@ -277,6 +284,7 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
                 updates.setdefault(section, {})[field] = _coerce_value(value)
         if updates:
             from agents.config_writer import write_config_values
+
             write_config_values(config_path, updates)
         return RedirectResponse("/settings?saved=config", status_code=303)
 
@@ -300,5 +308,6 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
                 updates.setdefault(section, {})[field] = val
         if updates:
             from agents.config_writer import write_config_values
+
             write_config_values(config_path, updates, force=True)
         return RedirectResponse("/settings?saved=integrations", status_code=303)

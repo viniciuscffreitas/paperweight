@@ -8,10 +8,10 @@ Covers:
 - styles.css: multimodal CSS classes present
 - task-detail.js: multimodal functions present
 """
+
 from __future__ import annotations
 
 import base64
-import json
 from pathlib import Path
 
 import pytest
@@ -91,14 +91,13 @@ def test_upload_endpoint_saves_file(app_client, tmp_path, monkeypatch):
     """POST /api/uploads with valid base64 PNG must save file and return path."""
     # 1x1 transparent PNG, base64-encoded
     png_b64 = (
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
+        "AAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
     )
     # Use monkeypatch to redirect uploads to tmp_path so we don't litter /tmp
-    uploads_dir = tmp_path / "uploads"
+    tmp_path / "uploads"
 
-    import agents.agent_routes as ar_module
-
-    original_path = Path("/tmp/paperweight_uploads")
+    Path("/tmp/paperweight_uploads")
     # Patch by making the endpoint use our tmp dir via environment or direct mock
     # Since the endpoint hardcodes the path, patch Path inside the module call
     # by monkeypatching the Path constructor used there.
@@ -125,7 +124,6 @@ def test_upload_endpoint_missing_data(app_client):
 def test_upload_endpoint_jpeg_extension(app_client):
     """POST /api/uploads with jpeg mime type must save as .jpg."""
     # Minimal JPEG marker bytes (valid enough for base64 decode)
-    import struct
     jpeg_bytes = b"\xff\xd8\xff\xe0" + b"\x00" * 12 + b"\xff\xd9"
     jpeg_b64 = base64.b64encode(jpeg_bytes).decode()
     r = app_client.post(
@@ -139,7 +137,8 @@ def test_upload_endpoint_jpeg_extension(app_client):
 def test_upload_endpoint_accepts_data_url_prefix(app_client):
     """POST /api/uploads with data:image/png;base64,... prefix must strip it."""
     png_b64 = (
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
+        "AAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
     )
     data_url = f"data:image/png;base64,{png_b64}"
     r = app_client.post(
@@ -235,9 +234,7 @@ def _read_js() -> str:
     # task-detail.js and chat.js are companion modules that share global scope.
     # Tests check the combined surface — functions may live in either file.
     return (
-        (_STATIC_DIR / "task-detail.js").read_text()
-        + "\n"
-        + (_STATIC_DIR / "chat.js").read_text()
+        (_STATIC_DIR / "task-detail.js").read_text() + "\n" + (_STATIC_DIR / "chat.js").read_text()
     )
 
 

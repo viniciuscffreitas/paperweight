@@ -1,4 +1,5 @@
 """Tests for executor PR creation and agent finalization paths."""
+
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
@@ -19,14 +20,20 @@ async def test_create_pr_no_commits_returns_none(tmp_path):
     notifier = Notifier(webhook_url="")
     executor = Executor(
         config=ExecutionConfig(worktree_base=str(tmp_path / "wt")),
-        budget=budget, history=db, notifier=notifier, data_dir=tmp_path / "data",
+        budget=budget,
+        history=db,
+        notifier=notifier,
+        data_dir=tmp_path / "data",
     )
 
     # Mock _run_cmd: git log returns empty (no commits)
     executor._run_cmd = AsyncMock(return_value="")
     result = await executor._create_pr(
-        cwd="/tmp/wt", project=AsyncMock(base_branch="main"),
-        task_name="test", branch="agents/test", autonomy="pr-only",
+        cwd="/tmp/wt",
+        project=AsyncMock(base_branch="main"),
+        task_name="test",
+        branch="agents/test",
+        autonomy="pr-only",
     )
     assert result is None
 
@@ -45,10 +52,14 @@ async def test_create_pr_success_returns_url(tmp_path):
     notifier = Notifier(webhook_url="")
     executor = Executor(
         config=ExecutionConfig(worktree_base=str(tmp_path / "wt")),
-        budget=budget, history=db, notifier=notifier, data_dir=tmp_path / "data",
+        budget=budget,
+        history=db,
+        notifier=notifier,
+        data_dir=tmp_path / "data",
     )
 
     call_count = 0
+
     async def mock_run_cmd(cmd, cwd):
         nonlocal call_count
         call_count += 1
@@ -62,8 +73,11 @@ async def test_create_pr_success_returns_url(tmp_path):
 
     executor._run_cmd = mock_run_cmd
     result = await executor._create_pr(
-        cwd="/tmp/wt", project=AsyncMock(base_branch="main", name="test"),
-        task_name="task", branch="agents/task", autonomy="pr-only",
+        cwd="/tmp/wt",
+        project=AsyncMock(base_branch="main", name="test"),
+        task_name="task",
+        branch="agents/task",
+        autonomy="pr-only",
     )
     assert result == "https://github.com/org/repo/pull/99"
 
@@ -82,10 +96,14 @@ async def test_create_pr_auto_merge(tmp_path):
     notifier = Notifier(webhook_url="")
     executor = Executor(
         config=ExecutionConfig(worktree_base=str(tmp_path / "wt")),
-        budget=budget, history=db, notifier=notifier, data_dir=tmp_path / "data",
+        budget=budget,
+        history=db,
+        notifier=notifier,
+        data_dir=tmp_path / "data",
     )
 
     commands_run = []
+
     async def mock_run_cmd(cmd, cwd):
         commands_run.append(cmd)
         if "log" in cmd:
@@ -100,8 +118,11 @@ async def test_create_pr_auto_merge(tmp_path):
 
     executor._run_cmd = mock_run_cmd
     result = await executor._create_pr(
-        cwd="/tmp/wt", project=AsyncMock(base_branch="main", name="test"),
-        task_name="task", branch="agents/task", autonomy="auto-merge",
+        cwd="/tmp/wt",
+        project=AsyncMock(base_branch="main", name="test"),
+        task_name="task",
+        branch="agents/task",
+        autonomy="auto-merge",
     )
     assert result == "https://github.com/org/repo/pull/100"
     # Verify auto-merge was called
@@ -124,7 +145,10 @@ async def test_create_pr_auto_merge_failure_still_returns_url(tmp_path):
     notifier = Notifier(webhook_url="")
     executor = Executor(
         config=ExecutionConfig(worktree_base=str(tmp_path / "wt")),
-        budget=budget, history=db, notifier=notifier, data_dir=tmp_path / "data",
+        budget=budget,
+        history=db,
+        notifier=notifier,
+        data_dir=tmp_path / "data",
     )
 
     async def mock_run_cmd(cmd, cwd):
@@ -141,8 +165,11 @@ async def test_create_pr_auto_merge_failure_still_returns_url(tmp_path):
     executor._run_cmd = mock_run_cmd
     # Should NOT raise — merge failure is caught
     result = await executor._create_pr(
-        cwd="/tmp/wt", project=AsyncMock(base_branch="main", name="test"),
-        task_name="task", branch="agents/task", autonomy="auto-merge",
+        cwd="/tmp/wt",
+        project=AsyncMock(base_branch="main", name="test"),
+        task_name="task",
+        branch="agents/task",
+        autonomy="auto-merge",
     )
     assert result == "https://github.com/org/repo/pull/101"
 
@@ -163,23 +190,37 @@ async def test_finalize_agent_success_posts_linear_comment(tmp_path):
     linear_client = AsyncMock()
     executor = Executor(
         config=ExecutionConfig(worktree_base=str(tmp_path / "wt")),
-        budget=budget, history=db, notifier=notifier, data_dir=tmp_path / "data",
+        budget=budget,
+        history=db,
+        notifier=notifier,
+        data_dir=tmp_path / "data",
         linear_client=linear_client,
     )
 
     project = ProjectConfig(
-        name="test", repo="/tmp",
+        name="test",
+        repo="/tmp",
         tasks={"t": TaskConfig(description="d", intent="i")},
     )
     run = RunRecord(
-        id="r-1", project="test", task="t", trigger_type=TriggerType.LINEAR,
-        started_at=datetime.now(UTC), status=RunStatus.SUCCESS, model="sonnet",
+        id="r-1",
+        project="test",
+        task="t",
+        trigger_type=TriggerType.LINEAR,
+        started_at=datetime.now(UTC),
+        status=RunStatus.SUCCESS,
+        model="sonnet",
         pr_url="https://github.com/org/repo/pull/42",
     )
 
     await executor._finalize_agent_success(
         project,
-        variables={"issue_id": "iss-1", "team_id": "team-1", "issue_identifier": "ENG-42", "issue_title": "Fix bug"},
+        variables={
+            "issue_id": "iss-1",
+            "team_id": "team-1",
+            "issue_identifier": "ENG-42",
+            "issue_title": "Fix bug",
+        },
         discord_msg_id="",
         run=run,
     )
@@ -208,23 +249,37 @@ async def test_fail_agent_run_posts_failure_comment(tmp_path):
     linear_client = AsyncMock()
     executor = Executor(
         config=ExecutionConfig(worktree_base=str(tmp_path / "wt")),
-        budget=budget, history=db, notifier=notifier, data_dir=tmp_path / "data",
+        budget=budget,
+        history=db,
+        notifier=notifier,
+        data_dir=tmp_path / "data",
         linear_client=linear_client,
     )
 
     project = ProjectConfig(
-        name="test", repo="/tmp",
+        name="test",
+        repo="/tmp",
         tasks={"t": TaskConfig(description="d", intent="i")},
     )
     run = RunRecord(
-        id="r-1", project="test", task="t", trigger_type=TriggerType.LINEAR,
-        started_at=datetime.now(UTC), status=RunStatus.FAILURE, model="sonnet",
+        id="r-1",
+        project="test",
+        task="t",
+        trigger_type=TriggerType.LINEAR,
+        started_at=datetime.now(UTC),
+        status=RunStatus.FAILURE,
+        model="sonnet",
         error_message="Claude timed out",
     )
 
     await executor._fail_agent_run(
         project,
-        variables={"issue_id": "iss-1", "team_id": "team-1", "issue_identifier": "ENG-42", "issue_title": "Fix bug"},
+        variables={
+            "issue_id": "iss-1",
+            "team_id": "team-1",
+            "issue_identifier": "ENG-42",
+            "issue_title": "Fix bug",
+        },
         discord_msg_id="",
         run=run,
         attempt=1,

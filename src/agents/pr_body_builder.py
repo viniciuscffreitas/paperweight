@@ -22,6 +22,10 @@ def build_pr_body(
         sections.append(f"\n## Changes\n```\n{diff_stat}\n```")
     if commit_log:
         sections.append(f"\n## Commits\n```\n{commit_log}\n```")
-    meta = f"\n---\n🤖 Automated by Paperweight | Task: `{task_name}` | Project: `{project_name}` | Cost: ${cost_usd:.2f}"
+    meta = (
+        f"\n---\n🤖 Automated by Paperweight"
+        f" | Task: `{task_name}` | Project: `{project_name}`"
+        f" | Cost: ${cost_usd:.2f}"
+    )
     sections.append(meta)
     return "\n".join(sections)

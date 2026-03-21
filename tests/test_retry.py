@@ -1,5 +1,5 @@
 """Tests for retry policy and exponential backoff."""
-import time
+
 from agents.retry import RetryPolicy, should_retry_error
 
 
@@ -36,6 +36,7 @@ def test_can_retry_within_limit():
 
 def test_task_store_retry_columns(tmp_path):
     from agents.task_store import TaskStore
+
     store = TaskStore(tmp_path / "test.db")
     item = store.create(project="test", title="retryable", description="", source="manual")
     store.mark_for_retry(item.id, retry_count=1, next_retry_at="2026-01-01T00:00:00")
@@ -46,6 +47,7 @@ def test_task_store_retry_columns(tmp_path):
 
 def test_task_store_retry_not_ready_yet(tmp_path):
     from agents.task_store import TaskStore
+
     store = TaskStore(tmp_path / "test.db")
     item = store.create(project="test", title="retryable", description="", source="manual")
     store.mark_for_retry(item.id, retry_count=1, next_retry_at="2099-01-01T00:00:00")
@@ -55,6 +57,7 @@ def test_task_store_retry_not_ready_yet(tmp_path):
 
 def test_try_claim_any_works_for_retrying(tmp_path):
     from agents.task_store import TaskStore
+
     store = TaskStore(tmp_path / "test.db")
     item = store.create(project="test", title="retryable", description="", source="manual")
     store.mark_for_retry(item.id, retry_count=1, next_retry_at="2026-01-01T00:00:00")
@@ -67,6 +70,7 @@ def test_try_claim_any_works_for_retrying(tmp_path):
 def test_retry_exhausted_marks_failed(tmp_path):
     """When retries are exhausted, should_retry + can_retry returns False."""
     from agents.retry import RetryPolicy, should_retry_error
+
     policy = RetryPolicy(max_retries=2)
     assert should_retry_error("Timed out") is True
     assert policy.can_retry(3) is False  # attempt 3 > max_retries 2

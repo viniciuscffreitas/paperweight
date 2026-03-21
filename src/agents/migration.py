@@ -1,4 +1,5 @@
 """YAML to SQLite migration for project configurations."""
+
 from __future__ import annotations
 
 import logging

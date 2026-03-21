@@ -1,4 +1,5 @@
 """Tests for the auth module."""
+
 import os
 import time
 from pathlib import Path
@@ -19,6 +20,7 @@ def db(tmp_path: Path) -> AuthDB:
 # ---------------------------------------------------------------------------
 # Password hashing
 # ---------------------------------------------------------------------------
+
 
 def test_hash_password_deterministic() -> None:
     h1 = hash_password("hello", "salt123")
@@ -43,6 +45,7 @@ def test_verify_password_wrong() -> None:
 # ---------------------------------------------------------------------------
 # User creation and authentication
 # ---------------------------------------------------------------------------
+
 
 def test_create_user(db: AuthDB) -> None:
     user = db.create_user("alice", "password123")
@@ -97,7 +100,7 @@ def test_update_api_key(db: AuthDB) -> None:
 
 def test_username_unique(db: AuthDB) -> None:
     db.create_user("grace", "pass")
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="UNIQUE"):
         db.create_user("grace", "other")
 
 
@@ -110,6 +113,7 @@ def test_has_users(db: AuthDB) -> None:
 # ---------------------------------------------------------------------------
 # Invite codes
 # ---------------------------------------------------------------------------
+
 
 def test_create_and_validate_invite(db: AuthDB) -> None:
     code = db.create_invite()
@@ -153,6 +157,7 @@ def test_consume_invite(db: AuthDB) -> None:
 # Sessions
 # ---------------------------------------------------------------------------
 
+
 def test_create_and_resolve_session(db: AuthDB) -> None:
     user = db.create_user("ken", "pass")
     token = db.create_session(user.id)
@@ -185,6 +190,7 @@ def test_revoke_all_sessions(db: AuthDB) -> None:
 # Bootstrap invite
 # ---------------------------------------------------------------------------
 
+
 def test_bootstrap_invite_on_empty_db(db: AuthDB) -> None:
     code = db.bootstrap_invite()
     assert code is not None
@@ -200,6 +206,7 @@ def test_bootstrap_invite_noop_when_users_exist(db: AuthDB) -> None:
 # ---------------------------------------------------------------------------
 # Password change
 # ---------------------------------------------------------------------------
+
 
 def test_change_password_success(db: AuthDB) -> None:
     db.create_user("alice", "old-password")

@@ -21,9 +21,12 @@ async def test_fetch_issue_returns_parsed_dict(linear_client):
                 "title": "Fix login bug",
                 "description": "Users cannot log in",
                 "state": {"name": "In Progress"},
-                "labels": {"nodes": [
-                    {"name": "bug", "id": "lbl-1"}, {"name": "urgent", "id": "lbl-2"},
-                ]},
+                "labels": {
+                    "nodes": [
+                        {"name": "bug", "id": "lbl-1"},
+                        {"name": "urgent", "id": "lbl-2"},
+                    ]
+                },
             }
         }
     }
@@ -85,11 +88,17 @@ async def test_post_comment_calls_graphql(linear_client):
 @pytest.mark.asyncio
 async def test_update_status_fetches_states_and_updates(linear_client):
     team_states_response = {
-        "data": {"team": {"states": {"nodes": [
-            {"id": "state-1", "name": "Todo"},
-            {"id": "state-2", "name": "In Progress"},
-            {"id": "state-3", "name": "Done"},
-        ]}}}
+        "data": {
+            "team": {
+                "states": {
+                    "nodes": [
+                        {"id": "state-1", "name": "Todo"},
+                        {"id": "state-2", "name": "In Progress"},
+                        {"id": "state-3", "name": "Done"},
+                    ]
+                }
+            }
+        }
     }
     update_response = {"data": {"issueUpdate": {"success": True}}}
     mock_client = _make_mock_client([team_states_response, update_response])
@@ -105,10 +114,16 @@ async def test_update_status_fetches_states_and_updates(linear_client):
 @pytest.mark.asyncio
 async def test_update_status_caches_team_states(linear_client):
     team_states_response = {
-        "data": {"team": {"states": {"nodes": [
-            {"id": "state-1", "name": "Todo"},
-            {"id": "state-3", "name": "Done"},
-        ]}}}
+        "data": {
+            "team": {
+                "states": {
+                    "nodes": [
+                        {"id": "state-1", "name": "Todo"},
+                        {"id": "state-3", "name": "Done"},
+                    ]
+                }
+            }
+        }
     }
     update_response = {"data": {"issueUpdate": {"success": True}}}
     # First call: fetch states + update = 2 calls
@@ -125,14 +140,22 @@ async def test_update_status_caches_team_states(linear_client):
 @pytest.mark.asyncio
 async def test_update_status_unknown_state_logs_warning(linear_client):
     team_states_response = {
-        "data": {"team": {"states": {"nodes": [
-            {"id": "state-1", "name": "Todo"},
-        ]}}}
+        "data": {
+            "team": {
+                "states": {
+                    "nodes": [
+                        {"id": "state-1", "name": "Todo"},
+                    ]
+                }
+            }
+        }
     }
     mock_client = _make_mock_client([team_states_response])
 
-    with patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client), \
-         patch("agents.linear_client.logger") as mock_logger:
+    with (
+        patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client),
+        patch("agents.linear_client.logger") as mock_logger,
+    ):
         await linear_client.update_status("issue-123", "team-abc", "Nonexistent")
 
     mock_logger.warning.assert_called_once()
@@ -143,10 +166,16 @@ async def test_update_status_unknown_state_logs_warning(linear_client):
 @pytest.mark.asyncio
 async def test_remove_label_queries_then_removes(linear_client):
     fetch_labels_response = {
-        "data": {"issue": {"labels": {"nodes": [
-            {"id": "lbl-1", "name": "bug"},
-            {"id": "lbl-2", "name": "agent-trigger"},
-        ]}}}
+        "data": {
+            "issue": {
+                "labels": {
+                    "nodes": [
+                        {"id": "lbl-1", "name": "bug"},
+                        {"id": "lbl-2", "name": "agent-trigger"},
+                    ]
+                }
+            }
+        }
     }
     remove_response = {"data": {"issueRemoveLabel": {"success": True}}}
     mock_client = _make_mock_client([fetch_labels_response, remove_response])
@@ -162,9 +191,15 @@ async def test_remove_label_queries_then_removes(linear_client):
 @pytest.mark.asyncio
 async def test_remove_label_case_insensitive(linear_client):
     fetch_labels_response = {
-        "data": {"issue": {"labels": {"nodes": [
-            {"id": "lbl-1", "name": "Agent-Trigger"},
-        ]}}}
+        "data": {
+            "issue": {
+                "labels": {
+                    "nodes": [
+                        {"id": "lbl-1", "name": "Agent-Trigger"},
+                    ]
+                }
+            }
+        }
     }
     remove_response = {"data": {"issueRemoveLabel": {"success": True}}}
     mock_client = _make_mock_client([fetch_labels_response, remove_response])
@@ -177,12 +212,20 @@ async def test_remove_label_case_insensitive(linear_client):
 
 @pytest.mark.asyncio
 async def test_fetch_teams_returns_name_to_id_mapping(linear_client):
-    mock_client = _make_mock_client([{
-        "data": {"teams": {"nodes": [
-            {"id": "team-1", "name": "Sekit"},
-            {"id": "team-2", "name": "Jarvis"},
-        ]}}
-    }])
+    mock_client = _make_mock_client(
+        [
+            {
+                "data": {
+                    "teams": {
+                        "nodes": [
+                            {"id": "team-1", "name": "Sekit"},
+                            {"id": "team-2", "name": "Jarvis"},
+                        ]
+                    }
+                }
+            }
+        ]
+    )
     with patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client):
         result = await linear_client.fetch_teams()
     assert result == {"sekit": "team-1", "jarvis": "team-2"}
@@ -190,20 +233,30 @@ async def test_fetch_teams_returns_name_to_id_mapping(linear_client):
 
 @pytest.mark.asyncio
 async def test_fetch_team_issues(linear_client):
-    mock_client = _make_mock_client([{
-        "data": {
-            "team": {
-                "issues": {
-                    "nodes": [
-                        {"id": "i1", "title": "Bug", "priority": 1,
-                         "state": {"name": "In Progress"}, "identifier": "MOB-1",
-                         "url": "https://linear.app/MOB-1",
-                         "assignee": {"name": "Dev"}, "description": "Details"},
-                    ]
+    mock_client = _make_mock_client(
+        [
+            {
+                "data": {
+                    "team": {
+                        "issues": {
+                            "nodes": [
+                                {
+                                    "id": "i1",
+                                    "title": "Bug",
+                                    "priority": 1,
+                                    "state": {"name": "In Progress"},
+                                    "identifier": "MOB-1",
+                                    "url": "https://linear.app/MOB-1",
+                                    "assignee": {"name": "Dev"},
+                                    "description": "Details",
+                                },
+                            ]
+                        }
+                    }
                 }
             }
-        }
-    }])
+        ]
+    )
     with patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client):
         issues = await linear_client.fetch_team_issues("team-123")
     assert len(issues) == 1
@@ -213,14 +266,22 @@ async def test_fetch_team_issues(linear_client):
 @pytest.mark.asyncio
 async def test_remove_label_not_found_logs_warning(linear_client):
     fetch_labels_response = {
-        "data": {"issue": {"labels": {"nodes": [
-            {"id": "lbl-1", "name": "bug"},
-        ]}}}
+        "data": {
+            "issue": {
+                "labels": {
+                    "nodes": [
+                        {"id": "lbl-1", "name": "bug"},
+                    ]
+                }
+            }
+        }
     }
     mock_client = _make_mock_client([fetch_labels_response])
 
-    with patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client), \
-         patch("agents.linear_client.logger") as mock_logger:
+    with (
+        patch("agents.linear_client.httpx.AsyncClient", return_value=mock_client),
+        patch("agents.linear_client.logger") as mock_logger,
+    ):
         await linear_client.remove_label("issue-123", "nonexistent")
 
     mock_logger.warning.assert_called_once()

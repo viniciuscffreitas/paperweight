@@ -8,8 +8,13 @@ from agents.session_manager import SessionManager
 def test_runs_table_has_task_id_column(tmp_path):
     db = HistoryDB(tmp_path / "test.db")
     run = RunRecord(
-        id="r1", project="pw", task="test", trigger_type=TriggerType.MANUAL,
-        started_at=datetime.now(UTC), status=RunStatus.RUNNING, model="sonnet",
+        id="r1",
+        project="pw",
+        task="test",
+        trigger_type=TriggerType.MANUAL,
+        started_at=datetime.now(UTC),
+        status=RunStatus.RUNNING,
+        model="sonnet",
     )
     db.insert_run(run)
     with db._conn() as conn:
@@ -23,5 +28,7 @@ def test_sessions_table_has_task_id_column(tmp_path):
     session = sm.create_session("pw")
     with sm._conn() as conn:
         conn.execute("UPDATE agent_sessions SET task_id = ? WHERE id = ?", ("task-abc", session.id))
-        row = conn.execute("SELECT task_id FROM agent_sessions WHERE id = ?", (session.id,)).fetchone()
+        row = conn.execute(
+            "SELECT task_id FROM agent_sessions WHERE id = ?", (session.id,)
+        ).fetchone()
     assert row["task_id"] == "task-abc"

@@ -1,4 +1,5 @@
 """Read and write config.yaml, preserving ${ENV_VAR} references."""
+
 import re
 from pathlib import Path
 
@@ -42,9 +43,7 @@ def _strip_env_vars(current: dict, updates: dict) -> dict:
     return clean
 
 
-def write_config_values(
-    path: Path, updates: dict, *, force: bool = False
-) -> None:
+def write_config_values(path: Path, updates: dict, *, force: bool = False) -> None:
     """Update specific values in config.yaml.
 
     By default, env var references (${FOO}) are preserved and cannot be

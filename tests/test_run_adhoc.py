@@ -40,7 +40,7 @@ def adhoc_deps(tmp_path):
 
 @pytest.mark.asyncio
 async def test_run_adhoc_creates_run_record(adhoc_deps):
-    executor, db, session = adhoc_deps
+    executor, _db, session = adhoc_deps
     from agents.models import ProjectConfig, TaskConfig
 
     project = ProjectConfig(
@@ -57,7 +57,7 @@ async def test_run_adhoc_creates_run_record(adhoc_deps):
 
 @pytest.mark.asyncio
 async def test_run_adhoc_budget_exceeded(adhoc_deps):
-    executor, db, session = adhoc_deps
+    executor, _db, session = adhoc_deps
     from agents.models import ProjectConfig, RunStatus, TaskConfig
 
     executor.budget.config.daily_limit_usd = 0.0
@@ -73,7 +73,7 @@ async def test_run_adhoc_budget_exceeded(adhoc_deps):
 
 @pytest.mark.asyncio
 async def test_run_adhoc_dry_run_returns_success(adhoc_deps):
-    executor, db, session = adhoc_deps
+    executor, _db, session = adhoc_deps
     from agents.models import ProjectConfig, RunStatus, TaskConfig
 
     project = ProjectConfig(
@@ -90,7 +90,7 @@ async def test_run_adhoc_dry_run_returns_success(adhoc_deps):
 
 @pytest.mark.asyncio
 async def test_run_adhoc_accepts_custom_run_id(adhoc_deps):
-    executor, db, session = adhoc_deps
+    executor, _db, session = adhoc_deps
     from agents.models import ProjectConfig, TaskConfig
 
     project = ProjectConfig(
@@ -121,7 +121,7 @@ async def test_run_adhoc_persisted_in_history(adhoc_deps):
 
 @pytest.mark.asyncio
 async def test_run_adhoc_resume_missing_worktree_raises(adhoc_deps, tmp_path):
-    executor, db, session = adhoc_deps
+    executor, _db, session = adhoc_deps
     from agents.models import ProjectConfig, TaskConfig
 
     # dry_run is True but we are testing resume validation path,

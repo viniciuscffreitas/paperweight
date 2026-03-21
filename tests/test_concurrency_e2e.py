@@ -3,6 +3,7 @@
 Tests the "needs claude -p" paths by mocking _run_claude at the executor level,
 letting everything else (worktrees, semaphores, broker, streaming) run for real.
 """
+
 import asyncio
 import json
 import time
@@ -53,8 +54,10 @@ async def _init_git_repo(path: Path) -> None:
         ["git", "-c", "user.name=test", "-c", "user.email=t@t.com", "commit", "-m", "init"],
     ]:
         proc = await asyncio.create_subprocess_exec(
-            *cmd, cwd=str(path),
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            *cmd,
+            cwd=str(path),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
         await proc.communicate()
 
@@ -82,37 +85,60 @@ def _make_executor(tmp_path, broker=None, max_concurrent=3):
         max_concurrent=max_concurrent,
     )
     executor = Executor(
-        config=exec_config, budget=budget, history=db,
-        notifier=notifier, data_dir=data_dir,
-        on_stream_event=broadcast_event, broker=broker,
+        config=exec_config,
+        budget=budget,
+        history=db,
+        notifier=notifier,
+        data_dir=data_dir,
+        on_stream_event=broadcast_event,
+        broker=broker,
     )
     return executor, db, budget, captured_events
 
 
 def _make_mock_run_claude(executor, file_path="src/main.py", delay=0, cost=0.10):
     """Create a mock _run_claude that simulates editing a file."""
+
     async def mock_run_claude(cmd, cwd, run_id, timeout):
         if delay:
             await asyncio.sleep(delay)
         worktree = Path(cwd)
         lines = [
-            json.dumps({
-                "type": "assistant",
-                "message": {"content": [{
-                    "type": "tool_use", "name": "Edit",
-                    "input": {"file_path": str(worktree / file_path), "old_string": "#", "new_string": "# edited"},
-                }]},
-            }),
-            json.dumps({
-                "type": "result", "is_error": False,
-                "total_cost_usd": cost, "num_turns": 3, "result": "Done",
-            }),
+            json.dumps(
+                {
+                    "type": "assistant",
+                    "message": {
+                        "content": [
+                            {
+                                "type": "tool_use",
+                                "name": "Edit",
+                                "input": {
+                                    "file_path": str(worktree / file_path),
+                                    "old_string": "#",
+                                    "new_string": "# edited",
+                                },
+                            }
+                        ]
+                    },
+                }
+            ),
+            json.dumps(
+                {
+                    "type": "result",
+                    "is_error": False,
+                    "total_cost_usd": cost,
+                    "num_turns": 3,
+                    "result": "Done",
+                }
+            ),
         ]
         proc = await _mock_subprocess_lines(lines)
         from agents.streaming import RunStream
+
         stream = RunStream(run_id=run_id, on_event=executor.on_stream_event)
         result = await stream.process_stream(proc)
         return result, stream.get_raw_output()
+
     return mock_run_claude
 
 
@@ -127,8 +153,7 @@ async def test_semaphore_limits_concurrent_runs(tmp_path):
     repo = tmp_path / "repo"
     await _init_git_repo(repo)
 
-
-    executor, db, budget, events = _make_executor(tmp_path, max_concurrent=2)
+    executor, _db, _budget, _events = _make_executor(tmp_path, max_concurrent=2)
 
     # Track concurrency
     concurrency_log: list[int] = []
@@ -152,7 +177,8 @@ async def test_semaphore_limits_concurrent_runs(tmp_path):
     executor._create_pr = AsyncMock(return_value=None)
 
     project = ProjectConfig(
-        name="test", repo=str(repo),
+        name="test",
+        repo=str(repo),
         tasks={
             "t1": TaskConfig(description="d", intent="do stuff", max_cost_usd=1.0),
             "t2": TaskConfig(description="d", intent="do stuff", max_cost_usd=1.0),
@@ -191,7 +217,7 @@ async def test_repo_semaphore_limits_per_repo(tmp_path):
     repo = tmp_path / "repo"
     await _init_git_repo(repo)
 
-    executor, db, budget, events = _make_executor(tmp_path, max_concurrent=5)
+    executor, _db, _budget, _events = _make_executor(tmp_path, max_concurrent=5)
 
     concurrency_log: list[int] = []
     current = 0
@@ -214,7 +240,8 @@ async def test_repo_semaphore_limits_per_repo(tmp_path):
     executor._create_pr = AsyncMock(return_value=None)
 
     project = ProjectConfig(
-        name="test", repo=str(repo),
+        name="test",
+        repo=str(repo),
         tasks={
             "r1": TaskConfig(description="d", intent="do stuff", max_cost_usd=1.0),
             "r2": TaskConfig(description="d", intent="do stuff", max_cost_usd=1.0),
@@ -251,11 +278,12 @@ async def test_parallel_runs_broker_tracks_claims(tmp_path):
     (repo / "src" / "auth.py").write_text("# auth\n")
 
     broker = CoordinationBroker(CoordinationConfig(enabled=True))
-    executor, db, budget, events = _make_executor(tmp_path, broker=broker)
+    executor, _db, _budget, _events = _make_executor(tmp_path, broker=broker)
     executor._create_pr = AsyncMock(return_value=None)
 
     project = ProjectConfig(
-        name="test", repo=str(repo),
+        name="test",
+        repo=str(repo),
         tasks={
             "auth": TaskConfig(description="a", intent="auth", max_cost_usd=1.0),
             "main": TaskConfig(description="m", intent="main", max_cost_usd=1.0),
@@ -267,14 +295,37 @@ async def test_parallel_runs_broker_tracks_claims(tmp_path):
     async def mock_auth(cmd, cwd, run_id, timeout):
         wt = Path(cwd)
         lines = [
-            json.dumps({"type": "assistant", "message": {"content": [
-                {"type": "tool_use", "name": "Edit",
-                 "input": {"file_path": str(wt / "src" / "auth.py"), "old_string": "#", "new_string": "# auth edited"}},
-            ]}}),
-            json.dumps({"type": "result", "is_error": False, "total_cost_usd": 0.10, "num_turns": 2, "result": "ok"}),
+            json.dumps(
+                {
+                    "type": "assistant",
+                    "message": {
+                        "content": [
+                            {
+                                "type": "tool_use",
+                                "name": "Edit",
+                                "input": {
+                                    "file_path": str(wt / "src" / "auth.py"),
+                                    "old_string": "#",
+                                    "new_string": "# auth edited",
+                                },
+                            },
+                        ]
+                    },
+                }
+            ),
+            json.dumps(
+                {
+                    "type": "result",
+                    "is_error": False,
+                    "total_cost_usd": 0.10,
+                    "num_turns": 2,
+                    "result": "ok",
+                }
+            ),
         ]
         proc = await _mock_subprocess_lines(lines)
         from agents.streaming import RunStream
+
         stream = RunStream(run_id=run_id, on_event=executor.on_stream_event)
         # Small delay to let the other run start
         await asyncio.sleep(0.05)
@@ -286,14 +337,37 @@ async def test_parallel_runs_broker_tracks_claims(tmp_path):
     async def mock_main(cmd, cwd, run_id, timeout):
         wt = Path(cwd)
         lines = [
-            json.dumps({"type": "assistant", "message": {"content": [
-                {"type": "tool_use", "name": "Edit",
-                 "input": {"file_path": str(wt / "src" / "main.py"), "old_string": "#", "new_string": "# main edited"}},
-            ]}}),
-            json.dumps({"type": "result", "is_error": False, "total_cost_usd": 0.10, "num_turns": 2, "result": "ok"}),
+            json.dumps(
+                {
+                    "type": "assistant",
+                    "message": {
+                        "content": [
+                            {
+                                "type": "tool_use",
+                                "name": "Edit",
+                                "input": {
+                                    "file_path": str(wt / "src" / "main.py"),
+                                    "old_string": "#",
+                                    "new_string": "# main edited",
+                                },
+                            },
+                        ]
+                    },
+                }
+            ),
+            json.dumps(
+                {
+                    "type": "result",
+                    "is_error": False,
+                    "total_cost_usd": 0.10,
+                    "num_turns": 2,
+                    "result": "ok",
+                }
+            ),
         ]
         proc = await _mock_subprocess_lines(lines)
         from agents.streaming import RunStream
+
         stream = RunStream(run_id=run_id, on_event=executor.on_stream_event)
         return await stream.process_stream(proc), stream.get_raw_output()
 
@@ -371,13 +445,18 @@ async def test_full_mediator_conflict_flow(tmp_path):
     await _init_git_repo(repo)
 
     broker = CoordinationBroker(CoordinationConfig(enabled=True))
-    executor, db, budget, events = _make_executor(tmp_path, broker=broker)
+    executor, _db, _budget, _events = _make_executor(tmp_path, broker=broker)
 
     project = ProjectConfig(
-        name="test", repo=str(repo),
+        name="test",
+        repo=str(repo),
         tasks={
-            "task-a": TaskConfig(description="Add pagination", intent="Add pagination to users", max_cost_usd=2.0),
-            "task-b": TaskConfig(description="Add auth", intent="Add auth middleware", max_cost_usd=2.0),
+            "task-a": TaskConfig(
+                description="Add pagination", intent="Add pagination to users", max_cost_usd=2.0
+            ),
+            "task-b": TaskConfig(
+                description="Add auth", intent="Add auth middleware", max_cost_usd=2.0
+            ),
         },
     )
 
@@ -400,19 +479,26 @@ async def test_full_mediator_conflict_flow(tmp_path):
 
     # A2 claims the file
     edit_event = StreamEvent(
-        type="tool_use", tool_name="Edit",
-        file_path=str(wt_a2 / "src" / "main.py"), timestamp=time.time(),
+        type="tool_use",
+        tool_name="Edit",
+        file_path=str(wt_a2 / "src" / "main.py"),
+        timestamp=time.time(),
     )
     await broker.on_stream_event("run-a2", edit_event, worktree_root=wt_a2)
 
     # B writes need_file to inbox
     inbox_b = wt_b / ".paperweight" / "inbox.jsonl"
     with inbox_b.open("a") as f:
-        f.write(json.dumps({
-            "type": "need_file",
-            "file": "src/main.py",
-            "intent": "Add auth middleware to main.py",
-        }) + "\n")
+        f.write(
+            json.dumps(
+                {
+                    "type": "need_file",
+                    "file": "src/main.py",
+                    "intent": "Add auth middleware to main.py",
+                }
+            )
+            + "\n"
+        )
 
     # Step 3: Broker polls and detects conflict
     await broker.poll_inboxes_once()
@@ -441,22 +527,48 @@ async def test_full_mediator_conflict_flow(tmp_path):
     # Step 5: Simulate mediator run (would be executor.run_task in production)
     # The mediator edits the contested file with both changes
     mediator_lines = [
-        json.dumps({"type": "assistant", "message": {"content": [
-            {"type": "text", "text": "I'll apply both pagination and auth changes."},
-        ]}}),
-        json.dumps({"type": "assistant", "message": {"content": [
-            {"type": "tool_use", "name": "Edit", "input": {
-                "file_path": str(wt_a2 / "src" / "main.py"),
-                "old_string": "# main",
-                "new_string": "# main — with pagination + auth middleware",
-            }},
-        ]}}),
-        json.dumps({"type": "result", "is_error": False,
-                    "total_cost_usd": 0.50, "num_turns": 4, "result": "Mediation complete"}),
+        json.dumps(
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {"type": "text", "text": "I'll apply both pagination and auth changes."},
+                    ]
+                },
+            }
+        ),
+        json.dumps(
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "name": "Edit",
+                            "input": {
+                                "file_path": str(wt_a2 / "src" / "main.py"),
+                                "old_string": "# main",
+                                "new_string": "# main — with pagination + auth middleware",
+                            },
+                        },
+                    ]
+                },
+            }
+        ),
+        json.dumps(
+            {
+                "type": "result",
+                "is_error": False,
+                "total_cost_usd": 0.50,
+                "num_turns": 4,
+                "result": "Mediation complete",
+            }
+        ),
     ]
 
     # Parse the mediator output to verify it's valid stream-json
     from agents.streaming import parse_stream_line
+
     parsed = [parse_stream_line(line) for line in mediator_lines]
     assert parsed[0].type == "assistant"
     assert parsed[1].type == "tool_use"
@@ -481,7 +593,8 @@ async def test_websocket_receives_stream_events(tmp_path):
 
     # Create the app with a project
     config_path = tmp_path / "config.yaml"
-    config_path.write_text("""
+    config_path.write_text(
+        """
 budget:
   daily_limit_usd: 10.0
 execution:
@@ -498,7 +611,8 @@ webhooks:
   linear_secret: ""
 integrations:
   linear_api_key: ""
-""".format(wt=str(tmp_path / "worktrees")))
+""".format(wt=str(tmp_path / "worktrees"))
+    )
 
     projects_dir = tmp_path / "projects"
     projects_dir.mkdir()
@@ -515,6 +629,7 @@ tasks:
 """)
 
     from agents.main import create_app
+
     app = create_app(
         config_path=config_path,
         projects_dir=projects_dir,
@@ -523,15 +638,14 @@ tasks:
 
     from starlette.testclient import TestClient
 
-    with TestClient(app) as client:
-        # Test WebSocket connection works
-        with client.websocket_connect("/ws/runs") as ws:
+    with TestClient(app) as client, client.websocket_connect("/ws/runs"):
             # Trigger a manual run (dry_run=True, so it completes instantly)
             response = client.post("/tasks/test/hello/run")
             assert response.status_code == 202
 
             # Give background task time to complete
             import time
+
             time.sleep(0.5)
 
             # WebSocket should have received events

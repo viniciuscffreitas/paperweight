@@ -1,4 +1,5 @@
 """Pydantic models for the coordination protocol."""
+
 from __future__ import annotations
 
 import time

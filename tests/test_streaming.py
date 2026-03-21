@@ -137,18 +137,24 @@ def test_extract_result_from_line():
 def test_parse_edit_tool_extracts_file_path():
     from agents.streaming import parse_stream_line
 
-    line = json.dumps({
-        "type": "assistant",
-        "message": {"content": [{
-            "type": "tool_use",
-            "name": "Edit",
-            "input": {
-                "file_path": "/tmp/agents/run-1/src/api/users.py",
-                "old_string": "def get_users():",
-                "new_string": "def get_users(cursor=None):",
+    line = json.dumps(
+        {
+            "type": "assistant",
+            "message": {
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "name": "Edit",
+                        "input": {
+                            "file_path": "/tmp/agents/run-1/src/api/users.py",
+                            "old_string": "def get_users():",
+                            "new_string": "def get_users(cursor=None):",
+                        },
+                    }
+                ]
             },
-        }]},
-    })
+        }
+    )
     event = parse_stream_line(line)
     assert event is not None
     assert event.type == "tool_use"
@@ -159,14 +165,23 @@ def test_parse_edit_tool_extracts_file_path():
 def test_parse_write_tool_extracts_file_path():
     from agents.streaming import parse_stream_line
 
-    line = json.dumps({
-        "type": "assistant",
-        "message": {"content": [{
-            "type": "tool_use",
-            "name": "Write",
-            "input": {"file_path": "/tmp/agents/run-1/src/new_file.py", "content": "hello"},
-        }]},
-    })
+    line = json.dumps(
+        {
+            "type": "assistant",
+            "message": {
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "name": "Write",
+                        "input": {
+                            "file_path": "/tmp/agents/run-1/src/new_file.py",
+                            "content": "hello",
+                        },
+                    }
+                ]
+            },
+        }
+    )
     event = parse_stream_line(line)
     assert event is not None
     assert event.file_path == "/tmp/agents/run-1/src/new_file.py"
@@ -175,14 +190,20 @@ def test_parse_write_tool_extracts_file_path():
 def test_parse_read_tool_extracts_file_path():
     from agents.streaming import parse_stream_line
 
-    line = json.dumps({
-        "type": "assistant",
-        "message": {"content": [{
-            "type": "tool_use",
-            "name": "Read",
-            "input": {"file_path": "/tmp/agents/run-1/README.md"},
-        }]},
-    })
+    line = json.dumps(
+        {
+            "type": "assistant",
+            "message": {
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "name": "Read",
+                        "input": {"file_path": "/tmp/agents/run-1/README.md"},
+                    }
+                ]
+            },
+        }
+    )
     event = parse_stream_line(line)
     assert event is not None
     assert event.file_path == "/tmp/agents/run-1/README.md"
@@ -191,14 +212,20 @@ def test_parse_read_tool_extracts_file_path():
 def test_parse_bash_tool_no_file_path():
     from agents.streaming import parse_stream_line
 
-    line = json.dumps({
-        "type": "assistant",
-        "message": {"content": [{
-            "type": "tool_use",
-            "name": "Bash",
-            "input": {"command": "ls -la"},
-        }]},
-    })
+    line = json.dumps(
+        {
+            "type": "assistant",
+            "message": {
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "name": "Bash",
+                        "input": {"command": "ls -la"},
+                    }
+                ]
+            },
+        }
+    )
     event = parse_stream_line(line)
     assert event is not None
     assert event.file_path == ""
@@ -208,13 +235,21 @@ def test_parse_multi_block_returns_first_only():
     """parse_stream_line returns only the first content block (text wins over tool_use)."""
     from agents.streaming import parse_stream_line
 
-    line = json.dumps({
-        "type": "assistant",
-        "message": {"content": [
-            {"type": "text", "text": "Let me edit that file"},
-            {"type": "tool_use", "name": "Edit", "input": {"file_path": "/tmp/x.py", "old_string": "a", "new_string": "b"}},
-        ]},
-    })
+    line = json.dumps(
+        {
+            "type": "assistant",
+            "message": {
+                "content": [
+                    {"type": "text", "text": "Let me edit that file"},
+                    {
+                        "type": "tool_use",
+                        "name": "Edit",
+                        "input": {"file_path": "/tmp/x.py", "old_string": "a", "new_string": "b"},
+                    },
+                ]
+            },
+        }
+    )
     event = parse_stream_line(line)
     assert event is not None
     # Documents current behavior: text block wins, tool_use is lost
@@ -227,12 +262,16 @@ def test_parse_tool_use_first_when_no_text():
     """When tool_use is the only block, it's correctly returned."""
     from agents.streaming import parse_stream_line
 
-    line = json.dumps({
-        "type": "assistant",
-        "message": {"content": [
-            {"type": "tool_use", "name": "Edit", "input": {"file_path": "/tmp/x.py"}},
-        ]},
-    })
+    line = json.dumps(
+        {
+            "type": "assistant",
+            "message": {
+                "content": [
+                    {"type": "tool_use", "name": "Edit", "input": {"file_path": "/tmp/x.py"}},
+                ]
+            },
+        }
+    )
     event = parse_stream_line(line)
     assert event.type == "tool_use"
     assert event.tool_name == "Edit"

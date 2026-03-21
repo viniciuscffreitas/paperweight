@@ -13,9 +13,7 @@ def find_unprocessed_agent_issues(issues: list[dict]) -> list[dict]:
     for issue in issues:
         labels = issue.get("labels", [])
         has_agent = any(
-            label.get("name", "").lower() == "agent"
-            for label in labels
-            if isinstance(label, dict)
+            label.get("name", "").lower() == "agent" for label in labels if isinstance(label, dict)
         )
         if not has_agent:
             continue

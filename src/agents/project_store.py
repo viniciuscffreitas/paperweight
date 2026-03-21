@@ -122,18 +122,14 @@ class ProjectStore:
 
     def get_project(self, project_id: str) -> dict | None:
         with self._conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM projects WHERE id = ?", (project_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
         if row is None:
             return None
         return dict(row)
 
     def list_projects(self) -> list[dict]:
         with self._conn() as conn:
-            rows = conn.execute(
-                "SELECT * FROM projects ORDER BY created_at DESC"
-            ).fetchall()
+            rows = conn.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall()
         return [dict(row) for row in rows]
 
     def update_project(self, project_id: str, **kwargs: object) -> None:
@@ -146,9 +142,7 @@ class ProjectStore:
         set_clause = ", ".join(f"{k} = ?" for k in updates)
         values = [*list(updates.values()), project_id]
         with self._conn() as conn:
-            conn.execute(
-                f"UPDATE projects SET {set_clause} WHERE id = ?", values
-            )
+            conn.execute(f"UPDATE projects SET {set_clause} WHERE id = ?", values)
 
     def delete_project(self, project_id: str) -> None:
         with self._conn() as conn:
@@ -247,9 +241,7 @@ class ProjectStore:
 
     def get_task(self, task_id: str) -> dict | None:
         with self._conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM tasks WHERE id = ?", (task_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
         if row is None:
             return None
         return dict(row)
@@ -264,8 +256,14 @@ class ProjectStore:
 
     def update_task(self, task_id: str, **kwargs: object) -> None:
         allowed = {
-            "name", "intent", "trigger_type", "trigger_config",
-            "model", "max_budget", "autonomy", "enabled",
+            "name",
+            "intent",
+            "trigger_type",
+            "trigger_config",
+            "model",
+            "max_budget",
+            "autonomy",
+            "enabled",
         }
         updates: dict[str, object] = {}
         for k, v in kwargs.items():
@@ -284,9 +282,7 @@ class ProjectStore:
         set_clause = ", ".join(f"{k} = ?" for k in updates)
         values = [*list(updates.values()), task_id]
         with self._conn() as conn:
-            conn.execute(
-                f"UPDATE tasks SET {set_clause} WHERE id = ?", values
-            )
+            conn.execute(f"UPDATE tasks SET {set_clause} WHERE id = ?", values)
 
     def delete_task(self, task_id: str) -> None:
         with self._conn() as conn:
@@ -361,9 +357,7 @@ class ProjectStore:
     def cleanup_old_events(self, days: int = 90) -> int:
         cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
         with self._conn() as conn:
-            cursor = conn.execute(
-                "DELETE FROM aggregated_events WHERE timestamp < ?", (cutoff,)
-            )
+            cursor = conn.execute("DELETE FROM aggregated_events WHERE timestamp < ?", (cutoff,))
         return cursor.rowcount
 
     # --- Notification Rules ---

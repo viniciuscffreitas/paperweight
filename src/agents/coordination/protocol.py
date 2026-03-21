@@ -5,6 +5,7 @@ Files managed per worktree:
   /.paperweight/inbox.jsonl  — agent appends, broker reads (incremental seek)
   /.paperweight/outbox.jsonl — broker appends, agent reads
 """
+
 from __future__ import annotations
 
 import json

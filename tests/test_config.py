@@ -201,7 +201,9 @@ integrations:
 def test_render_prompt_replaces_variables():
     from agents.config import render_prompt
 
-    result = render_prompt("Fix {{issue_id}} in {{project}}", {"issue_id": "ENG-42", "project": "myapp"})
+    result = render_prompt(
+        "Fix {{issue_id}} in {{project}}", {"issue_id": "ENG-42", "project": "myapp"}
+    )
     assert result == "Fix ENG-42 in myapp"
 
 

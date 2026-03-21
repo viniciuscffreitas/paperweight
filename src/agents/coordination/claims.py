@@ -1,4 +1,5 @@
 """ClaimRegistry — in-memory state machine for file claims with TTL."""
+
 from __future__ import annotations
 
 import time
@@ -91,9 +92,7 @@ class ClaimRegistry:
 
     def get_claims_for_run(self, run_id: str) -> list[Claim]:
         return [
-            self._claims[fp]
-            for fp in self._run_claims.get(run_id, set())
-            if fp in self._claims
+            self._claims[fp] for fp in self._run_claims.get(run_id, set()) if fp in self._claims
         ]
 
     def add_need(self, run_id: str, file_path: str) -> None:

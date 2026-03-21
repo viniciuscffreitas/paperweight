@@ -20,7 +20,12 @@ def test_agent_pr_merge_detected():
 def test_non_agent_pr_ignored():
     payload = {
         "action": "closed",
-        "pull_request": {"merged": True, "title": "Fix typo", "html_url": "url", "head": {"ref": "fix"}},
+        "pull_request": {
+            "merged": True,
+            "title": "Fix typo",
+            "html_url": "url",
+            "head": {"ref": "fix"},
+        },
     }
     assert is_agent_pr_merge(payload) is False
 
@@ -28,7 +33,12 @@ def test_non_agent_pr_ignored():
 def test_pr_closed_without_merge_ignored():
     payload = {
         "action": "closed",
-        "pull_request": {"merged": False, "title": "[agents] pw/resolver", "html_url": "url", "head": {"ref": "a"}},
+        "pull_request": {
+            "merged": False,
+            "title": "[agents] pw/resolver",
+            "html_url": "url",
+            "head": {"ref": "a"},
+        },
     }
     assert is_agent_pr_merge(payload) is False
 
@@ -41,9 +51,13 @@ def test_find_run_by_pr_url(tmp_path):
 
     db = HistoryDB(tmp_path / "test.db")
     run = RunRecord(
-        id="test-run-1", project="paperweight", task="issue-resolver",
-        trigger_type=TriggerType.LINEAR, started_at=datetime.now(UTC),
-        status=RunStatus.SUCCESS, model="sonnet",
+        id="test-run-1",
+        project="paperweight",
+        task="issue-resolver",
+        trigger_type=TriggerType.LINEAR,
+        started_at=datetime.now(UTC),
+        status=RunStatus.SUCCESS,
+        model="sonnet",
         pr_url="https://github.com/user/repo/pull/42",
     )
     db.insert_run(run)
@@ -54,6 +68,7 @@ def test_find_run_by_pr_url(tmp_path):
 
 def test_store_and_get_run_variables(tmp_path):
     from agents.history import HistoryDB
+
     db = HistoryDB(tmp_path / "test.db")
     db.store_run_variables("run-1", {"issue_id": "abc", "team_id": "xyz"})
     got = db.get_run_variables("run-1")

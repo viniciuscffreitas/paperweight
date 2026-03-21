@@ -1,7 +1,6 @@
 """Tests for coordination Pydantic models and config."""
 
 
-
 def test_claim_model_defaults():
     from agents.coordination.models import Claim, ClaimStatus, ClaimType
 

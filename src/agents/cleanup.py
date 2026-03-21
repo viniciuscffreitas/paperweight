@@ -1,4 +1,5 @@
 """Scheduled cleanup for run artifacts, orphan worktrees, and old DB rows."""
+
 import logging
 import shutil
 import time
@@ -32,7 +33,7 @@ def find_orphan_worktrees(worktree_base: Path, active_session_ids: set[str]) -> 
             continue
         name = d.name
         if name.startswith("session-"):
-            sid = name[len("session-"):]
+            sid = name[len("session-") :]
             if sid not in active_session_ids:
                 orphans.append(d)
     return orphans

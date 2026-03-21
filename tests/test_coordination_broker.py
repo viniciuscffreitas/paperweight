@@ -1,4 +1,5 @@
 """Tests for CoordinationBroker."""
+
 import json
 
 import pytest
@@ -14,6 +15,7 @@ def config():
 @pytest.fixture
 def broker(config):
     from agents.coordination.broker import CoordinationBroker
+
     return CoordinationBroker(config)
 
 
@@ -89,12 +91,20 @@ async def test_conflict_detection(broker, worktree_a, worktree_b):
     await broker.register_run("run-a", worktree_a, "add pagination")
     await broker.register_run("run-b", worktree_b, "add auth")
 
-    event_a = StreamEvent(type="tool_use", tool_name="Edit",
-                          file_path=str(worktree_a / "src" / "users.py"), timestamp=1.0)
+    event_a = StreamEvent(
+        type="tool_use",
+        tool_name="Edit",
+        file_path=str(worktree_a / "src" / "users.py"),
+        timestamp=1.0,
+    )
     await broker.on_stream_event("run-a", event_a, worktree_root=worktree_a)
 
-    event_b = StreamEvent(type="tool_use", tool_name="Edit",
-                          file_path=str(worktree_b / "src" / "users.py"), timestamp=2.0)
+    event_b = StreamEvent(
+        type="tool_use",
+        tool_name="Edit",
+        file_path=str(worktree_b / "src" / "users.py"),
+        timestamp=2.0,
+    )
     conflict = await broker.on_stream_event("run-b", event_b, worktree_root=worktree_b)
     assert conflict is not None
     assert conflict.run_id == "run-a"
@@ -107,8 +117,12 @@ async def test_update_all_state_files(broker, worktree_a, worktree_b):
     await broker.register_run("run-a", worktree_a, "add pagination")
     await broker.register_run("run-b", worktree_b, "add auth")
 
-    event = StreamEvent(type="tool_use", tool_name="Edit",
-                        file_path=str(worktree_a / "src" / "users.py"), timestamp=1.0)
+    event = StreamEvent(
+        type="tool_use",
+        tool_name="Edit",
+        file_path=str(worktree_a / "src" / "users.py"),
+        timestamp=1.0,
+    )
     await broker.on_stream_event("run-a", event, worktree_root=worktree_a)
 
     state_b = json.loads((worktree_b / ".paperweight" / "state.json").read_text())
@@ -127,8 +141,13 @@ async def test_process_inbox_need_file(broker, worktree_a, worktree_b):
     await broker.register_run("run-b", worktree_b, "add auth")
 
     from agents.streaming import StreamEvent
-    event = StreamEvent(type="tool_use", tool_name="Edit",
-                        file_path=str(worktree_a / "src" / "users.py"), timestamp=1.0)
+
+    event = StreamEvent(
+        type="tool_use",
+        tool_name="Edit",
+        file_path=str(worktree_a / "src" / "users.py"),
+        timestamp=1.0,
+    )
     await broker.on_stream_event("run-a", event, worktree_root=worktree_a)
 
     inbox = worktree_b / ".paperweight" / "inbox.jsonl"

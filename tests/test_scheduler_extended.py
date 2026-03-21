@@ -201,9 +201,7 @@ def test_register_jobs_adds_new_job():
             name="alpha",
             repo="/tmp/alpha",
             tasks={
-                "weekly": TaskConfig(
-                    description="t", prompt="p", schedule="0 3 * * MON"
-                ),
+                "weekly": TaskConfig(description="t", prompt="p", schedule="0 3 * * MON"),
             },
         ),
     }

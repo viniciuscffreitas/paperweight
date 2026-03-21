@@ -30,8 +30,10 @@ async def test_network_error_does_not_crash():
 
     # The notifier only catches httpx.HTTPError; a bare Exception will propagate.
     # This test documents the current boundary: generic exceptions are NOT swallowed.
-    with patch("httpx.AsyncClient", return_value=mock_client):
-        with pytest.raises(Exception, match="connection refused"):
+    with (
+        patch("httpx.AsyncClient", return_value=mock_client),
+        pytest.raises(Exception, match="connection refused"),
+    ):
             await notifier.send_text("test message")
 
 

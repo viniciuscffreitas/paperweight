@@ -1,4 +1,5 @@
 """API routes for work item (task) CRUD."""
+
 from fastapi import FastAPI, Response
 
 from agents.models import TaskStatus
@@ -24,10 +25,7 @@ def register_task_routes(app: FastAPI, task_store: TaskStore) -> None:
 
     @app.get("/api/work-items")
     async def list_work_items(project: str | None = None) -> list[dict]:
-        if project:
-            items = task_store.list_by_project(project)
-        else:
-            items = task_store.list_pending()
+        items = task_store.list_by_project(project) if project else task_store.list_pending()
         return [i.model_dump(mode="json") for i in items]
 
     @app.get("/api/work-items/{item_id}", response_model=None)

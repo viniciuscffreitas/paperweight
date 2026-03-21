@@ -6,6 +6,7 @@ Strategy:
 - Sessions: random 32-byte hex token stored in SQLite (no JWT)
 - Invite codes: random 16-byte hex, optional expiry
 """
+
 import base64
 import hashlib
 import logging
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 # import time — error surfaces only when encryption is actually needed)
 # ---------------------------------------------------------------------------
 
+
 def _fernet_key() -> bytes:
     """Derive a 32-byte Fernet key from the SECRET_KEY env var."""
     raw = os.environ.get("SECRET_KEY", "")
@@ -39,12 +41,14 @@ def _fernet_key() -> bytes:
 
 def _encrypt(plaintext: str) -> str:
     from cryptography.fernet import Fernet
+
     f = Fernet(_fernet_key())
     return f.encrypt(plaintext.encode()).decode()
 
 
 def _decrypt(ciphertext: str) -> str:
     from cryptography.fernet import Fernet
+
     f = Fernet(_fernet_key())
     return f.decrypt(ciphertext.encode()).decode()
 
@@ -52,6 +56,7 @@ def _decrypt(ciphertext: str) -> str:
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class User:
@@ -82,6 +87,7 @@ class InviteCode:
 # ---------------------------------------------------------------------------
 # Password hashing
 # ---------------------------------------------------------------------------
+
 
 def hash_password(password: str, salt: str) -> str:
     dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 260_000)
@@ -166,7 +172,9 @@ class AuthDB:
         now = time.time()
         with self._conn() as conn:
             conn.execute(
-                "INSERT INTO users (id, username, password_hash, password_salt, api_key_enc, is_admin, created_at)"
+                "INSERT INTO users"
+                " (id, username, password_hash, password_salt,"
+                " api_key_enc, is_admin, created_at)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (uid, username, hashed, salt, api_key_enc, int(is_admin), now),
             )
@@ -241,7 +249,9 @@ class AuthDB:
         expires_at = now + expires_hours * 3600 if expires_hours is not None else None
         with self._conn() as conn:
             conn.execute(
-                "INSERT INTO invite_codes (code, created_by, created_at, expires_at) VALUES (?, ?, ?, ?)",
+                "INSERT INTO invite_codes"
+                " (code, created_by, created_at, expires_at)"
+                " VALUES (?, ?, ?, ?)",
                 (code, created_by, now, expires_at),
             )
         return code
@@ -290,7 +300,9 @@ class AuthDB:
         now = time.time()
         with self._conn() as conn:
             conn.execute(
-                "INSERT INTO user_sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
+                "INSERT INTO user_sessions"
+                " (token, user_id, created_at, expires_at)"
+                " VALUES (?, ?, ?, ?)",
                 (token, user_id, now, now + SESSION_TTL_SECONDS),
             )
         return token

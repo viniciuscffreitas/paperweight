@@ -1,4 +1,5 @@
 """Tests for ClaimRegistry state machine."""
+
 import time
 
 import pytest
@@ -7,6 +8,7 @@ import pytest
 @pytest.fixture
 def registry():
     from agents.coordination.claims import ClaimRegistry
+
     return ClaimRegistry()
 
 

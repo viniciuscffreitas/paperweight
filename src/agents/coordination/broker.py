@@ -1,4 +1,5 @@
 """CoordinationBroker — central orchestrator for inter-agent coordination."""
+
 from __future__ import annotations
 
 import asyncio
@@ -52,13 +53,15 @@ class CoordinationBroker:
         contested = 0
         mediating = 0
         for fp, claim in self.claims._claims.items():
-            claims.append({
-                "file": fp,
-                "owner": claim.run_id,
-                "status": claim.status.value,
-                "type": claim.claim_type.value,
-                "since": claim.claimed_at,
-            })
+            claims.append(
+                {
+                    "file": fp,
+                    "owner": claim.run_id,
+                    "status": claim.status.value,
+                    "type": claim.claim_type.value,
+                    "since": claim.claimed_at,
+                }
+            )
             if claim.status.value == "contested":
                 contested += 1
             elif claim.status.value == "mediating":
@@ -159,7 +162,9 @@ class CoordinationBroker:
                 self._record_timeline(run_id, "contested", f"{file_path} (owner: {claim.run_id})")
                 logger.info(
                     "Conflict detected: %s needs %s (claimed by %s)",
-                    run_id, file_path, claim.run_id,
+                    run_id,
+                    file_path,
+                    claim.run_id,
                 )
         elif msg_type == "edit_complete":
             logger.info("Run %s completed edit on %s", run_id, file_path)

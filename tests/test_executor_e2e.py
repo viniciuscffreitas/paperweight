@@ -20,6 +20,7 @@ pytestmark = pytest.mark.e2e
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_executor(tmp_path, *, dry_run=False, daily_limit=10.0, broker=None):
     """Return a fully wired (Executor, HistoryDB) pair for use in tests."""
     from agents.budget import BudgetManager
@@ -90,6 +91,7 @@ def _insert_cost(db, cost_usd: float) -> None:
 # 1. Budget exhaustion before run starts
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_budget_exhaustion_before_run(tmp_path):
     """
@@ -113,6 +115,7 @@ async def test_budget_exhaustion_before_run(tmp_path):
 # 2. Timeout handling
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_timeout_results_in_timeout_status(tmp_path):
     """
@@ -125,6 +128,7 @@ async def test_timeout_results_in_timeout_status(tmp_path):
 
     # We need a real git repo so worktree setup doesn't fail first.
     import subprocess
+
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(["git", "init", str(repo)], check=True, capture_output=True)
@@ -133,8 +137,13 @@ async def test_timeout_results_in_timeout_status(tmp_path):
         cwd=str(repo),
         check=True,
         capture_output=True,
-        env={**__import__("os").environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
-             "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"},
+        env={
+            **__import__("os").environ,
+            "GIT_AUTHOR_NAME": "t",
+            "GIT_AUTHOR_EMAIL": "t@t",
+            "GIT_COMMITTER_NAME": "t",
+            "GIT_COMMITTER_EMAIL": "t@t",
+        },
     )
     project = project.model_copy(update={"repo": str(repo)})
 
@@ -150,6 +159,7 @@ async def test_timeout_results_in_timeout_status(tmp_path):
 # 3. Generic exception during execution
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_generic_exception_results_in_failure(tmp_path):
     """
@@ -161,6 +171,7 @@ async def test_generic_exception_results_in_failure(tmp_path):
     executor, _db = _make_executor(tmp_path, dry_run=False)
 
     import subprocess
+
     repo = tmp_path / "repo2"
     repo.mkdir()
     subprocess.run(["git", "init", str(repo)], check=True, capture_output=True)
@@ -169,8 +180,13 @@ async def test_generic_exception_results_in_failure(tmp_path):
         cwd=str(repo),
         check=True,
         capture_output=True,
-        env={**__import__("os").environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
-             "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"},
+        env={
+            **__import__("os").environ,
+            "GIT_AUTHOR_NAME": "t",
+            "GIT_AUTHOR_EMAIL": "t@t",
+            "GIT_COMMITTER_NAME": "t",
+            "GIT_COMMITTER_EMAIL": "t@t",
+        },
     )
     project = _make_project()
     project = project.model_copy(update={"repo": str(repo)})
@@ -187,6 +203,7 @@ async def test_generic_exception_results_in_failure(tmp_path):
 # ---------------------------------------------------------------------------
 # 4. Dry run with coordination broker
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_dry_run_with_broker_succeeds_and_no_active_worktrees(tmp_path):
@@ -215,6 +232,7 @@ async def test_dry_run_with_broker_succeeds_and_no_active_worktrees(tmp_path):
 # 5. Run record persistence
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_dry_run_persists_run_record_to_sqlite(tmp_path):
     """
@@ -242,6 +260,7 @@ async def test_dry_run_persists_run_record_to_sqlite(tmp_path):
 # ---------------------------------------------------------------------------
 # 6. Cancel running process
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_cancel_run_terminates_tracked_process(tmp_path):

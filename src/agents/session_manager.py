@@ -1,4 +1,6 @@
 """Agent session management — SQLite persistence + DB-level concurrency guard."""
+
+import contextlib
 import logging
 import sqlite3
 import uuid
@@ -55,10 +57,8 @@ class SessionManager:
                 "ALTER TABLE agent_sessions ADD COLUMN title TEXT NOT NULL DEFAULT ''",
                 "ALTER TABLE agent_sessions ADD COLUMN task_id TEXT",
             ]:
-                try:
+                with contextlib.suppress(sqlite3.OperationalError):
                     conn.execute(migration)
-                except sqlite3.OperationalError:
-                    pass  # Column already exists
             # Clear stale locks from previous process
             conn.execute("UPDATE agent_sessions SET running = 0 WHERE running = 1")
 
@@ -69,10 +69,8 @@ class SessionManager:
 
     def _row_to_session(self, row: sqlite3.Row) -> AgentSession:
         title = ""
-        try:
+        with contextlib.suppress(IndexError, KeyError):
             title = row["title"] or ""
-        except (IndexError, KeyError):
-            pass
         return AgentSession(
             id=row["id"],
             project=row["project"],
@@ -139,7 +137,8 @@ class SessionManager:
         if unknown:
             logger.warning(
                 "update_session called with unknown fields %s for session %s — ignored",
-                unknown, session_id,
+                unknown,
+                session_id,
             )
         fields = {k: v for k, v in kwargs.items() if k in _ALLOWED_UPDATE_FIELDS}
         if not fields:
@@ -158,7 +157,8 @@ class SessionManager:
     def close_session(self, session_id: str) -> None:
         with self._conn() as conn:
             conn.execute(
-                "UPDATE agent_sessions SET status = 'closed', running = 0, updated_at = ? WHERE id = ?",
+                "UPDATE agent_sessions SET status = 'closed',"
+                " running = 0, updated_at = ? WHERE id = ?",
                 (datetime.now(UTC).isoformat(), session_id),
             )
 
@@ -206,7 +206,8 @@ class SessionManager:
                        COALESCE(SUM(r.cost_usd), 0) as total_cost,
                        MIN(r.started_at) as first_run_at,
                        MAX(r.finished_at) as last_run_at,
-                       (SELECT task FROM runs WHERE session_id = s.id ORDER BY started_at ASC LIMIT 1) as first_prompt
+                       (SELECT task FROM runs WHERE session_id = s.id
+                        ORDER BY started_at ASC LIMIT 1) as first_prompt
                 FROM agent_sessions s
                 LEFT JOIN runs r ON r.session_id = s.id
                 {where}
@@ -217,17 +218,19 @@ class SessionManager:
         result = []
         for row in rows:
             title = row["title"] or row["first_prompt"] or "Chat sem título"
-            result.append({
-                "id": row["id"],
-                "project": row["project"],
-                "status": row["status"],
-                "title": title,
-                "model": row["model"],
-                "run_count": row["run_count"],
-                "total_cost": row["total_cost"],
-                "created_at": row["created_at"],
-                "updated_at": row["updated_at"],
-            })
+            result.append(
+                {
+                    "id": row["id"],
+                    "project": row["project"],
+                    "status": row["status"],
+                    "title": title,
+                    "model": row["model"],
+                    "run_count": row["run_count"],
+                    "total_cost": row["total_cost"],
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"],
+                }
+            )
         return result
 
     def try_acquire_run(self, session_id: str) -> bool:

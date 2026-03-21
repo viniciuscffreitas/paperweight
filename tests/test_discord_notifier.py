@@ -100,8 +100,7 @@ class TestUpdateRunMessage:
 class TestBuildEmbed:
     def test_truncates_events_at_max(self, notifier):
         events = [
-            {"type": "assistant", "content": f"event-{i}", "timestamp": 1000 + i}
-            for i in range(50)
+            {"type": "assistant", "content": f"event-{i}", "timestamp": 1000 + i} for i in range(50)
         ]
         embed = notifier._build_embed("PROJ-1", "Title", events=events, status="running")
         # Should mention omitted events
@@ -134,8 +133,7 @@ class TestBuildEmbed:
     def test_description_truncated_when_too_long(self, notifier):
         # Create events whose combined text would exceed MAX_EMBED_LENGTH
         events = [
-            {"type": "assistant", "content": "x" * 120, "timestamp": 1000 + i}
-            for i in range(50)
+            {"type": "assistant", "content": "x" * 120, "timestamp": 1000 + i} for i in range(50)
         ]
         embed = notifier._build_embed("PROJ-1", "Title", events=events, status="running")
         assert len(embed["description"]) <= notifier.MAX_EMBED_LENGTH + len("**Title**\n\n")
@@ -151,7 +149,9 @@ class TestBuildEmbed:
         assert embed["url"] == "https://github.com/org/repo/pull/5"
 
     def test_footer_with_cost_and_duration(self, notifier):
-        embed = notifier._build_embed("PROJ-1", "Title", cost=0.42, duration_s=90.0, status="success")
+        embed = notifier._build_embed(
+            "PROJ-1", "Title", cost=0.42, duration_s=90.0, status="success"
+        )
         footer_text = embed["footer"]["text"]
         assert "$0.42" in footer_text
         assert "1m30s" in footer_text
@@ -179,8 +179,12 @@ class TestRateLimitRetry:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("agents.discord_notifier.httpx.AsyncClient", return_value=mock_client):
-            with patch("agents.discord_notifier.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        with (
+            patch("agents.discord_notifier.httpx.AsyncClient", return_value=mock_client),
+            patch(
+                "agents.discord_notifier.asyncio.sleep", new_callable=AsyncMock
+            ) as mock_sleep,
+        ):
                 result = await notifier._request("GET", "/guilds/g1/channels")
 
         assert mock_client.request.call_count == 2
@@ -196,8 +200,14 @@ class TestFailRunMessagePatchUrl:
 
         with patch("agents.discord_notifier.httpx.AsyncClient", return_value=mock_client):
             await notifier.fail_run_message(
-                "chan-99", "msg-42", "PROJ-1", "Title", events,
-                error="err", attempt=1, max_attempts=3,
+                "chan-99",
+                "msg-42",
+                "PROJ-1",
+                "Title",
+                events,
+                error="err",
+                attempt=1,
+                max_attempts=3,
             )
 
         call_args = mock_client.request.call_args
@@ -213,8 +223,14 @@ class TestFinalizeRunMessage:
 
         with patch("agents.discord_notifier.httpx.AsyncClient", return_value=mock_client):
             await notifier.finalize_run_message(
-                "chan-1", "msg-1", "PROJ-42", "Fix bug", events,
-                pr_url="https://github.com/org/repo/pull/1", cost=0.15, duration_s=125.0,
+                "chan-1",
+                "msg-1",
+                "PROJ-42",
+                "Fix bug",
+                events,
+                pr_url="https://github.com/org/repo/pull/1",
+                cost=0.15,
+                duration_s=125.0,
             )
 
         call_args = mock_client.request.call_args
@@ -229,8 +245,13 @@ class TestFinalizeRunMessage:
 
         with patch("agents.discord_notifier.httpx.AsyncClient", return_value=mock_client):
             await notifier.finalize_run_message(
-                "chan-1", "msg-1", "PROJ-42", "Fix bug", events,
-                cost=0.15, duration_s=125.0,
+                "chan-1",
+                "msg-1",
+                "PROJ-42",
+                "Fix bug",
+                events,
+                cost=0.15,
+                duration_s=125.0,
             )
 
         call_args = mock_client.request.call_args
@@ -273,8 +294,16 @@ class TestFailRunMessage:
 
         with patch("agents.discord_notifier.httpx.AsyncClient", return_value=mock_client):
             await notifier.fail_run_message(
-                "chan-1", "msg-1", "PROJ-42", "Fix bug", events,
-                error="Process crashed", attempt=2, max_attempts=3, cost=0.05, duration_s=30.0,
+                "chan-1",
+                "msg-1",
+                "PROJ-42",
+                "Fix bug",
+                events,
+                error="Process crashed",
+                attempt=2,
+                max_attempts=3,
+                cost=0.05,
+                duration_s=30.0,
             )
 
         call_args = mock_client.request.call_args
@@ -288,8 +317,16 @@ class TestFailRunMessage:
 
         with patch("agents.discord_notifier.httpx.AsyncClient", return_value=mock_client):
             await notifier.fail_run_message(
-                "chan-1", "msg-1", "PROJ-42", "Fix bug", events,
-                error="Process crashed", attempt=2, max_attempts=3, cost=0.05, duration_s=30.0,
+                "chan-1",
+                "msg-1",
+                "PROJ-42",
+                "Fix bug",
+                events,
+                error="Process crashed",
+                attempt=2,
+                max_attempts=3,
+                cost=0.05,
+                duration_s=30.0,
             )
 
         call_args = mock_client.request.call_args

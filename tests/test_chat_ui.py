@@ -8,6 +8,7 @@ Covers:
   hideThinking, sendChatPrompt, stopGeneration, addCodeBlockHeaders,
   renderToolCallInChat, loadChatHistory)
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -107,6 +108,7 @@ def test_base_html_cdn_scripts_are_deferred():
     html = _read_base_html()
     # Both marked and highlight CDN script tags must have defer
     import re
+
     scripts = re.findall(r'<script[^>]+src="[^"]*(?:marked|highlight\.min)[^"]*"[^>]*>', html)
     assert len(scripts) >= 2, "Expected at least 2 CDN script tags"
     for script in scripts:
@@ -238,9 +240,7 @@ def _read_task_detail_js() -> str:
     # task-detail.js and chat.js are companion modules that share global scope.
     # Tests check the combined surface — functions may live in either file.
     return (
-        (_STATIC_DIR / "task-detail.js").read_text()
-        + "\n"
-        + (_STATIC_DIR / "chat.js").read_text()
+        (_STATIC_DIR / "task-detail.js").read_text() + "\n" + (_STATIC_DIR / "chat.js").read_text()
     )
 
 

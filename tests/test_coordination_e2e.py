@@ -4,6 +4,7 @@ These tests simulate the full coordination lifecycle without the Claude CLI:
 two agents working on the same repo, file conflicts, inbox/outbox messaging,
 state propagation across worktrees, TTL expiry, and deadlock detection.
 """
+
 import json
 import time
 
@@ -81,13 +82,17 @@ async def test_two_agents_no_conflict(broker, wt_a, wt_b):
 
     # Agent A edits users.py
     conflict_a = await broker.on_stream_event(
-        "run-a", _edit_event(wt_a, "src/api/users.py"), worktree_root=wt_a,
+        "run-a",
+        _edit_event(wt_a, "src/api/users.py"),
+        worktree_root=wt_a,
     )
     assert conflict_a is None
 
     # Agent B edits auth.py (different file)
     conflict_b = await broker.on_stream_event(
-        "run-b", _edit_event(wt_b, "src/middleware/auth.py"), worktree_root=wt_b,
+        "run-b",
+        _edit_event(wt_b, "src/middleware/auth.py"),
+        worktree_root=wt_b,
     )
     assert conflict_b is None
 
@@ -124,12 +129,16 @@ async def test_two_agents_same_file_conflict(broker, wt_a, wt_b):
 
     # Agent A claims users.py
     await broker.on_stream_event(
-        "run-a", _edit_event(wt_a, "src/api/users.py"), worktree_root=wt_a,
+        "run-a",
+        _edit_event(wt_a, "src/api/users.py"),
+        worktree_root=wt_a,
     )
 
     # Agent B tries to edit same file
     conflict = await broker.on_stream_event(
-        "run-b", _edit_event(wt_b, "src/api/users.py"), worktree_root=wt_b,
+        "run-b",
+        _edit_event(wt_b, "src/api/users.py"),
+        worktree_root=wt_b,
     )
 
     assert conflict is not None
@@ -153,7 +162,9 @@ async def test_inbox_need_file_marks_contested(broker, wt_a, wt_b):
 
     # Agent A claims users.py via Edit
     await broker.on_stream_event(
-        "run-a", _edit_event(wt_a, "src/api/users.py"), worktree_root=wt_a,
+        "run-a",
+        _edit_event(wt_a, "src/api/users.py"),
+        worktree_root=wt_a,
     )
 
     # Agent B sees claim in state.json (verify it's there)
@@ -163,11 +174,16 @@ async def test_inbox_need_file_marks_contested(broker, wt_a, wt_b):
     # Agent B writes need_file to its inbox (simulates what Claude would do)
     inbox_b = wt_b / ".paperweight" / "inbox.jsonl"
     with inbox_b.open("a") as f:
-        f.write(json.dumps({
-            "type": "need_file",
-            "file": "src/api/users.py",
-            "intent": "add authentication check to users endpoint",
-        }) + "\n")
+        f.write(
+            json.dumps(
+                {
+                    "type": "need_file",
+                    "file": "src/api/users.py",
+                    "intent": "add authentication check to users endpoint",
+                }
+            )
+            + "\n"
+        )
 
     # Broker polls inboxes
     await broker.poll_inboxes_once()
@@ -197,7 +213,9 @@ async def test_ttl_expiry_releases_stale_claims(broker, wt_a):
 
     # Agent A claims a file
     await broker.on_stream_event(
-        "run-a", _edit_event(wt_a, "src/stale.py"), worktree_root=wt_a,
+        "run-a",
+        _edit_event(wt_a, "src/stale.py"),
+        worktree_root=wt_a,
     )
     assert broker.claims.get_claim_for_file("src/stale.py") is not None
 
@@ -221,7 +239,9 @@ async def test_heartbeat_keeps_claims_alive(broker, wt_a):
 
     await broker.register_run("run-a", wt_a, "some task")
     await broker.on_stream_event(
-        "run-a", _edit_event(wt_a, "src/active.py"), worktree_root=wt_a,
+        "run-a",
+        _edit_event(wt_a, "src/active.py"),
+        worktree_root=wt_a,
     )
 
     # Set claim to almost expired
@@ -256,10 +276,14 @@ async def test_deadlock_detected_via_inbox(broker, wt_a, wt_b):
 
     # A claims file X, B claims file Y
     await broker.on_stream_event(
-        "run-a", _edit_event(wt_a, "src/x.py"), worktree_root=wt_a,
+        "run-a",
+        _edit_event(wt_a, "src/x.py"),
+        worktree_root=wt_a,
     )
     await broker.on_stream_event(
-        "run-b", _edit_event(wt_b, "src/y.py"), worktree_root=wt_b,
+        "run-b",
+        _edit_event(wt_b, "src/y.py"),
+        worktree_root=wt_b,
     )
 
     # A needs Y (B's file), B needs X (A's file)
@@ -294,21 +318,27 @@ async def test_agent_multiple_file_operations(broker, wt_a):
 
     # Read (soft claim)
     await broker.on_stream_event(
-        "run-a", _read_event(wt_a, "src/config.py"), worktree_root=wt_a,
+        "run-a",
+        _read_event(wt_a, "src/config.py"),
+        worktree_root=wt_a,
     )
     claim = broker.claims.get_claim_for_file("src/config.py")
     assert claim.claim_type.value == "soft"
 
     # Edit same file (upgrade to hard)
     await broker.on_stream_event(
-        "run-a", _edit_event(wt_a, "src/config.py"), worktree_root=wt_a,
+        "run-a",
+        _edit_event(wt_a, "src/config.py"),
+        worktree_root=wt_a,
     )
     claim = broker.claims.get_claim_for_file("src/config.py")
     assert claim.claim_type.value == "hard"
 
     # Write a new file
     await broker.on_stream_event(
-        "run-a", _write_event(wt_a, "src/new_module.py"), worktree_root=wt_a,
+        "run-a",
+        _write_event(wt_a, "src/new_module.py"),
+        worktree_root=wt_a,
     )
 
     # Non-file event (should not create claims)
@@ -339,13 +369,19 @@ async def test_three_agents_state_isolation(broker, tmp_path):
     await broker.register_run("run-c", wt_c, "task-c")
 
     await broker.on_stream_event(
-        "run-a", _edit_event(wt_a, "src/a.py"), worktree_root=wt_a,
+        "run-a",
+        _edit_event(wt_a, "src/a.py"),
+        worktree_root=wt_a,
     )
     await broker.on_stream_event(
-        "run-b", _edit_event(wt_b, "src/b.py"), worktree_root=wt_b,
+        "run-b",
+        _edit_event(wt_b, "src/b.py"),
+        worktree_root=wt_b,
     )
     await broker.on_stream_event(
-        "run-c", _edit_event(wt_c, "src/c.py"), worktree_root=wt_c,
+        "run-c",
+        _edit_event(wt_c, "src/c.py"),
+        worktree_root=wt_c,
     )
 
     # Check A's state: should see B and C, not itself
@@ -385,12 +421,16 @@ async def test_full_lifecycle_register_claim_conflict_release(broker, wt_a, wt_b
 
     # 2. Agent A claims users.py
     await broker.on_stream_event(
-        "run-a", _edit_event(wt_a, "src/api/users.py"), worktree_root=wt_a,
+        "run-a",
+        _edit_event(wt_a, "src/api/users.py"),
+        worktree_root=wt_a,
     )
 
     # 3. Agent B detects conflict (same file)
     conflict = await broker.on_stream_event(
-        "run-b", _edit_event(wt_b, "src/api/users.py"), worktree_root=wt_b,
+        "run-b",
+        _edit_event(wt_b, "src/api/users.py"),
+        worktree_root=wt_b,
     )
     assert conflict is not None
 
@@ -401,7 +441,9 @@ async def test_full_lifecycle_register_claim_conflict_release(broker, wt_a, wt_b
 
     # 5. Agent B can now claim the file (no conflict)
     conflict2 = await broker.on_stream_event(
-        "run-b", _edit_event(wt_b, "src/api/users.py"), worktree_root=wt_b,
+        "run-b",
+        _edit_event(wt_b, "src/api/users.py"),
+        worktree_root=wt_b,
     )
     assert conflict2 is None
     assert broker.claims.get_claim_for_file("src/api/users.py").run_id == "run-b"
@@ -455,10 +497,15 @@ async def test_escalation_message_logged(broker, wt_a, caplog):
 
     inbox = wt_a / ".paperweight" / "inbox.jsonl"
     with inbox.open("a") as f:
-        f.write(json.dumps({
-            "type": "escalation",
-            "message": "Cannot find the module to import",
-        }) + "\n")
+        f.write(
+            json.dumps(
+                {
+                    "type": "escalation",
+                    "message": "Cannot find the module to import",
+                }
+            )
+            + "\n"
+        )
 
     with caplog.at_level(logging.WARNING):
         await broker.poll_inboxes_once()

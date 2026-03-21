@@ -1,10 +1,10 @@
 import os
 import time
-from pathlib import Path
+
 from agents.cleanup import (
-    find_stale_run_files,
-    find_orphan_worktrees,
     cleanup_run_artifacts,
+    find_orphan_worktrees,
+    find_stale_run_files,
     purge_old_run_events,
 )
 
@@ -67,11 +67,16 @@ def test_find_orphan_worktrees_ignores_non_session_dirs(tmp_path):
 
 def test_purge_old_run_events(tmp_path):
     from agents.history import HistoryDB
+
     db = HistoryDB(tmp_path / "test.db")
     old_ts = time.time() - (40 * 86400)
     new_ts = time.time()
-    db.insert_event("run-1", {"type": "assistant", "content": "old", "tool_name": "", "timestamp": old_ts})
-    db.insert_event("run-1", {"type": "assistant", "content": "new", "tool_name": "", "timestamp": new_ts})
+    db.insert_event(
+        "run-1", {"type": "assistant", "content": "old", "tool_name": "", "timestamp": old_ts}
+    )
+    db.insert_event(
+        "run-1", {"type": "assistant", "content": "new", "tool_name": "", "timestamp": new_ts}
+    )
     deleted = purge_old_run_events(db, days=30)
     assert deleted == 1
     remaining = db.list_events("run-1")

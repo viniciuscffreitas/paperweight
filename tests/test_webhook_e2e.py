@@ -82,6 +82,7 @@ def app_with_github(tmp_path):
     (proj_dir / "ghproj.yaml").write_text(GITHUB_PROJECT_YAML)
 
     from agents.main import create_app
+
     return create_app(config_path=cfg, projects_dir=proj_dir, data_dir=tmp_path / "data")
 
 
@@ -95,6 +96,7 @@ def app_with_linear(tmp_path):
     (proj_dir / "linproj.yaml").write_text(LINEAR_PROJECT_YAML)
 
     from agents.main import create_app
+
     return create_app(config_path=cfg, projects_dir=proj_dir, data_dir=tmp_path / "data")
 
 
@@ -114,12 +116,14 @@ tasks:
     prompt: "Work"
 """)
     from agents.main import create_app
+
     return create_app(config_path=cfg, projects_dir=proj_dir, data_dir=tmp_path / "data")
 
 
 # ---------------------------------------------------------------------------
 # Helper
 # ---------------------------------------------------------------------------
+
 
 def _github_sig(body: bytes, secret: str) -> str:
     return "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
@@ -133,6 +137,7 @@ def _linear_sig(body: bytes, secret: str) -> str:
 # Scenario: unknown task returns 404
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_unknown_task_returns_404(app_basic):
     """POST /tasks/{valid_project}/nonexistent/run must return 404."""
@@ -145,6 +150,7 @@ async def test_unknown_task_returns_404(app_basic):
 # ---------------------------------------------------------------------------
 # Scenario: /status includes 'projects' key
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_status_includes_projects_list(app_basic):
@@ -161,6 +167,7 @@ async def test_status_includes_projects_list(app_basic):
 # ---------------------------------------------------------------------------
 # Scenario: GitHub webhook → executor triggered (E2E)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_github_webhook_triggers_executor(app_with_github):
@@ -213,6 +220,7 @@ async def test_github_webhook_triggers_executor(app_with_github):
 # Scenario: GitHub webhook — no matching task still returns 200
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_github_webhook_no_match_returns_processed(app_with_github):
     """
@@ -255,6 +263,7 @@ async def test_github_webhook_no_match_returns_processed(app_with_github):
 # ---------------------------------------------------------------------------
 # Scenario: Linear webhook — regular trigger → executor triggered (E2E)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_linear_webhook_regular_trigger_fires_executor(app_with_linear):
@@ -312,6 +321,7 @@ async def test_linear_webhook_regular_trigger_fires_executor(app_with_linear):
 # Scenario: Linear webhook invalid signature → 401
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_linear_webhook_invalid_signature_returns_401(app_with_linear):
     """Linear webhook with a bad signature must be rejected with 401."""
@@ -336,6 +346,7 @@ async def test_linear_webhook_invalid_signature_returns_401(app_with_linear):
 # Scenario: Manual trigger dry_run completes and returns run_id
 # (complementary to test_main: verifies run_id format contains project+task)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_manual_trigger_run_id_format(app_basic):

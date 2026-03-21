@@ -1,4 +1,5 @@
 """Background task processor — claims pending tasks and executes them."""
+
 import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
@@ -98,27 +99,36 @@ class TaskProcessor:
                 self.state.get_repo_semaphore(project.repo),
             ):
                 from agents.executor_utils import generate_run_id
+
                 run_id = generate_run_id(item.project, "task")
 
                 result = await self.state.executor.run_adhoc(
-                    project, prompt, session, is_resume=is_resume, run_id=run_id,
+                    project,
+                    prompt,
+                    session,
+                    is_resume=is_resume,
+                    run_id=run_id,
                 )
 
                 if result.claude_session_id:
                     session_manager.update_session(
-                        session.id, claude_session_id=result.claude_session_id,
+                        session.id,
+                        claude_session_id=result.claude_session_id,
                     )
 
                 if result.status == RunStatus.SUCCESS:
                     pr_url = None
                     try:
                         from pathlib import Path
+
                         worktree = Path(session.worktree_path)
                         if worktree.exists():
                             branch = f"agents/session-{session.id}"
                             pr_url = await self.state.executor._create_pr(
-                                cwd=str(worktree), project=project,
-                                task_name=item.title[:40], branch=branch,
+                                cwd=str(worktree),
+                                project=project,
+                                task_name=item.title[:40],
+                                branch=branch,
                                 autonomy=template.autonomy if template else "pr-only",
                             )
                     except Exception:
@@ -128,8 +138,10 @@ class TaskProcessor:
                 try:
                     run_events = self.state.history.list_events(run_id)
                     files_changed = [
-                        e.get("file_path", "") for e in run_events
-                        if e.get("type") == "tool_use" and e.get("tool_name") in ("Edit", "Write")
+                        e.get("file_path", "")
+                        for e in run_events
+                        if e.get("type") == "tool_use"
+                        and e.get("tool_name") in ("Edit", "Write")
                         and e.get("file_path")
                     ]
                     summary = f"Status: {result.status}\nCost: ${result.cost_usd or 0:.2f}"
@@ -154,18 +166,20 @@ class TaskProcessor:
                     )
                 else:
                     from agents.retry import RetryPolicy, should_retry_error
+
                     retry_policy = RetryPolicy()
                     retry_count = item.retry_count + 1
-                    if (
-                        should_retry_error(result.error_message or "")
-                        and retry_policy.can_retry(retry_count)
+                    if should_retry_error(result.error_message or "") and retry_policy.can_retry(
+                        retry_count
                     ):
                         delay = retry_policy.delay_for_attempt(retry_count)
                         next_retry = (datetime.now(UTC) + timedelta(seconds=delay)).isoformat()
                         self.task_store.mark_for_retry(item.id, retry_count, next_retry)
                         logger.info(
                             "Task %s will retry (attempt %d) at %s",
-                            item.id, retry_count, next_retry,
+                            item.id,
+                            retry_count,
+                            next_retry,
                         )
                     else:
                         self.task_store.update_status(item.id, TaskStatus.FAILED)
@@ -191,11 +205,12 @@ class TaskProcessor:
                         logger.info("Budget exhausted, skipping task %s", item.id)
                         continue
                     if self.task_store.try_claim(item.id):
-                        asyncio.create_task(self.process_one(item))
+                        _task = asyncio.create_task(self.process_one(item))  # noqa: RUF006
 
                 now_iso = datetime.now(UTC).isoformat()
                 retryable = self.task_store.list_retryable(
-                    now_iso, limit=self.config.execution.max_concurrent,
+                    now_iso,
+                    limit=self.config.execution.max_concurrent,
                 )
                 for item in retryable:
                     if not self.state.budget.can_afford(
@@ -203,7 +218,7 @@ class TaskProcessor:
                     ):
                         break
                     if self.task_store.try_claim_any(item.id):
-                        asyncio.create_task(self.process_one(item))
+                        _task = asyncio.create_task(self.process_one(item))  # noqa: RUF006
             except Exception:
                 logger.exception("TaskProcessor loop error")
             await asyncio.sleep(10)

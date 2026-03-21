@@ -1,4 +1,5 @@
 """Task (work item) persistence — SQLite CRUD with atomic claim."""
+
 import contextlib
 import sqlite3
 import uuid
@@ -39,12 +40,10 @@ class TaskStore:
                 )
             """)
             conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_work_items_project"
-                " ON work_items (project, status)"
+                "CREATE INDEX IF NOT EXISTS idx_work_items_project ON work_items (project, status)"
             )
             conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_work_items_source"
-                " ON work_items (source, source_id)"
+                "CREATE INDEX IF NOT EXISTS idx_work_items_source ON work_items (source, source_id)"
             )
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS task_context (
@@ -93,17 +92,32 @@ class TaskStore:
         )
 
     def create(
-        self, project: str, title: str, description: str, source: str,
-        source_id: str = "", source_url: str = "", template: str | None = None,
-        status: TaskStatus = TaskStatus.PENDING, session_id: str | None = None,
+        self,
+        project: str,
+        title: str,
+        description: str,
+        source: str,
+        source_id: str = "",
+        source_url: str = "",
+        template: str | None = None,
+        status: TaskStatus = TaskStatus.PENDING,
+        session_id: str | None = None,
     ) -> WorkItem:
         item_id = uuid.uuid4().hex[:12]
         now = datetime.now(UTC)
         item = WorkItem(
-            id=item_id, project=project, template=template, title=title,
-            description=description, source=source, source_id=source_id,
-            source_url=source_url, status=status, session_id=session_id,
-            created_at=now, updated_at=now,
+            id=item_id,
+            project=project,
+            template=template,
+            title=title,
+            description=description,
+            source=source,
+            source_id=source_id,
+            source_url=source_url,
+            status=status,
+            session_id=session_id,
+            created_at=now,
+            updated_at=now,
         )
         with self._conn() as conn:
             conn.execute(
@@ -111,10 +125,21 @@ class TaskStore:
                    (id, project, template, title, description, source, source_id,
                     source_url, status, session_id, pr_url, created_at, updated_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (item.id, item.project, item.template, item.title,
-                 item.description, item.source, item.source_id,
-                 item.source_url, item.status, item.session_id,
-                 item.pr_url, now.isoformat(), now.isoformat()),
+                (
+                    item.id,
+                    item.project,
+                    item.template,
+                    item.title,
+                    item.description,
+                    item.source,
+                    item.source_id,
+                    item.source_url,
+                    item.status,
+                    item.session_id,
+                    item.pr_url,
+                    now.isoformat(),
+                    now.isoformat(),
+                ),
             )
         return item
 
@@ -218,11 +243,15 @@ class TaskStore:
         return row is not None
 
     def add_context(
-        self, task_id: str, entry_type: str, content: str,
+        self,
+        task_id: str,
+        entry_type: str,
+        content: str,
         source_run_id: str | None = None,
     ) -> None:
         """Add a context entry. Auto-prunes if over 50 entries."""
         import time
+
         now = time.time()
         # Truncate content to 4KB
         if len(content) > 4096:
@@ -257,7 +286,11 @@ class TaskStore:
                 (task_id, limit),
             ).fetchall()
         return [
-            {"type": row["type"], "content": row["content"],
-             "source_run_id": row["source_run_id"], "timestamp": row["timestamp"]}
+            {
+                "type": row["type"],
+                "content": row["content"],
+                "source_run_id": row["source_run_id"],
+                "timestamp": row["timestamp"],
+            }
             for row in rows
         ]

@@ -391,8 +391,11 @@ def test_write_progress_log(tmp_path):
     from agents.executor import write_progress_log
 
     path = write_progress_log(
-        tmp_path / "progress", "issue-abc", attempt=1,
-        issue_title="Add pagination", issue_description="Add to user list",
+        tmp_path / "progress",
+        "issue-abc",
+        attempt=1,
+        issue_title="Add pagination",
+        issue_description="Add to user list",
     )
     assert path.exists()
     content = path.read_text()

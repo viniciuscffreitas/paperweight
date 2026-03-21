@@ -1,4 +1,5 @@
 """Webhook route registration (GitHub and Linear)."""
+
 from __future__ import annotations
 
 import logging
@@ -99,6 +100,7 @@ def register_webhook_routes(
             pr_url = merge_info["pr_url"]
             run: RunRecord | None = state.history.find_run_by_pr_url(pr_url)
             if run and linear_client:
+
                 async def _mark_done(r: RunRecord = run) -> None:
                     variables = state.history.get_run_variables(r.id)
                     if variables:

@@ -76,12 +76,8 @@ def test_close_session(session_mgr: SessionManager) -> None:
 
 
 def test_get_active_session(session_mgr: SessionManager) -> None:
-    s1 = session_mgr.create_session(
-        project="proj-d", model="claude-sonnet-4-6", max_cost_usd=2.00
-    )
-    s2 = session_mgr.create_session(
-        project="proj-d", model="claude-sonnet-4-6", max_cost_usd=2.00
-    )
+    s1 = session_mgr.create_session(project="proj-d", model="claude-sonnet-4-6", max_cost_usd=2.00)
+    s2 = session_mgr.create_session(project="proj-d", model="claude-sonnet-4-6", max_cost_usd=2.00)
     active = session_mgr.get_active_session("proj-d")
     assert active is not None
     # Should return the most recent one
@@ -131,15 +127,9 @@ def test_concurrency_guard(session_mgr: SessionManager) -> None:
 
 
 def test_list_sessions(session_mgr: SessionManager) -> None:
-    session_mgr.create_session(
-        project="proj-h", model="claude-sonnet-4-6", max_cost_usd=2.00
-    )
-    session_mgr.create_session(
-        project="proj-h", model="claude-sonnet-4-6", max_cost_usd=2.00
-    )
-    session_mgr.create_session(
-        project="other-proj", model="claude-sonnet-4-6", max_cost_usd=2.00
-    )
+    session_mgr.create_session(project="proj-h", model="claude-sonnet-4-6", max_cost_usd=2.00)
+    session_mgr.create_session(project="proj-h", model="claude-sonnet-4-6", max_cost_usd=2.00)
+    session_mgr.create_session(project="other-proj", model="claude-sonnet-4-6", max_cost_usd=2.00)
     sessions = session_mgr.list_sessions("proj-h")
     assert len(sessions) == 2
     assert all(s.project == "proj-h" for s in sessions)

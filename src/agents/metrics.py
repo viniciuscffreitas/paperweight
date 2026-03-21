@@ -1,4 +1,5 @@
 """Metrics collector — aggregates run history into trend data."""
+
 from agents.history import HistoryDB
 
 

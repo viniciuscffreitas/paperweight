@@ -55,12 +55,10 @@ class HistoryDB:
                 )
             """)
             conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_claims_file"
-                " ON file_claims (file_path, status)"
+                "CREATE INDEX IF NOT EXISTS idx_claims_file ON file_claims (file_path, status)"
             )
             conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_claims_run"
-                " ON file_claims (run_id, status)"
+                "CREATE INDEX IF NOT EXISTS idx_claims_run ON file_claims (run_id, status)"
             )
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS mediations (
@@ -281,6 +279,7 @@ class HistoryDB:
 
     def cost_by_day(self, days: int = 7) -> list[dict]:
         from datetime import timedelta
+
         cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
         with self._conn() as conn:
             rows = conn.execute(
@@ -294,16 +293,18 @@ class HistoryDB:
 
     def runs_by_status(self, days: int = 7) -> dict[str, int]:
         from datetime import timedelta
+
         cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
         with self._conn() as conn:
             rows = conn.execute(
-                "SELECT status, COUNT(*) as count FROM runs WHERE started_at >= ?"
-                " GROUP BY status", (cutoff,),
+                "SELECT status, COUNT(*) as count FROM runs WHERE started_at >= ? GROUP BY status",
+                (cutoff,),
             ).fetchall()
         return {row["status"]: row["count"] for row in rows}
 
     def avg_duration_seconds(self, days: int = 7) -> float:
         from datetime import timedelta
+
         cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
         with self._conn() as conn:
             row = conn.execute(
@@ -316,10 +317,12 @@ class HistoryDB:
     def purge_old_events(self, days: int = 30) -> int:
         """Delete run_events older than N days. Returns count deleted."""
         import time
+
         cutoff = time.time() - (days * 86400)
         with self._conn() as conn:
             cursor = conn.execute(
-                "DELETE FROM run_events WHERE timestamp < ?", (cutoff,),
+                "DELETE FROM run_events WHERE timestamp < ?",
+                (cutoff,),
             )
             deleted = cursor.rowcount
         return deleted

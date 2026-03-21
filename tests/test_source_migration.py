@@ -13,8 +13,11 @@ def test_linear_source_dedup(tmp_path):
 def test_schedule_source_creates_pending(tmp_path):
     store = TaskStore(tmp_path / "test.db")
     item = store.create(
-        project="pw", title="pw/dep-update",
-        description="Update deps", source="schedule", template="dep-update",
+        project="pw",
+        title="pw/dep-update",
+        description="Update deps",
+        source="schedule",
+        template="dep-update",
     )
     assert item.status == TaskStatus.PENDING
     assert item.template == "dep-update"

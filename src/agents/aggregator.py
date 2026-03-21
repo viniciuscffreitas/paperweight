@@ -1,4 +1,5 @@
 """Aggregator service: normalizers and polling loop."""
+
 from __future__ import annotations
 
 import asyncio
@@ -132,9 +133,7 @@ class AggregatorService:
         """Poll all linear sources for the given project."""
         if self.linear_client is None:
             return
-        sources = [
-            s for s in self.store.list_sources(project_id) if s["source_type"] == "linear"
-        ]
+        sources = [s for s in self.store.list_sources(project_id) if s["source_type"] == "linear"]
         for source in sources:
             source_key = f"linear:{source['source_id']}"
             raw_cfg = source["config"]
@@ -154,9 +153,7 @@ class AggregatorService:
         """Poll all GitHub sources for the given project."""
         if self.github_client is None:
             return
-        sources = [
-            s for s in self.store.list_sources(project_id) if s["source_type"] == "github"
-        ]
+        sources = [s for s in self.store.list_sources(project_id) if s["source_type"] == "github"]
         for source in sources:
             raw_cfg = source["config"]
             config = json.loads(raw_cfg) if isinstance(raw_cfg, str) else raw_cfg
@@ -179,9 +176,7 @@ class AggregatorService:
         """Poll all Slack sources for the given project."""
         if self.slack_client is None:
             return
-        sources = [
-            s for s in self.store.list_sources(project_id) if s["source_type"] == "slack"
-        ]
+        sources = [s for s in self.store.list_sources(project_id) if s["source_type"] == "slack"]
         for source in sources:
             raw_cfg = source["config"]
             config = json.loads(raw_cfg) if isinstance(raw_cfg, str) else raw_cfg

@@ -1,4 +1,5 @@
 """Tests for project_hub_routes — including /api/discover."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -84,12 +85,16 @@ def test_discover_endpoint_returns_sources_from_discover_sources():
 
     expected = [
         {
-            "source_type": "linear", "source_id": "team-1",
-            "source_name": "myproject", "confidence": "high",
+            "source_type": "linear",
+            "source_id": "team-1",
+            "source_name": "myproject",
+            "confidence": "high",
         },
         {
-            "source_type": "github", "source_id": "org/myproject",
-            "source_name": "myproject", "confidence": "high",
+            "source_type": "github",
+            "source_id": "org/myproject",
+            "source_name": "myproject",
+            "confidence": "high",
         },
     ]
     mock_discover = AsyncMock(return_value=expected)

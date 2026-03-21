@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 
 _WORKTREE_RE = re.compile(r"/(?:private/)?tmp/agents/[^/]+/")
 
+
 def _shorten_path(path: str) -> str:
     """Strip worktree prefixes from absolute paths to show relative paths."""
     return _WORKTREE_RE.sub("", path)
@@ -59,6 +60,7 @@ def _format_tool_result(content: str) -> str:
     if len(clean) > 120:
         clean = clean[:120] + "\u2026"
     return f"\u2192 {clean}"
+
 
 EVENT_COLORS: dict[str, str] = {
     "task_started": "#22d3ee",

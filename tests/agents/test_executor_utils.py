@@ -64,9 +64,7 @@ def test_generate_branch_name_unique():
 
 
 def test_parse_claude_output_valid_json():
-    raw = json.dumps(
-        {"result": "ok", "is_error": False, "total_cost_usd": 0.05, "num_turns": 3}
-    )
+    raw = json.dumps({"result": "ok", "is_error": False, "total_cost_usd": 0.05, "num_turns": 3})
     out = parse_claude_output(raw)
     assert out.result == "ok"
     assert out.is_error is False

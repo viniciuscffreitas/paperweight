@@ -35,7 +35,9 @@ async def auto_discover_project_ids(
                     project.linear_team_id = tid
                     logger.info(
                         "Auto-discovered linear_team_id (fuzzy) for %s: %s (team: %s)",
-                        project.name, tid, team_name,
+                        project.name,
+                        tid,
+                        team_name,
                     )
                     break
 

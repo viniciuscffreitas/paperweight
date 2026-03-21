@@ -142,11 +142,7 @@ def test_project_config_linear_and_discord_defaults():
     project = ProjectConfig(
         name="test",
         repo="/tmp/repo",
-        tasks={
-            "t": TaskConfig(
-                description="test", prompt="do it", schedule="0 3 * * MON"
-            )
-        },
+        tasks={"t": TaskConfig(description="test", prompt="do it", schedule="0 3 * * MON")},
     )
     assert project.linear_team_id == ""
     assert project.discord_channel_id == ""
@@ -160,11 +156,7 @@ def test_project_config_with_linear_and_discord():
         repo="/tmp/repo",
         linear_team_id="TEAM-123",
         discord_channel_id="123456789",
-        tasks={
-            "t": TaskConfig(
-                description="test", prompt="do it", schedule="0 3 * * MON"
-            )
-        },
+        tasks={"t": TaskConfig(description="test", prompt="do it", schedule="0 3 * * MON")},
     )
     assert project.linear_team_id == "TEAM-123"
     assert project.discord_channel_id == "123456789"
@@ -247,6 +239,7 @@ def test_notification_rule_creation() -> None:
 
 def test_trigger_type_agent():
     from agents.models import TriggerType
+
     assert TriggerType.AGENT == "agent"
     assert TriggerType("agent") == TriggerType.AGENT
 
@@ -255,10 +248,15 @@ def test_run_record_session_id_default():
     from datetime import UTC, datetime
 
     from agents.models import RunRecord, RunStatus, TriggerType
+
     run = RunRecord(
-        id="test-run", project="test", task="agent",
-        trigger_type=TriggerType.AGENT, started_at=datetime.now(UTC),
-        status=RunStatus.RUNNING, model="sonnet",
+        id="test-run",
+        project="test",
+        task="agent",
+        trigger_type=TriggerType.AGENT,
+        started_at=datetime.now(UTC),
+        status=RunStatus.RUNNING,
+        model="sonnet",
     )
     assert run.session_id is None
 
@@ -267,9 +265,15 @@ def test_run_record_session_id_set():
     from datetime import UTC, datetime
 
     from agents.models import RunRecord, RunStatus, TriggerType
+
     run = RunRecord(
-        id="test-run", project="test", task="agent",
-        trigger_type=TriggerType.AGENT, started_at=datetime.now(UTC),
-        status=RunStatus.RUNNING, model="sonnet", session_id="sess-123",
+        id="test-run",
+        project="test",
+        task="agent",
+        trigger_type=TriggerType.AGENT,
+        started_at=datetime.now(UTC),
+        status=RunStatus.RUNNING,
+        model="sonnet",
+        session_id="sess-123",
     )
     assert run.session_id == "sess-123"

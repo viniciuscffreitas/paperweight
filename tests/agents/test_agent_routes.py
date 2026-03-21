@@ -1,4 +1,5 @@
 """Tests for agent session_id capture from Claude CLI output."""
+
 import json
 
 import pytest
@@ -19,15 +20,19 @@ def test_session_id_captured_from_output_file(tmp_path, session_mgr):
     # Simulate Claude CLI output with session_id in result line
     output_file = tmp_path / "run-output.json"
     lines = [
-        json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": "hello"}]}}),
-        json.dumps({
-            "type": "result",
-            "result": "hello",
-            "is_error": False,
-            "session_id": "ca252693-8f5f-4ace-b901-23196e57a5b8",
-            "total_cost_usd": 0.05,
-            "num_turns": 1,
-        }),
+        json.dumps(
+            {"type": "assistant", "message": {"content": [{"type": "text", "text": "hello"}]}}
+        ),
+        json.dumps(
+            {
+                "type": "result",
+                "result": "hello",
+                "is_error": False,
+                "session_id": "ca252693-8f5f-4ace-b901-23196e57a5b8",
+                "total_cost_usd": 0.05,
+                "num_turns": 1,
+            }
+        ),
     ]
     output_file.write_text("\n".join(lines))
 
@@ -52,7 +57,15 @@ def test_session_id_not_captured_when_missing(tmp_path, session_mgr):
 
     output_file = tmp_path / "run-output.json"
     lines = [
-        json.dumps({"type": "result", "result": "hello", "is_error": False, "total_cost_usd": 0.01, "num_turns": 1}),
+        json.dumps(
+            {
+                "type": "result",
+                "result": "hello",
+                "is_error": False,
+                "total_cost_usd": 0.01,
+                "num_turns": 1,
+            }
+        ),
     ]
     output_file.write_text("\n".join(lines))
 

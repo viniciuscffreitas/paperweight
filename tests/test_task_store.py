@@ -8,6 +8,7 @@ from agents.task_store import TaskStore
 def store(tmp_path):
     return TaskStore(tmp_path / "test.db")
 
+
 def test_create_and_get(store):
     task = store.create(project="pw", title="Fix bug", description="It's broken", source="manual")
     assert task.id
@@ -17,11 +18,13 @@ def test_create_and_get(store):
     assert got is not None
     assert got.title == "Fix bug"
 
+
 def test_list_by_project(store):
     store.create(project="pw", title="T1", description="D1", source="manual")
     store.create(project="pw", title="T2", description="D2", source="manual")
     store.create(project="other", title="T3", description="D3", source="manual")
     assert len(store.list_by_project("pw")) == 2
+
 
 def test_list_pending(store):
     t1 = store.create(project="pw", title="T1", description="D1", source="manual")
@@ -31,16 +34,19 @@ def test_list_pending(store):
     assert len(pending) == 1
     assert pending[0].id == t2.id
 
+
 def test_atomic_claim(store):
     t = store.create(project="pw", title="T1", description="D", source="manual")
     assert store.try_claim(t.id) is True
     assert store.get(t.id).status == TaskStatus.RUNNING
     assert store.try_claim(t.id) is False  # already claimed
 
+
 def test_claim_only_pending(store):
     t = store.create(project="pw", title="T1", description="D", source="manual")
     store.update_status(t.id, TaskStatus.DONE)
     assert store.try_claim(t.id) is False
+
 
 def test_update_status_with_pr(store):
     t = store.create(project="pw", title="T1", description="D", source="manual")
@@ -49,30 +55,41 @@ def test_update_status_with_pr(store):
     assert got.status == TaskStatus.REVIEW
     assert got.pr_url == "https://github.com/pr/1"
 
+
 def test_exists_by_source(store):
     store.create(project="pw", title="T1", description="D", source="linear", source_id="abc")
     assert store.exists_by_source("linear", "abc") is True
     assert store.exists_by_source("linear", "xyz") is False
     assert store.exists_by_source("github", "abc") is False
 
+
 def test_update_session(store):
     t = store.create(project="pw", title="T1", description="D", source="manual")
     store.update_session(t.id, "session-123")
     assert store.get(t.id).session_id == "session-123"
 
+
 def test_create_with_draft_status(store):
-    t = store.create(project="pw", title="Brainstorm idea", description="rough idea",
-                     source="manual", status=TaskStatus.DRAFT)
+    t = store.create(
+        project="pw",
+        title="Brainstorm idea",
+        description="rough idea",
+        source="manual",
+        status=TaskStatus.DRAFT,
+    )
     assert t.status == TaskStatus.DRAFT
     assert store.get(t.id).status == TaskStatus.DRAFT
+
 
 def test_update_title(store):
     t = store.create(project="pw", title="Old title", description="D", source="manual")
     store.update_title(t.id, "New title")
     assert store.get(t.id).title == "New title"
 
+
 def test_update_status_to_ready(store):
-    t = store.create(project="pw", title="T1", description="D", source="manual",
-                     status=TaskStatus.DRAFT)
+    t = store.create(
+        project="pw", title="T1", description="D", source="manual", status=TaskStatus.DRAFT
+    )
     store.update_status(t.id, TaskStatus.READY)
     assert store.get(t.id).status == TaskStatus.READY
