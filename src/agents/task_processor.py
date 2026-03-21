@@ -44,7 +44,7 @@ class TaskProcessor:
                 spec_content = Path(item.spec_path).read_text()
                 parts.append(f"\n\n## Implement the spec at `{item.spec_path}`\n")
                 parts.append(spec_content)
-            except (OSError, FileNotFoundError):
+            except OSError:
                 parts.append(f"\n\n(Spec file not found: {item.spec_path})")
 
         if context_entries:

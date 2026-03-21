@@ -258,15 +258,21 @@ class TaskStore:
                 (title, now, item_id),
             )
 
-    def reset_for_rerun(self, item_id: str) -> None:
-        """Reset a task for a clean re-run: status=pending, retry_count=0, clear stale state."""
+    def reset_for_rerun(self, item_id: str) -> bool:
+        """Reset a task for a clean re-run: status=pending, retry_count=0, clear stale state.
+
+        Returns True if the reset succeeded, False if the task is RUNNING or PENDING
+        (cannot reset a task that is currently being processed).
+        """
         now = datetime.now(UTC).isoformat()
         with self._conn() as conn:
-            conn.execute(
+            cursor = conn.execute(
                 "UPDATE work_items SET status = ?, retry_count = 0, next_retry_at = NULL,"
-                " session_id = NULL, updated_at = ? WHERE id = ?",
-                (TaskStatus.PENDING, now, item_id),
+                " session_id = NULL, updated_at = ? WHERE id = ?"
+                " AND status NOT IN (?, ?)",
+                (TaskStatus.PENDING, now, item_id, TaskStatus.RUNNING, TaskStatus.PENDING),
             )
+            return cursor.rowcount == 1
 
     def reset_running_to_pending(self) -> int:
         """Reset orphaned 'running' tasks back to 'pending' (e.g. after crash)."""

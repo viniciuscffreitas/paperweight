@@ -170,6 +170,30 @@ class TestRerunResetsRetryState:
         # Even up to 3 attempts
         assert policy.can_retry(3) is True
 
+    def test_rerun_blocked_for_running_task(self, store):
+        """Cannot rerun a task that is currently RUNNING."""
+        t = store.create(project="pw", title="T", description="D", source="manual")
+        store.update_status(t.id, TaskStatus.RUNNING)
+        assert store.reset_for_rerun(t.id) is False
+        assert store.get(t.id).status == TaskStatus.RUNNING
+
+    def test_rerun_blocked_for_pending_task(self, store):
+        """Cannot rerun a task that is already PENDING."""
+        t = store.create(project="pw", title="T", description="D", source="manual")
+        assert store.reset_for_rerun(t.id) is False
+        assert store.get(t.id).status == TaskStatus.PENDING
+
+    def test_rerun_api_returns_409_for_running(self, client, store):
+        """POST /rerun on RUNNING task returns 409."""
+        resp = client.post(
+            "/api/work-items",
+            json={"project": "pw", "title": "T", "description": "D"},
+        )
+        item_id = resp.json()["id"]
+        store.update_status(item_id, TaskStatus.RUNNING)
+        rerun_resp = client.post(f"/api/work-items/{item_id}/rerun")
+        assert rerun_resp.status_code == 409
+
 
 # ── Bug 3: Misclassified retryable errors ─────────────────────────
 
