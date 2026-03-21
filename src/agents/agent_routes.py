@@ -2,7 +2,7 @@
 import logging
 from pathlib import Path
 
-from fastapi import BackgroundTasks, FastAPI, Response
+from fastapi import BackgroundTasks, FastAPI, Request, Response
 
 from agents.app_state import AppState
 from agents.config import GlobalConfig
@@ -79,6 +79,7 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
         project_name: str,
         data: dict,
         background_tasks: BackgroundTasks,
+        request: Request,
     ) -> Response | dict:
         project = state.projects.get(project_name)
         if project is None:
@@ -131,6 +132,13 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
 
         run_id = generate_run_id(project_name, "agent")
 
+        # Capture user API key before entering the background task (request.state
+        # is not available inside the background coroutine)
+        user_api_key: str | None = None
+        _user = getattr(request.state, "user", None)
+        if _user and hasattr(_user, "api_key"):
+            user_api_key = _user.api_key or None
+
         async def _run() -> None:
             try:
                 async with (
@@ -139,6 +147,7 @@ def register_agent_routes(app: FastAPI, state: AppState, config: GlobalConfig) -
                 ):
                     result = await state.executor.run_adhoc(
                         project, prompt, session, is_resume=is_resume, run_id=run_id,
+                        api_key=user_api_key,
                     )
                     # Capture session_id from ClaudeOutput for --resume
                     if result.claude_session_id:

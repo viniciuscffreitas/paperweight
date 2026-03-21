@@ -300,6 +300,22 @@ def create_app(
         from agents.task_processor import TaskProcessor
         task_processor = TaskProcessor(task_store=task_store, state=state, config=config)
         processor_task = asyncio.create_task(task_processor.run_loop())
+
+        # Auth (optional — enabled when SECRET_KEY env var is set)
+        import os as _os
+        if _os.environ.get("SECRET_KEY"):
+            from agents.auth import AuthDB
+            from agents.auth_routes import register_auth_routes
+            from agents.dashboard_html import _TEMPLATES as _auth_templates
+            auth_db_inst = AuthDB(data_dir / "auth.db")
+            auth_db_inst.bootstrap_invite()
+            register_auth_routes(app, auth_db_inst, _auth_templates)
+            app.state.auth_db = auth_db_inst
+            logger.info("Auth enabled (SECRET_KEY set)")
+        else:
+            app.state.auth_db = None
+            logger.info("Auth disabled (no SECRET_KEY)")
+
         yield
         task_processor.stop()
         processor_task.cancel()
@@ -313,6 +329,9 @@ def create_app(
 
     app = FastAPI(title="Background Agent Runner", lifespan=lifespan)
     app.state.app_state = state
+
+    from agents.auth_middleware import register_auth_middleware
+    register_auth_middleware(app)
 
     # --- Core routes ---
 

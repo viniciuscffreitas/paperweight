@@ -293,6 +293,7 @@ class Executor:
         session: "AgentSession",
         is_resume: bool = False,
         run_id: str = "",
+        api_key: str | None = None,
     ) -> RunRecord:
         if not run_id:
             run_id = generate_run_id(project.name, "agent")
@@ -345,9 +346,13 @@ class Executor:
             if is_resume and session.claude_session_id:
                 claude_cmd.extend(["--resume", session.claude_session_id])
 
+            import os as _os
+            env_override = {**_os.environ, "ANTHROPIC_API_KEY": api_key} if api_key else None
+
             output, raw_output = await self._run_claude(
                 claude_cmd, cwd=str(worktree_path), run_id=run_id,
                 timeout=self.config.timeout_minutes * 60,
+                env=env_override,
             )
 
             output_dir = self.data_dir / "runs"
@@ -445,6 +450,7 @@ class Executor:
         cwd: str,
         run_id: str,
         timeout: int,
+        env: dict[str, str] | None = None,
     ) -> tuple[ClaudeOutput, str]:
         from agents.streaming import RunStream
 
@@ -453,6 +459,7 @@ class Executor:
             cwd=cwd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=env,
         )
         self._running_processes[run_id] = proc
         stream = RunStream(run_id=run_id, on_event=self.on_stream_event)
