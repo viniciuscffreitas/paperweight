@@ -12,7 +12,23 @@ from agents.auth import AuthDB, mask_api_key
 logger = logging.getLogger(__name__)
 
 _AVATAR_MAX_BYTES = 512 * 1024
-_AVATAR_ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp"}
+
+# Magic-byte signatures for allowed image types.
+# We detect from file content, NOT from the client-supplied Content-Type,
+# to prevent trivially bypassing the check by forging the MIME header.
+_MAGIC_JPEG = b"\xff\xd8\xff"
+_MAGIC_PNG = b"\x89PNG\r\n\x1a\n"
+
+
+def _detect_image_mime(data: bytes) -> str | None:
+    """Return the MIME type inferred from magic bytes, or None if not a supported image."""
+    if data[:3] == _MAGIC_JPEG:
+        return "image/jpeg"
+    if data[:8] == _MAGIC_PNG:
+        return "image/png"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
 
 
 def register_profile_routes(
@@ -26,9 +42,9 @@ def register_profile_routes(
         if user is None:
             return RedirectResponse("/login", status_code=303)
         return templates.TemplateResponse(
+            request,
             "profile.html",
             {
-                "request": request,
                 "user": user,
                 "masked_key": mask_api_key(user.api_key),
                 "saved": request.query_params.get("saved", ""),
@@ -66,12 +82,14 @@ def register_profile_routes(
         user = getattr(request.state, "user", None)
         if user is None:
             return RedirectResponse("/login", status_code=303)
-        if avatar.content_type not in _AVATAR_ALLOWED_MIME:
-            return RedirectResponse("/profile?error=avatar_type", status_code=303)
         data = await avatar.read()
         if len(data) > _AVATAR_MAX_BYTES:
             return RedirectResponse("/profile?error=avatar_size", status_code=303)
+        # Validate by inspecting file magic bytes, not client-supplied Content-Type.
+        mime = _detect_image_mime(data)
+        if mime is None:
+            return RedirectResponse("/profile?error=avatar_type", status_code=303)
         encoded = base64.b64encode(data).decode()
-        data_uri = f"data:{avatar.content_type};base64,{encoded}"
+        data_uri = f"data:{mime};base64,{encoded}"
         auth_db.update_avatar(user.id, data_uri)
         return RedirectResponse("/profile?saved=avatar", status_code=303)

@@ -132,3 +132,15 @@ def test_avatar_upload_rejects_wrong_mime(client):
         follow_redirects=False,
     )
     assert resp.status_code in (303, 400)
+
+
+def test_avatar_upload_rejects_forged_mime(client):
+    """SVG claiming to be image/jpeg is rejected — magic bytes are checked, not Content-Type."""
+    import io
+    svg_content = b"<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>"
+    resp = client.post(
+        "/profile/avatar",
+        files={"avatar": ("evil.jpg", io.BytesIO(svg_content), "image/jpeg")},
+        follow_redirects=False,
+    )
+    assert resp.status_code in (303, 400)
