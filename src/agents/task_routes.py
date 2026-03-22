@@ -101,7 +101,9 @@ def register_task_routes(
                 if session is not None:
                     session_manager.close_session(session_id)
                     worktree = Path(session.worktree_path)
-                    if worktree.exists():
+                    # Verify it's a git worktree (has .git as a file, not a dir)
+                    # before rmtree to guard against deleting the main repo
+                    if worktree.exists() and (worktree / ".git").is_file():
                         shutil.rmtree(worktree)
             except Exception:
                 logger.warning("Failed to clean up session %s after task deletion", session_id)

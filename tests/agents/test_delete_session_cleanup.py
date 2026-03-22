@@ -45,9 +45,12 @@ def _create_task(client, status="done"):
 
 
 def _make_worktree(session) -> Path:
-    """Create the worktree directory that the session points to."""
+    """Create the worktree directory that the session points to.
+    Includes a .git file (as a file, not a dir) to simulate a real git worktree.
+    """
     wt = Path(session.worktree_path)
     wt.mkdir(parents=True, exist_ok=True)
+    (wt / ".git").write_text("gitdir: /some/repo/.git/worktrees/session-abc")
     (wt / "file.txt").write_text("work")
     return wt
 
