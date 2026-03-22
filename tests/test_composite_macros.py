@@ -124,3 +124,76 @@ def test_sidebar_item_active(jinja_env):
     html = tmpl.render()
     assert "myproj" in html
     assert "bg-elevated" in html or "active" in html.lower()
+
+
+# ---------------------------------------------------------------------------
+# Rerun button visibility contract
+# ---------------------------------------------------------------------------
+
+def _done_item():
+    return type(
+        "Item",
+        (),
+        {
+            "id": "abc",
+            "title": "Finished task",
+            "status": "done",
+            "source": "",
+            "source_id": "",
+            "source_url": "",
+            "pr_url": "",
+            "session_id": "",
+            "created_at": "",
+            "updated_at": "",
+        },
+    )()
+
+
+def _failed_item():
+    return type(
+        "Item",
+        (),
+        {
+            "id": "xyz",
+            "title": "Failed task",
+            "status": "failed",
+            "source": "",
+            "source_id": "",
+            "source_url": "",
+            "pr_url": "",
+            "session_id": "",
+            "created_at": "",
+            "updated_at": "",
+        },
+    )()
+
+
+def test_done_card_has_no_rerun_button(jinja_env):
+    """task_card_done must NOT render a rerun button — done tasks cannot be re-run."""
+    tmpl = jinja_env.from_string(
+        '{% from "components/task_cards.html" import task_card_done %}'
+        '{{ task_card_done(item, project_id="p") }}'
+    )
+    html = tmpl.render(item=_done_item())
+    assert "taskRerun" not in html
+
+
+def test_failed_card_in_task_list_has_rerun_button(jinja_env):
+    """task_card with status=failed must render the ↺ rerun button."""
+    tmpl = jinja_env.from_string(
+        '{% from "components/task_cards.html" import task_card %}'
+        '{{ task_card(item, project_id="p") }}'
+    )
+    html = tmpl.render(item=_failed_item())
+    assert "taskRerun" in html
+
+
+def test_done_card_still_has_duplicate_and_delete(jinja_env):
+    """Removing rerun from done card must not affect duplicate/delete buttons."""
+    tmpl = jinja_env.from_string(
+        '{% from "components/task_cards.html" import task_card_done %}'
+        '{{ task_card_done(item, project_id="p") }}'
+    )
+    html = tmpl.render(item=_done_item())
+    assert "taskDuplicate" in html
+    assert "taskDelete" in html

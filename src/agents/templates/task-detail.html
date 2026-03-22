@@ -23,7 +23,7 @@
   {{ btn('Start', variant='primary', onclick='startTask()') }}
 {% elif _s == 'running' %}
   {{ btn('Cancel', variant='danger', onclick='cancelRun()') }}
-{% elif _s in ('done', 'failed') %}
+{% elif _s == 'failed' %}
   {{ btn('Rerun', variant='ghost', onclick='rerunTask()') }}
 {% endif %}
 {% if item.pr_url %}
