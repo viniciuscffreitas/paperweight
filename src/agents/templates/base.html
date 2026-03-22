@@ -226,6 +226,28 @@
       });
     }
 
+    /* ── Toast — global SOT ───────────────────────────── */
+    var _TOAST_ICONS = { success: '✓', error: '✕', warn: '⚠', info: 'i' };
+    function showToast(msg, type, duration) {
+      type = type || 'info';
+      duration = duration || 3500;
+      var container = document.getElementById('toast-container');
+      var el = document.createElement('div');
+      el.className = 'toast toast--' + type;
+      el.style.setProperty('--toast-duration', duration + 'ms');
+      el.innerHTML =
+        '<span class="toast__icon">' + (_TOAST_ICONS[type] || 'i') + '</span>' +
+        '<span class="toast__msg">' + msg + '</span>' +
+        '<div class="toast__bar"></div>';
+      container.appendChild(el);
+      var timer = setTimeout(function() { _dismissToast(el); }, duration);
+      el.addEventListener('click', function() { clearTimeout(timer); _dismissToast(el); });
+    }
+    function _dismissToast(el) {
+      el.classList.add('toast--out');
+      el.addEventListener('animationend', function() { el.remove(); }, { once: true });
+    }
+
     /* Wizard */
     var _wizardStep1Html = '';
     document.addEventListener('DOMContentLoaded', function() {
@@ -244,6 +266,9 @@
       document.getElementById('wizard-dot-2').style.background = 'var(--separator-strong)';
     }
   </script>
+
+  <!-- Toast container (global SOT — see showToast() above) -->
+  <div id="toast-container"></div>
 
 </body>
 </html>
