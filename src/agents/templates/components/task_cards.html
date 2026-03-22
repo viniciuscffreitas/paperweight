@@ -85,7 +85,7 @@
 
     {# ── Primary contextual action ── #}
     {%- if is_running %}
-    <button onclick="event.stopPropagation();taskCancel({{ item.id|tojson }})"
+    <button onclick='event.stopPropagation();taskCancel({{ item.id|tojson }})'
             title="Cancel"
             style="background:var(--bg-card-done);border:1px solid var(--separator-strong);color:var(--status-error);
                    padding:4px 10px;font-size:11px;font-weight:500;border-radius:6px;cursor:pointer;
@@ -93,7 +93,7 @@
             onmouseover="this.style.borderColor='var(--status-error)'"
             onmouseout="this.style.borderColor='var(--separator-strong)'">✕ Cancel</button>
     {%- elif is_failed %}
-    <button onclick="event.stopPropagation();taskRerun({{ item.id|tojson }})"
+    <button onclick='event.stopPropagation();taskRerun({{ item.id|tojson }})'
             title="Retry"
             style="background:var(--bg-card-done);border:1px solid var(--separator-strong);color:var(--status-warning);
                    padding:4px 10px;font-size:11px;font-weight:500;border-radius:6px;cursor:pointer;
@@ -104,7 +104,7 @@
 
     {# ── Overflow menu (⋯) ── #}
     <div style="position:relative;display:inline-block;">
-      <button onclick="event.stopPropagation();toggleTaskMenu({{ item.id|tojson }})"
+      <button onclick='event.stopPropagation();toggleTaskMenu({{ item.id|tojson }})'
               title="More actions" aria-label="More actions" aria-haspopup="true"
               aria-controls="task-menu-{{ item.id }}"
               style="background:var(--bg-card-done);border:1px solid var(--separator-strong);color:var(--text-secondary);
@@ -117,14 +117,14 @@
                   background:var(--bg-chrome);border:1px solid var(--separator-strong);
                   border-radius:8px;padding:4px;min-width:140px;z-index:100;
                   box-shadow:0 4px 16px rgba(0,0,0,.4);">
-        <button role="menuitem" onclick="event.stopPropagation();taskDuplicate({{ item.id|tojson }}, {{ item.title|tojson }})"
+        <button role="menuitem" onclick='event.stopPropagation();taskDuplicate({{ item.id|tojson }}, {{ item.title|tojson }})'
                 style="display:block;width:100%;text-align:left;padding:7px 12px;font-size:12px;
                        color:var(--text-secondary);background:transparent;border:none;border-radius:6px;
                        cursor:pointer;font-family:inherit;transition:background .1s;"
                 onmouseover="this.style.background='var(--bg-elevated)'"
                 onmouseout="this.style.background='transparent'">⎘ Duplicate</button>
         <div style="height:1px;background:var(--separator-subtle);margin:2px 0;" role="separator"></div>
-        <button role="menuitem" onclick="event.stopPropagation();taskDelete({{ item.id|tojson }}, {{ item.title|tojson }})"
+        <button role="menuitem" onclick='event.stopPropagation();taskDelete({{ item.id|tojson }}, {{ item.title|tojson }})'
                 style="display:block;width:100%;text-align:left;padding:7px 12px;font-size:12px;
                        color:var(--status-error);background:transparent;border:none;border-radius:6px;
                        cursor:pointer;font-family:inherit;transition:background .1s;"
@@ -164,21 +164,21 @@
               opacity:0;transition:opacity 0.15s;z-index:10;"
        onmouseenter="this.style.opacity='1'"
        onmouseleave="this.style.opacity='0'">
-    <button onclick="event.stopPropagation();taskRerun({{ item.id|tojson }})"
+    <button onclick='event.stopPropagation();taskRerun({{ item.id|tojson }})'
             title="Rerun"
             style="background:var(--bg-card-done);border:1px solid var(--separator-strong);color:var(--text-muted);
                    padding:3px 8px;font-size:11px;font-weight:500;border-radius:6px;cursor:pointer;
                    font-family:inherit;transition:all .15s;"
             onmouseover="this.style.borderColor='var(--text-muted)';this.style.color='var(--text-secondary)'"
             onmouseout="this.style.borderColor='var(--separator-strong)';this.style.color='var(--text-muted)'">↺</button>
-    <button onclick="event.stopPropagation();taskDuplicate({{ item.id|tojson }}, {{ item.title|tojson }})"
+    <button onclick='event.stopPropagation();taskDuplicate({{ item.id|tojson }}, {{ item.title|tojson }})'
             title="Duplicate"
             style="background:var(--bg-card-done);border:1px solid var(--separator-strong);color:var(--text-muted);
                    padding:3px 8px;font-size:11px;border-radius:6px;cursor:pointer;
                    font-family:inherit;transition:all .15s;"
             onmouseover="this.style.borderColor='var(--text-muted)';this.style.color='var(--text-secondary)'"
             onmouseout="this.style.borderColor='var(--separator-strong)';this.style.color='var(--text-muted)'">⎘</button>
-    <button onclick="event.stopPropagation();taskDelete({{ item.id|tojson }}, {{ item.title|tojson }})"
+    <button onclick='event.stopPropagation();taskDelete({{ item.id|tojson }}, {{ item.title|tojson }})'
             title="Delete"
             style="background:var(--bg-card-done);border:1px solid var(--separator-strong);color:var(--text-muted);
                    padding:3px 8px;font-size:11px;border-radius:6px;cursor:pointer;
