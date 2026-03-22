@@ -102,66 +102,6 @@ def test_get_settings_shows_profile_back_link(client: TestClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# POST /settings/account — update API key
-# ---------------------------------------------------------------------------
-
-
-def test_post_settings_updates_api_key(client: TestClient, auth_db: AuthDB) -> None:
-    resp = client.post(
-        "/settings/account", data={"api_key": "sk-ant-new-key"}, follow_redirects=False
-    )
-    # Should redirect to profile after account save
-    assert resp.status_code == 303
-    assert "/profile" in resp.headers["location"]
-
-    # Verify the key was updated in the DB
-    users_with_key = [
-        u
-        for uid in ["testuser"]
-        if (u := auth_db.authenticate("testuser", "password123")) is not None
-    ]
-    assert len(users_with_key) == 1
-    assert users_with_key[0].api_key == "sk-ant-new-key"
-
-
-def test_post_settings_clears_api_key(client: TestClient, auth_db: AuthDB) -> None:
-    resp = client.post("/settings/account", data={"api_key": ""}, follow_redirects=False)
-    assert resp.status_code == 303
-
-    user = auth_db.authenticate("testuser", "password123")
-    assert user is not None
-    assert user.api_key == ""
-
-
-# ---------------------------------------------------------------------------
-# POST /settings/password — change password
-# ---------------------------------------------------------------------------
-
-
-def test_post_password_change_success(client: TestClient, auth_db: AuthDB) -> None:
-    resp = client.post(
-        "/settings/password",
-        data={"current_password": "password123", "new_password": "newpass456"},
-        follow_redirects=False,
-    )
-    assert resp.status_code == 303
-    assert "/profile" in resp.headers["location"]
-    assert "saved=password" in resp.headers["location"]
-    assert auth_db.authenticate("testuser", "newpass456") is not None
-
-
-def test_post_password_change_wrong_current(client: TestClient) -> None:
-    resp = client.post(
-        "/settings/password",
-        data={"current_password": "wrong", "new_password": "newpass"},
-        follow_redirects=False,
-    )
-    assert resp.status_code == 303
-    assert "/profile" in resp.headers["location"]
-    assert "error=password" in resp.headers["location"]
-
-
-# ---------------------------------------------------------------------------
 # Admin config visibility
 # ---------------------------------------------------------------------------
 

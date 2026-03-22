@@ -101,6 +101,15 @@ class InviteCode:
 # ---------------------------------------------------------------------------
 
 
+def mask_api_key(key: str) -> str:
+    """Show prefix + masked suffix so user can identify which key is set."""
+    if not key:
+        return ""
+    if len(key) <= 10:
+        return key[:3] + "****"
+    return key[:7] + "****"
+
+
 def hash_password(password: str, salt: str) -> str:
     dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 260_000)
     return dk.hex()

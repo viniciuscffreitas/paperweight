@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from agents.auth import AuthDB
+from agents.auth import AuthDB, mask_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -16,27 +16,17 @@ def register_profile_routes(
     auth_db: AuthDB,
     templates: Jinja2Templates,
 ) -> None:
-    def _mask_api_key(key: str) -> str:
-        if not key:
-            return ""
-        if len(key) <= 10:
-            return key[:3] + "****"
-        return key[:7] + "****"
-
     @app.get("/profile", response_class=HTMLResponse)
     async def profile_page(request: Request) -> Response:
         user = getattr(request.state, "user", None)
         if user is None:
             return RedirectResponse("/login", status_code=303)
-        store = getattr(request.app.state, "project_store", None)
-        projects = store.list_projects() if store else []
         return templates.TemplateResponse(
             "profile.html",
             {
                 "request": request,
                 "user": user,
-                "masked_key": _mask_api_key(user.api_key),
-                "projects": projects,
+                "masked_key": mask_api_key(user.api_key),
                 "saved": request.query_params.get("saved", ""),
                 "error": request.query_params.get("error", ""),
             },

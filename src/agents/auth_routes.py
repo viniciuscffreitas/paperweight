@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from agents.auth import AuthDB
+from agents.auth import AuthDB, mask_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -182,14 +182,6 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
     # Settings — user profile & API key
     # ------------------------------------------------------------------
 
-    def _mask_api_key(key: str) -> str:
-        """Show prefix + masked suffix so user can identify which key is set."""
-        if not key:
-            return ""
-        if len(key) <= 10:
-            return key[:3] + "****"
-        return key[:7] + "****"
-
     def _coerce_value(val: str) -> bool | int | float | str:
         """Coerce form string to appropriate Python type."""
         if val == "":
@@ -212,7 +204,7 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
             return RedirectResponse("/login", status_code=303)
         store = getattr(request.app.state, "project_store", None)
         projects = store.list_projects() if store else []
-        masked_key = _mask_api_key(user.api_key)
+        masked_key = mask_api_key(user.api_key)
 
         config_data = {}
         integrations_status = {}
@@ -244,31 +236,6 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
                 "error": error,
             },
         )
-
-    @app.post("/settings/account", response_class=HTMLResponse)
-    async def settings_save_account(request: Request) -> Response:
-        user = getattr(request.state, "user", None)
-        if user is None:
-            return RedirectResponse("/login", status_code=303)
-        form = await request.form()
-        api_key = str(form.get("api_key", "")).strip()
-        auth_db.update_api_key(user.id, api_key)
-        return RedirectResponse("/profile?saved=account", status_code=303)
-
-    @app.post("/settings/password", response_class=HTMLResponse)
-    async def settings_change_password(request: Request) -> Response:
-        user = getattr(request.state, "user", None)
-        if user is None:
-            return RedirectResponse("/login", status_code=303)
-        form = await request.form()
-        current = str(form.get("current_password", ""))
-        new = str(form.get("new_password", ""))
-        if not current or not new:
-            return RedirectResponse("/profile?error=password", status_code=303)
-        ok = auth_db.change_password(user.username, current, new)
-        if not ok:
-            return RedirectResponse("/profile?error=password", status_code=303)
-        return RedirectResponse("/profile?saved=password", status_code=303)
 
     @app.post("/settings/config", response_class=HTMLResponse)
     async def settings_save_config(request: Request) -> Response:
