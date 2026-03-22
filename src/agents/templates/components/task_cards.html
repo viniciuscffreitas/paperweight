@@ -60,13 +60,16 @@
     <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.description[:100] }}{% if item.description|length > 100 %}...{% endif %}</div>
     {%- endif %}
 
-    {# ── Bottom row: source badge + PR link ── #}
+    {# ── Bottom row: source badge + PR link + created_by ── #}
     <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
       {%- if item.source_id %}
       {{ badge(item.source_id) }}
       {%- endif %}
       {%- if item.source %}
       <span style="font-size:11px;color:var(--text-muted);">{{ item.source }}</span>
+      {%- endif %}
+      {%- if item.created_by %}
+      <span style="font-size:10px;color:var(--text-disabled);font-weight:500;letter-spacing:.3px;">@{{ item.created_by }}</span>
       {%- endif %}
       {%- if item.pr_url %}
       <span style="flex:1;"></span>
@@ -154,6 +157,9 @@
     <div style="display:flex;align-items:center;gap:8px;">
       {{ status_dot('done') }}
       <span style="font-size:15px;font-weight:600;color:var(--text-primary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.title }}</span>
+      {%- if item.created_by %}
+      <span style="font-size:10px;color:var(--text-disabled);font-weight:500;letter-spacing:.3px;flex-shrink:0;">@{{ item.created_by }}</span>
+      {%- endif %}
       {%- if item.duration is defined and item.duration %}
       <span style="font-size:11px;color:var(--text-disabled);flex-shrink:0;">{{ item.duration }}</span>
       {%- endif %}

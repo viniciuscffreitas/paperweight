@@ -30,6 +30,7 @@ def register_task_routes(
             source_url=data.get("source_url", ""),
             template=data.get("template"),
             status=status,
+            created_by=data.get("created_by"),
         )
         return item.model_dump(mode="json")
 

@@ -63,6 +63,7 @@ class TaskStore:
                 "ALTER TABLE work_items ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0",
                 "ALTER TABLE work_items ADD COLUMN next_retry_at TEXT",
                 "ALTER TABLE work_items ADD COLUMN spec_path TEXT",
+                "ALTER TABLE work_items ADD COLUMN created_by TEXT",
             ]:
                 with contextlib.suppress(sqlite3.OperationalError):
                     conn.execute(migration)
@@ -77,6 +78,9 @@ class TaskStore:
         spec_path = None
         with contextlib.suppress(IndexError, KeyError):
             spec_path = row["spec_path"]
+        created_by = None
+        with contextlib.suppress(IndexError, KeyError):
+            created_by = row["created_by"]
         return WorkItem(
             id=row["id"],
             project=row["project"],
@@ -92,6 +96,7 @@ class TaskStore:
             retry_count=retry_count,
             next_retry_at=next_retry_at,
             spec_path=spec_path,
+            created_by=created_by,
             created_at=datetime.fromisoformat(row["created_at"]),
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
@@ -107,6 +112,7 @@ class TaskStore:
         template: str | None = None,
         status: TaskStatus = TaskStatus.PENDING,
         session_id: str | None = None,
+        created_by: str | None = None,
     ) -> WorkItem:
         item_id = uuid.uuid4().hex[:12]
         now = datetime.now(UTC)
@@ -121,6 +127,7 @@ class TaskStore:
             source_url=source_url,
             status=status,
             session_id=session_id,
+            created_by=created_by,
             created_at=now,
             updated_at=now,
         )
@@ -128,8 +135,9 @@ class TaskStore:
             conn.execute(
                 """INSERT INTO work_items
                    (id, project, template, title, description, source, source_id,
-                    source_url, status, session_id, pr_url, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    source_url, status, session_id, pr_url, created_at, updated_at,
+                    created_by)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     item.id,
                     item.project,
@@ -144,6 +152,7 @@ class TaskStore:
                     item.pr_url,
                     now.isoformat(),
                     now.isoformat(),
+                    item.created_by,
                 ),
             )
         return item

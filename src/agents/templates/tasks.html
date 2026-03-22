@@ -13,6 +13,7 @@
 {% endblock %}
 
 {% block content %}
+<div id="tasks-page" data-username="{{ user.username if user else '' }}">
 <!-- Stats line + 7d metrics -->
 <div style="padding:14px 24px;border-bottom:1px solid var(--separator-subtle);">
   {{ stats_line(counts|default({'running':0,'review':0,'queued':0,'done':0}), budget_spent|default(0), budget_total|default(0), metrics=metrics|default(none)) }}
@@ -99,10 +100,18 @@ function closeNewTaskModal() {
 function submitNewTask() {
   var title = document.getElementById('new-task-title').value.trim();
   if (!title) return;
+  var username = document.getElementById('tasks-page').getAttribute('data-username') || null;
   fetch('/api/work-items', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ project: '{{ id }}', title: title, description: title, source: 'manual', status: 'draft' })
+    body: JSON.stringify({
+      project: '{{ id }}',
+      title: title,
+      description: title,
+      source: 'manual',
+      status: 'draft',
+      created_by: username || undefined,
+    })
   }).then(function(r) { return r.json(); }).then(function(data) {
     closeNewTaskModal();
     window.location.href = '/hub/{{ id }}/task/' + data.id;
@@ -195,4 +204,5 @@ function taskRerun(id) {
     });
 }
 </script>
+</div>{# /tasks-page #}
 {% endblock %}
