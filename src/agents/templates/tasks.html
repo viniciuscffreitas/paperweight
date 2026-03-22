@@ -63,7 +63,34 @@
   </div>
 </div>
 
+<!-- Delete confirmation modal -->
+<div id="delete-confirm-modal" role="dialog" aria-label="Delete task" aria-modal="true"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;
+            align-items:center;justify-content:center;">
+  <div style="background:var(--bg-content);border:1px solid var(--separator-strong);border-radius:16px;
+              padding:24px;width:90%;max-width:380px;">
+    <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:6px;">Delete task?</div>
+    <div id="delete-confirm-title" style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;
+         overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      {{ btn('Cancel', variant='ghost', onclick='closeDeleteModal()') }}
+      <button id="delete-confirm-btn" onclick="confirmDelete()"
+              style="background:var(--status-error);color:#fff;padding:6px 16px;font-size:13px;
+                     font-weight:600;border-radius:8px;border:none;cursor:pointer;font-family:inherit;
+                     transition:opacity .15s;"
+              onmouseover="this.style.opacity='.85'"
+              onmouseout="this.style.opacity='1'">Delete Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+     z-index:300;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;">
+</div>
+
 <script>
+/* ── New Task ─────────────────────────────────── */
 function openNewTaskModal() {
   document.getElementById('new-task-modal').style.display = 'flex';
   setTimeout(function() { document.getElementById('new-task-title').focus(); }, 60);
@@ -84,6 +111,106 @@ function submitNewTask() {
     closeNewTaskModal();
     window.location.href = '/hub/{{ id }}/task/' + data.id;
   });
+}
+
+/* ── Toast ────────────────────────────────────── */
+function showToast(msg, type) {
+  var el = document.createElement('div');
+  var color = type === 'error' ? 'var(--status-error)' : type === 'warn' ? 'var(--status-warning)' : 'var(--status-success)';
+  el.style.cssText = 'background:var(--bg-chrome);border:1px solid var(--separator-strong);' +
+    'border-left:3px solid ' + color + ';color:var(--text-primary);padding:10px 16px;' +
+    'border-radius:10px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.4);' +
+    'pointer-events:auto;opacity:0;transition:opacity .2s;white-space:nowrap;';
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  requestAnimationFrame(function() { el.style.opacity = '1'; });
+  setTimeout(function() {
+    el.style.opacity = '0';
+    setTimeout(function() { el.remove(); }, 250);
+  }, 3500);
+}
+
+/* ── Overflow menu ────────────────────────────── */
+function toggleTaskMenu(id) {
+  var menu = document.getElementById('task-menu-' + id);
+  var isOpen = menu.style.display !== 'none';
+  // Close all other open menus
+  document.querySelectorAll('[id^="task-menu-"]').forEach(function(m) { m.style.display = 'none'; });
+  if (!isOpen) menu.style.display = 'block';
+}
+document.addEventListener('click', function() {
+  document.querySelectorAll('[id^="task-menu-"]').forEach(function(m) { m.style.display = 'none'; });
+});
+
+/* ── Delete ───────────────────────────────────── */
+var _deleteTargetId = null;
+function taskDelete(id, title) {
+  _deleteTargetId = id;
+  document.getElementById('delete-confirm-title').textContent = title;
+  document.getElementById('delete-confirm-modal').style.display = 'flex';
+}
+function closeDeleteModal() {
+  _deleteTargetId = null;
+  document.getElementById('delete-confirm-modal').style.display = 'none';
+}
+function confirmDelete() {
+  if (!_deleteTargetId) return;
+  var id = _deleteTargetId;
+  closeDeleteModal();
+  fetch('/api/work-items/' + id, { method: 'DELETE' }).then(function(r) {
+    if (r.status === 204) {
+      var card = document.getElementById('task-card-' + id);
+      if (card) {
+        card.style.transition = 'opacity .25s,max-height .3s';
+        card.style.opacity = '0';
+        card.style.overflow = 'hidden';
+        card.style.maxHeight = card.offsetHeight + 'px';
+        setTimeout(function() { card.style.maxHeight = '0'; card.style.marginBottom = '0'; }, 50);
+        setTimeout(function() { card.remove(); }, 350);
+      }
+      showToast('Task deleted', 'success');
+    } else if (r.status === 409) {
+      showToast('Cannot delete a running task', 'error');
+    } else {
+      showToast('Delete failed', 'error');
+    }
+  }).catch(function() { showToast('Delete failed', 'error'); });
+}
+
+/* ── Duplicate ────────────────────────────────── */
+function taskDuplicate(id, title) {
+  fetch('/api/work-items/' + id + '/duplicate', { method: 'POST' })
+    .then(function(r) {
+      if (r.status === 201) {
+        showToast('Task duplicated — opening…', 'success');
+        return r.json().then(function(data) {
+          setTimeout(function() { window.location.href = '/hub/{{ id }}/task/' + data.id; }, 800);
+        });
+      } else {
+        showToast('Duplicate failed', 'error');
+      }
+    }).catch(function() { showToast('Duplicate failed', 'error'); });
+}
+
+/* ── Cancel (running) ─────────────────────────── */
+function taskCancel(id) {
+  fetch('/api/work-items/' + id, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ status: 'failed' })
+  }).then(function(r) {
+    if (r.ok) { showToast('Task cancelled', 'warn'); setTimeout(function() { location.reload(); }, 1000); }
+    else { showToast('Cancel failed', 'error'); }
+  });
+}
+
+/* ── Rerun ────────────────────────────────────── */
+function taskRerun(id) {
+  fetch('/api/work-items/' + id + '/rerun', { method: 'POST' })
+    .then(function(r) {
+      if (r.ok) { showToast('Task queued for rerun', 'success'); setTimeout(function() { location.reload(); }, 800); }
+      else { showToast('Rerun failed', 'error'); }
+    });
 }
 </script>
 {% endblock %}
