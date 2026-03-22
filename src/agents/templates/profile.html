@@ -18,7 +18,10 @@
     document.addEventListener('DOMContentLoaded', function() {
       {% if saved == 'account' %}showToast('API key updated', 'success');
       {% elif saved == 'password' %}showToast('Password changed', 'success');
+      {% elif saved == 'avatar' %}showToast('Photo updated', 'success');
       {% elif error == 'password' %}showToast('Current password incorrect', 'error');
+      {% elif error == 'avatar_type' %}showToast('Only JPEG, PNG or WebP allowed', 'error');
+      {% elif error == 'avatar_size' %}showToast('File too large (max 512 KB)', 'error');
       {% endif %}
     });
   </script>
@@ -28,6 +31,34 @@
   <div style="display:flex;align-items:center;gap:6px;margin-bottom:16px;">
     <span class="material-icons" style="font-size:16px;color:var(--text-disabled);">person</span>
     <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);">Account</span>
+  </div>
+
+  <!-- Avatar section -->
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:28px;">
+    {% if user.avatar_url %}
+      <img src="{{ user.avatar_url }}" alt="{{ user.username }}"
+           style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--separator-strong);">
+    {% else %}
+      <div style="width:64px;height:64px;border-radius:50%;background:var(--bg-chrome);
+                  border:2px solid var(--separator-strong);display:flex;align-items:center;
+                  justify-content:center;font-size:22px;font-weight:700;color:var(--text-muted);">
+        {{ user.username[0].upper() }}
+      </div>
+    {% endif %}
+    <form method="post" action="/profile/avatar" enctype="multipart/form-data">
+      <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;
+                    letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">Photo</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp"
+               style="font-size:12px;color:var(--text-secondary);">
+        <button type="submit"
+                style="background:var(--bg-chrome);border:1px solid var(--separator-strong);
+                       color:var(--text-secondary);padding:5px 12px;font-size:12px;
+                       border-radius:6px;cursor:pointer;font-family:inherit;transition:all .15s;"
+                onmouseover="this.style.borderColor='var(--accent-text)'"
+                onmouseout="this.style.borderColor='var(--separator-strong)'">Upload</button>
+      </div>
+    </form>
   </div>
 
   <div style="margin-bottom:24px;">

@@ -55,6 +55,7 @@
       >+ add project</a>
     </div>
 
+    {% set _su = user | default(none) %}
     <div style="padding:8px 12px;display:flex;align-items:center;gap:4px;">
       <a href="/profile" title="Profile"
          aria-label="Profile"
@@ -63,7 +64,12 @@
                 text-decoration:none;transition:background .15s,color .15s;"
          onmouseover="this.style.background='var(--bg-content)';this.style.color='var(--text-secondary)'"
          onmouseout="this.style.background='transparent';this.style.color='var(--text-disabled)'">
-        <span class="material-icons" style="font-size:18px;">person</span>
+        {% if _su and _su.avatar_url %}
+          <img src="{{ _su.avatar_url }}" alt="{{ _su.username }}"
+               style="width:24px;height:24px;border-radius:50%;object-fit:cover;">
+        {% else %}
+          <span class="material-icons" style="font-size:18px;">person</span>
+        {% endif %}
       </a>
       <a href="/settings" title="Settings"
          aria-label="Settings"

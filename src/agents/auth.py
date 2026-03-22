@@ -66,6 +66,7 @@ class User:
     _api_key_enc: str  # encrypted; use .api_key property
     github_id: str | None = None
     _github_token_enc: str = ""  # encrypted; use .github_token property
+    avatar_url: str = ""
 
     @property
     def api_key(self) -> str:
@@ -194,6 +195,13 @@ class AuthDB:
                 )
         except Exception:
             pass
+        try:
+            with self._conn() as mconn:
+                mconn.execute(
+                    "ALTER TABLE users ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''"
+                )
+        except Exception:
+            pass  # Column already present
 
     # ------------------------------------------------------------------
     # Users
@@ -230,7 +238,7 @@ class AuthDB:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT id, username, password_hash, password_salt,"
-                " api_key_enc, is_admin, github_id, github_token_enc"
+                " api_key_enc, is_admin, github_id, github_token_enc, avatar_url"
                 " FROM users WHERE username = ?",
                 (username,),
             ).fetchone()
@@ -245,13 +253,14 @@ class AuthDB:
             _api_key_enc=row["api_key_enc"] or "",
             github_id=row["github_id"],
             _github_token_enc=row["github_token_enc"] or "",
+            avatar_url=row["avatar_url"] or "",
         )
 
     def get_user(self, user_id: str) -> User | None:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT id, username, api_key_enc, is_admin, github_id,"
-                " github_token_enc FROM users WHERE id = ?",
+                " github_token_enc, avatar_url FROM users WHERE id = ?",
                 (user_id,),
             ).fetchone()
         if row is None:
@@ -263,13 +272,14 @@ class AuthDB:
             _api_key_enc=row["api_key_enc"] or "",
             github_id=row["github_id"],
             _github_token_enc=row["github_token_enc"] or "",
+            avatar_url=row["avatar_url"] or "",
         )
 
     def find_user_by_github_id(self, github_id: str) -> User | None:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT id, username, api_key_enc, is_admin, github_id,"
-                " github_token_enc FROM users WHERE github_id = ?",
+                " github_token_enc, avatar_url FROM users WHERE github_id = ?",
                 (github_id,),
             ).fetchone()
         if row is None:
@@ -281,6 +291,7 @@ class AuthDB:
             _api_key_enc=row["api_key_enc"] or "",
             github_id=row["github_id"],
             _github_token_enc=row["github_token_enc"] or "",
+            avatar_url=row["avatar_url"] or "",
         )
 
     def create_github_user(self, github_id: str, username: str) -> User:
@@ -317,6 +328,13 @@ class AuthDB:
             conn.execute(
                 "UPDATE users SET github_token_enc = ? WHERE id = ?",
                 (token_enc, user_id),
+            )
+
+    def update_avatar(self, user_id: str, data_uri: str) -> None:
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE users SET avatar_url = ? WHERE id = ?",
+                (data_uri, user_id),
             )
 
     def change_password(self, username: str, current_password: str, new_password: str) -> bool:

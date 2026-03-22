@@ -86,3 +86,49 @@ def test_profile_requires_auth():
     resp = c.get("/profile")
     assert resp.status_code == 303
     assert "/login" in resp.headers["location"]
+
+
+def test_avatar_upload_stores_data_uri(client, auth_db, alice):
+    """Uploading a valid JPEG sets avatar_url as data URI on the user."""
+    import io
+    # Minimal valid JPEG bytes
+    tiny_jpeg = (
+        b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
+        b"\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t"
+        b"\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a"
+        b"\x1f\x1e\x1d\x1a\x1c\x1c $.' \",#\x1c\x1c(7),01444\x1f'9=82<.342\x1e\xc0"
+        b"\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00\xff\xc4\x00\x1f\x00\x00\x01"
+        b"\x05\x01\x01\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03"
+        b"\x04\x05\x06\x07\x08\t\n\x0b\xff\xda\x00\x08\x01\x01\x00\x00?\x00\xf5\x0f"
+        b"\xff\xd9"
+    )
+    resp = client.post(
+        "/profile/avatar",
+        files={"avatar": ("photo.jpg", io.BytesIO(tiny_jpeg), "image/jpeg")},
+    )
+    assert resp.status_code in (200, 303)
+    updated = auth_db.get_user(alice.id)
+    assert updated.avatar_url.startswith("data:image/")
+
+
+def test_avatar_upload_rejects_large_file(client):
+    """Files over 512 KB are rejected."""
+    import io
+    big = io.BytesIO(b"\xff\xd8" + b"\x00" * (513 * 1024))
+    resp = client.post(
+        "/profile/avatar",
+        files={"avatar": ("big.jpg", big, "image/jpeg")},
+        follow_redirects=False,
+    )
+    assert resp.status_code in (303, 400)
+
+
+def test_avatar_upload_rejects_wrong_mime(client):
+    """Non-image files are rejected."""
+    import io
+    resp = client.post(
+        "/profile/avatar",
+        files={"avatar": ("script.js", io.BytesIO(b"alert(1)"), "text/javascript")},
+        follow_redirects=False,
+    )
+    assert resp.status_code in (303, 400)
