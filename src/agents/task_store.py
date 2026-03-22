@@ -286,16 +286,16 @@ class TaskStore:
         return cursor.rowcount
 
     def delete(self, item_id: str) -> bool:
-        """Delete a task. Returns False if the task doesn't exist or is RUNNING."""
-        item = self.get(item_id)
-        if item is None:
-            return False
-        if item.status == TaskStatus.RUNNING:
-            return False
+        """Atomically delete a task. Returns False if it doesn't exist or is RUNNING."""
         with self._conn() as conn:
-            conn.execute("DELETE FROM task_context WHERE task_id = ?", (item_id,))
-            conn.execute("DELETE FROM work_items WHERE id = ?", (item_id,))
-        return True
+            cursor = conn.execute(
+                "DELETE FROM work_items WHERE id = ? AND status != ?",
+                (item_id, TaskStatus.RUNNING),
+            )
+            if cursor.rowcount == 1:
+                conn.execute("DELETE FROM task_context WHERE task_id = ?", (item_id,))
+                return True
+        return False
 
     def duplicate(self, item_id: str) -> WorkItem | None:
         """Duplicate a task, returning a new DRAFT with the same title/description/project."""

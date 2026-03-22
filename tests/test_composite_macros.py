@@ -17,7 +17,7 @@ def jinja_env():
 
 def test_task_card_renders_title(jinja_env):
     tmpl = jinja_env.from_string("""
-    {% from "components/macros.html" import task_card %}
+    {% from "components/task_cards.html" import task_card %}
     {{ task_card(item, project_id="proj1") }}
     """)
     item = type(
@@ -43,7 +43,7 @@ def test_task_card_renders_title(jinja_env):
 
 def test_task_card_running_has_glow(jinja_env):
     tmpl = jinja_env.from_string(
-        '{% from "components/macros.html" import task_card %}{{ task_card(item, project_id="p") }}'
+        '{% from "components/task_cards.html" import task_card %}{{ task_card(item, project_id="p") }}'
     )
     item = type(
         "Item",
@@ -68,7 +68,7 @@ def test_task_card_running_has_glow(jinja_env):
 
 def test_task_card_done_has_opacity(jinja_env):
     tmpl = jinja_env.from_string(
-        '{% from "components/macros.html" import task_card_done %}'
+        '{% from "components/task_cards.html" import task_card_done %}'
         '{{ task_card_done(item, project_id="p") }}'
     )
     item = type(

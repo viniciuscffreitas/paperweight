@@ -75,12 +75,13 @@ def register_task_routes(app: FastAPI, task_store: TaskStore) -> None:
 
     @app.delete("/api/work-items/{item_id}", response_model=None)
     async def delete_work_item(item_id: str) -> Response:
+        if task_store.delete(item_id):
+            return Response(status_code=204)
+        # Distinguish 404 vs 409 by checking whether the task still exists
         item = task_store.get(item_id)
         if item is None:
             return Response(status_code=404, content="Work item not found")
-        if not task_store.delete(item_id):
-            return Response(status_code=409, content="Cannot delete a running task")
-        return Response(status_code=204)
+        return Response(status_code=409, content="Cannot delete a running task")
 
     @app.post("/api/work-items/{item_id}/duplicate", response_model=None)
     async def duplicate_work_item(item_id: str) -> Response | dict:

@@ -5,9 +5,7 @@ Behavior Contract:
 - MUST NOT CHANGE: normal completion, normal failure, task_processor error handling
 """
 
-from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% from "components/macros.html" import stats_line, task_card, task_card_done, btn %}
+{% from "components/macros.html" import stats_line, btn %}
+{% from "components/task_cards.html" import task_card, task_card_done %}
 
 {% block mobile_title %}{{ project_name|default('Tasks') }}{% endblock %}
 
@@ -140,6 +141,9 @@ function toggleTaskMenu(id) {
 }
 document.addEventListener('click', function() {
   document.querySelectorAll('[id^="task-menu-"]').forEach(function(m) { m.style.display = 'none'; });
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') { closeDeleteModal(); closeNewTaskModal(); }
 });
 
 /* ── Delete ───────────────────────────────────── */

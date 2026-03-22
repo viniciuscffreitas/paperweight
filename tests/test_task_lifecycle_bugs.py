@@ -6,9 +6,10 @@ Bug 3: Misclassified retryable errors (command not found, permission denied)
 Bug 4: Tasks FAILED despite agent having committed work
 """
 
-import pytest
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from agents.models import (
     ProjectConfig,
@@ -19,9 +20,8 @@ from agents.models import (
     WorkItem,
 )
 from agents.retry import RetryPolicy, should_retry_error
-from agents.task_store import TaskStore
 from agents.task_processor import TaskProcessor
-
+from agents.task_store import TaskStore
 
 # ── Fixtures ──────────────────────────────────────────────────────
 
@@ -35,6 +35,7 @@ def store(tmp_path):
 def client(store):
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from agents.task_routes import register_task_routes
 
     app = FastAPI()

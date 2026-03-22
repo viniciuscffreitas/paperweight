@@ -193,3 +193,13 @@ def test_store_duplicate_returns_none_for_nonexistent(store):
     """TaskStore.duplicate returns None when the original doesn't exist."""
     result = store.duplicate("nonexistent")
     assert result is None
+
+
+def test_delete_also_removes_task_context_entries(store):
+    """Deleting a task cleans up its task_context rows."""
+    item = store.create(project="p", title="t", description="d", source="manual")
+    store.add_context(item.id, "run_start", "started")
+    store.add_context(item.id, "run_output", "some output")
+    assert len(store.get_context(item.id)) == 2
+    store.delete(item.id)
+    assert store.get_context(item.id) == []

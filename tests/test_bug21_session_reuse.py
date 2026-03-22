@@ -5,12 +5,10 @@ Behavior Contract:
 - MUST NOT CHANGE: agent_routes worktree check, new session creation, cleanup
 """
 
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
-from agents.models import TaskStatus
 from agents.session_manager import SessionManager
 from agents.task_store import TaskStore
 
@@ -112,6 +110,7 @@ def test_task_processor_updates_session_settings_on_reuse(
 def test_agent_routes_worktree_check_still_present() -> None:
     """agent_routes.py must still have the worktree existence check."""
     import inspect
+
     from agents.agent_routes import register_agent_routes
 
     source = inspect.getsource(register_agent_routes)
