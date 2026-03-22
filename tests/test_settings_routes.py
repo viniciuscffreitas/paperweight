@@ -88,16 +88,17 @@ def test_get_settings_returns_200(client: TestClient) -> None:
     assert resp.status_code == 200
 
 
-def test_get_settings_shows_masked_api_key(client: TestClient) -> None:
+def test_get_settings_does_not_show_api_key(client: TestClient) -> None:
+    # API key and username moved to /profile; settings page should not show them
     resp = client.get("/settings")
-    assert "sk-ant-" in resp.text
-    # Should NOT show the full key
+    assert resp.status_code == 200
     assert "sk-ant-test-key" not in resp.text
 
 
-def test_get_settings_shows_username(client: TestClient) -> None:
+def test_get_settings_shows_profile_back_link(client: TestClient) -> None:
     resp = client.get("/settings")
-    assert "testuser" in resp.text
+    assert resp.status_code == 200
+    assert "/profile" in resp.text
 
 
 # ---------------------------------------------------------------------------
@@ -109,9 +110,9 @@ def test_post_settings_updates_api_key(client: TestClient, auth_db: AuthDB) -> N
     resp = client.post(
         "/settings/account", data={"api_key": "sk-ant-new-key"}, follow_redirects=False
     )
-    # Should redirect back to settings
+    # Should redirect to profile after account save
     assert resp.status_code == 303
-    assert "/settings" in resp.headers["location"]
+    assert "/profile" in resp.headers["location"]
 
     # Verify the key was updated in the DB
     users_with_key = [
@@ -144,6 +145,7 @@ def test_post_password_change_success(client: TestClient, auth_db: AuthDB) -> No
         follow_redirects=False,
     )
     assert resp.status_code == 303
+    assert "/profile" in resp.headers["location"]
     assert "saved=password" in resp.headers["location"]
     assert auth_db.authenticate("testuser", "newpass456") is not None
 
@@ -155,6 +157,7 @@ def test_post_password_change_wrong_current(client: TestClient) -> None:
         follow_redirects=False,
     )
     assert resp.status_code == 303
+    assert "/profile" in resp.headers["location"]
     assert "error=password" in resp.headers["location"]
 
 
@@ -173,7 +176,8 @@ def test_get_settings_shows_execution_config_for_admin(admin_client: TestClient)
 def test_get_settings_hides_admin_sections_for_regular_user(client: TestClient) -> None:
     resp = client.get("/settings")
     assert resp.status_code == 200
-    assert "Account" in resp.text
+    # Account section moved to /profile; settings only shows admin sections
+    assert "Account" not in resp.text
     assert "Execution" not in resp.text
 
 

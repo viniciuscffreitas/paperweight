@@ -12,14 +12,14 @@
 {% block content %}
 <div style="padding:32px 28px;max-width:520px;">
 
+  <p style="margin-bottom:24px;"><a href="/profile" style="font-size:12px;color:var(--text-disabled);text-decoration:none;">← Profile</a></p>
+
   {# --- Flash messages --- #}
   {% if saved %}
   <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin-bottom:20px;font-size:13px;color:var(--status-success);
               background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);border-radius:8px;">
     <span class="material-icons" style="font-size:16px;">check_circle</span>
-    {% if saved == "account" %}API key updated.
-    {% elif saved == "password" %}Password changed successfully.
-    {% elif saved == "config" %}Configuration saved. Restart required to apply.
+    {% if saved == "config" %}Configuration saved. Restart required to apply.
     {% elif saved == "integrations" %}Integrations saved. Restart required to apply.
     {% endif %}
   </div>
@@ -29,71 +29,10 @@
   <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin-bottom:20px;font-size:13px;color:var(--status-error);
               background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:8px;">
     <span class="material-icons" style="font-size:16px;">error_outline</span>
-    {% if error == "password" %}Current password is incorrect.
-    {% elif error == "config" %}Could not save configuration.
+    {% if error == "config" %}Could not save configuration.
     {% endif %}
   </div>
   {% endif %}
-
-  {# ── Account ── #}
-  <div style="display:flex;align-items:center;gap:6px;margin-bottom:16px;">
-    <span class="material-icons" style="font-size:16px;color:var(--text-disabled);">person</span>
-    <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);">Account</span>
-  </div>
-
-  <div style="margin-bottom:24px;">
-    <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px;">Username</div>
-    <div style="font-size:14px;color:var(--text-primary);">{{ user.username }}</div>
-  </div>
-
-  <hr style="border:none;border-top:1px solid var(--separator-strong);margin:0 0 24px;">
-
-  {# API key #}
-  <div style="display:flex;align-items:center;gap:6px;margin-bottom:16px;">
-    <span class="material-icons" style="font-size:16px;color:var(--text-disabled);">vpn_key</span>
-    <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);">Claude API Key</span>
-  </div>
-
-  {% if masked_key %}
-  <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;font-family:monospace;">{{ masked_key }}</div>
-  {% else %}
-  <div style="font-size:13px;color:var(--text-disabled);font-style:italic;margin-bottom:12px;">No API key configured.</div>
-  {% endif %}
-
-  <form method="post" action="/settings/account">
-    <div style="margin-bottom:14px;">
-      <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">New API Key</label>
-      <input name="api_key" type="password" autocomplete="off" placeholder="sk-ant-..."
-             style="width:100%;padding:10px 14px;font-size:13px;background:var(--bg-chrome);border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
-             onfocus="this.style.borderColor='var(--accent-focus)'" onblur="this.style.borderColor='var(--separator-strong)'">
-      <div style="font-size:11px;color:var(--text-disabled);margin-top:6px;">Used to run your agents. Stored encrypted. Leave empty to clear.</div>
-    </div>
-    <button type="submit" style="background:var(--accent-gradient);color:#fff;padding:6px 16px;font-size:13px;font-weight:500;border-radius:8px;border:none;cursor:pointer;font-family:inherit;transition:all .15s;">Save</button>
-  </form>
-
-  <hr style="border:none;border-top:1px solid var(--separator-strong);margin:28px 0 24px;">
-
-  {# Password #}
-  <div style="display:flex;align-items:center;gap:6px;margin-bottom:16px;">
-    <span class="material-icons" style="font-size:16px;color:var(--text-disabled);">lock</span>
-    <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);">Change Password</span>
-  </div>
-
-  <form method="post" action="/settings/password">
-    <div style="margin-bottom:14px;">
-      <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">Current Password</label>
-      <input name="current_password" type="password" autocomplete="current-password"
-             style="width:100%;padding:10px 14px;font-size:13px;background:var(--bg-chrome);border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
-             onfocus="this.style.borderColor='var(--accent-focus)'" onblur="this.style.borderColor='var(--separator-strong)'">
-    </div>
-    <div style="margin-bottom:14px;">
-      <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">New Password</label>
-      <input name="new_password" type="password" autocomplete="new-password"
-             style="width:100%;padding:10px 14px;font-size:13px;background:var(--bg-chrome);border:1px solid var(--separator-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;"
-             onfocus="this.style.borderColor='var(--accent-focus)'" onblur="this.style.borderColor='var(--separator-strong)'">
-    </div>
-    <button type="submit" style="background:var(--accent-gradient);color:#fff;padding:6px 16px;font-size:13px;font-weight:500;border-radius:8px;border:none;cursor:pointer;font-family:inherit;transition:all .15s;">Change Password</button>
-  </form>
 
   {# ── Admin-only ── #}
   {% if user.is_admin %}

@@ -253,7 +253,7 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
         form = await request.form()
         api_key = str(form.get("api_key", "")).strip()
         auth_db.update_api_key(user.id, api_key)
-        return RedirectResponse("/settings?saved=account", status_code=303)
+        return RedirectResponse("/profile?saved=account", status_code=303)
 
     @app.post("/settings/password", response_class=HTMLResponse)
     async def settings_change_password(request: Request) -> Response:
@@ -264,11 +264,11 @@ def register_auth_routes(app: FastAPI, auth_db: AuthDB, templates: Jinja2Templat
         current = str(form.get("current_password", ""))
         new = str(form.get("new_password", ""))
         if not current or not new:
-            return RedirectResponse("/settings?error=password", status_code=303)
+            return RedirectResponse("/profile?error=password", status_code=303)
         ok = auth_db.change_password(user.username, current, new)
         if not ok:
-            return RedirectResponse("/settings?error=password", status_code=303)
-        return RedirectResponse("/settings?saved=password", status_code=303)
+            return RedirectResponse("/profile?error=password", status_code=303)
+        return RedirectResponse("/profile?saved=password", status_code=303)
 
     @app.post("/settings/config", response_class=HTMLResponse)
     async def settings_save_config(request: Request) -> Response:

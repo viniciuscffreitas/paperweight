@@ -189,10 +189,12 @@ def create_lifespan(
             from agents.auth import AuthDB
             from agents.auth_routes import register_auth_routes
             from agents.dashboard_html import _TEMPLATES as _auth_templates
+            from agents.profile_routes import register_profile_routes
 
             auth_db_inst = AuthDB(data_dir / "auth.db")
             auth_db_inst.bootstrap_invite()
             register_auth_routes(app, auth_db_inst, _auth_templates)
+            register_profile_routes(app, auth_db_inst, _auth_templates)
             app.state.auth_db = auth_db_inst
             logger.info("Auth enabled (SECRET_KEY set)")
 
