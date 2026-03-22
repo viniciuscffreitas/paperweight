@@ -1,12 +1,22 @@
 """API routes for work item (task) CRUD."""
 
+import logging
+import shutil
+from pathlib import Path
+
 from fastapi import FastAPI, Response
 
 from agents.models import TaskStatus
 from agents.task_store import TaskStore
 
+logger = logging.getLogger(__name__)
 
-def register_task_routes(app: FastAPI, task_store: TaskStore) -> None:
+
+def register_task_routes(
+    app: FastAPI,
+    task_store: TaskStore,
+    session_manager: object | None = None,
+) -> None:
     @app.post("/api/work-items", status_code=201)
     async def create_work_item(data: dict) -> dict:
         status_str = data.get("status", "pending")
@@ -75,13 +85,28 @@ def register_task_routes(app: FastAPI, task_store: TaskStore) -> None:
 
     @app.delete("/api/work-items/{item_id}", response_model=None)
     async def delete_work_item(item_id: str) -> Response:
-        if task_store.delete(item_id):
-            return Response(status_code=204)
-        # Distinguish 404 vs 409 by checking whether the task still exists
-        item = task_store.get(item_id)
-        if item is None:
+        # Read session_id before deletion (task won't exist after)
+        task = task_store.get(item_id)
+        if task is None:
             return Response(status_code=404, content="Work item not found")
-        return Response(status_code=409, content="Cannot delete a running task")
+        session_id = task.session_id
+
+        if not task_store.delete(item_id):
+            return Response(status_code=409, content="Cannot delete a running task")
+
+        # Best-effort session + worktree cleanup
+        if session_manager is not None and session_id:
+            try:
+                session = session_manager.get_session(session_id)
+                if session is not None:
+                    session_manager.close_session(session_id)
+                    worktree = Path(session.worktree_path)
+                    if worktree.exists():
+                        shutil.rmtree(worktree)
+            except Exception:
+                logger.warning("Failed to clean up session %s after task deletion", session_id)
+
+        return Response(status_code=204)
 
     @app.post("/api/work-items/{item_id}/duplicate", response_model=None)
     async def duplicate_work_item(item_id: str) -> Response | dict:

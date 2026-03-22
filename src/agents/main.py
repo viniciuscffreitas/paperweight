@@ -325,7 +325,7 @@ def create_app(
 
     from agents.task_routes import register_task_routes
 
-    register_task_routes(app, task_store)
+    register_task_routes(app, task_store, session_manager=session_manager)
 
     # --- Webhook routes ---
 
